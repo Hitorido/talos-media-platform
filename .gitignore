@@ -31,7 +31,12 @@ yarn-error.*
 *.pem
 
 # local env files
+.env
 .env*.local
+backend/.env
+backend/prisma/*.db
+backend/prisma/*.db-journal
+backend/dist/
 
 # typescript
 *.tsbuildinfo
