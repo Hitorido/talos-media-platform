@@ -1,6 +1,7 @@
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
+import { prisma } from './config/prisma.js';
 import { ENV } from './config/env.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { initializeBackendProviders } from './providers/index.js';
@@ -22,7 +23,11 @@ export function createApp() {
   app.use(helmet());
   app.use(
     cors({
-      origin: ENV.CORS_ORIGIN === '*' ? true : ENV.CORS_ORIGIN.split(',').map((value) => value.trim()),
+      origin: (origin, callback) => {
+        if (!origin) return callback(null, true);
+        const allowedOrigins = ENV.CORS_ORIGIN.split(',').map((value) => value.trim());
+        callback(null, allowedOrigins.includes(origin));
+      },
     }),
   );
   app.use(express.json({ limit: '1mb' }));
@@ -38,6 +43,22 @@ export function createApp() {
         contentGateway: true,
       },
     });
+  });
+
+  app.get('/health/ready', async (_req, res) => {
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      res.json({
+        success: true,
+        data: { status: 'ready', database: 'reachable' },
+      });
+    } catch {
+      res.status(503).json({
+        success: false,
+        error: 'Database is unavailable.',
+        data: { status: 'not-ready', database: 'unreachable' },
+      });
+    }
   });
 
   app.use('/api/auth', authRouter);

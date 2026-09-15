@@ -45,7 +45,7 @@ async function main() {
   );
   assertIncludes(
     'backend/src/routes/novel.routes.ts',
-    ['/search', '/status', 'novelGatewaySearch'],
+    ['/search', '/status', 'contentGateway'],
     'express novel routes',
   );
   assertIncludes(

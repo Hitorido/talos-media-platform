@@ -3,6 +3,7 @@ import { Switch, View } from 'react-native';
 
 import { Button, Input, Text } from '@/components/ui';
 import { initializeProviders, providerRegistry } from '@/providers';
+import { fetchProviderHealth } from '@/services/api/backendApi';
 import {
   useBackendConfigStore,
   type BackendUrlKey,
@@ -77,12 +78,33 @@ export function SourcesContent() {
   const providers = providerRegistry.list();
   const enabledMap = useProviderStore((state) => state.enabled);
   const setProviderEnabled = useProviderStore((state) => state.setProviderEnabled);
+  const setPreferredProvider = useProviderStore((state) => state.setPreferredProvider);
+  const getPreferredProvider = useProviderStore((state) => state.getPreferredProvider);
   const getProviderStatus = useProviderStore((state) => state.getProviderStatus);
   const backendUrls = useBackendConfigStore((state) => state.backendUrls);
   const setBackendUrl = useBackendConfigStore((state) => state.setBackendUrl);
   const isBackendConfigured = useBackendConfigStore((state) => state.isBackendConfigured);
   const healthByProvider = useProviderHealthStore((state) => state.healthByProvider);
+  const setHealth = useProviderHealthStore((state) => state.setHealth);
   const [draftUrls, setDraftUrls] = useState<Partial<Record<BackendUrlKey, string>>>({});
+  const [healthLoading, setHealthLoading] = useState(false);
+  const [healthMessage, setHealthMessage] = useState<string | null>(null);
+
+  async function refreshBackendHealth() {
+    setHealthLoading(true);
+    setHealthMessage(null);
+    try {
+      const response = await fetchProviderHealth();
+      response.providers.forEach((provider) => {
+        if (provider.health) setHealth(provider.id, provider.health);
+      });
+      setHealthMessage(`Checked ${response.providers.length} backend providers.`);
+    } catch (error) {
+      setHealthMessage(error instanceof Error ? error.message : 'Unable to check backend health.');
+    } finally {
+      setHealthLoading(false);
+    }
+  }
 
   const grouped = {
     anime: providers.filter((provider) => provider.definition.mediaTypes.includes('anime')),
@@ -100,6 +122,18 @@ export function SourcesContent() {
           Configure optional self-hosted backends. Novel Backend Gateway uses the Novel URL when set;
           otherwise it calls this app&apos;s Express /api/novels proxy (requires NOVEL_GATEWAY_URL).
         </Text>
+        <Button
+          label="Refresh backend health"
+          variant="outline"
+          size="sm"
+          loading={healthLoading}
+          onPress={refreshBackendHealth}
+        />
+        {healthMessage ? (
+          <Text variant="caption" tone={healthMessage.startsWith('Checked') ? 'success' : 'destructive'}>
+            {healthMessage}
+          </Text>
+        ) : null}
         {backendFields.map((field) => {
           const saved = backendUrls[field.key] ?? '';
           const value = draftUrls[field.key] ?? saved;
@@ -164,6 +198,7 @@ export function SourcesContent() {
               const def = provider.definition;
               const status = getProviderStatus(def.id);
               const enabled = enabledMap[def.id] === true;
+              const preferred = getPreferredProvider(def.mediaTypes[0]) === def.id;
               const canToggle = def.capabilities.length > 0;
               const health = healthByProvider[def.id];
               const backendConfigured = def.backendKey
@@ -181,8 +216,8 @@ export function SourcesContent() {
                       <Text variant="caption" tone="muted">
                         {def.description}
                       </Text>
-                      <Text variant="caption" className={statusColor(status)}>
-                        Status: {statusLabels[status]}
+                      <Text variant="caption" className={statusColor(enabled ? status : 'disabled')}>
+                        Status: {statusLabels[enabled ? status : 'disabled']}
                       </Text>
                       <Text variant="caption" tone="muted">
                         Mode: {executionModeLabels[def.executionMode]}
@@ -200,6 +235,11 @@ export function SourcesContent() {
                       {def.capabilities.length > 0 ? (
                         <Text variant="caption" tone="muted">
                           Capabilities: {def.capabilities.join(', ')}
+                        </Text>
+                      ) : null}
+                      {preferred ? (
+                        <Text variant="caption" className="text-primary-500">
+                          Primary source for {def.mediaTypes[0]}
                         </Text>
                       ) : null}
                       {health?.lastSuccessAt || health?.lastFailureAt ? (
@@ -220,11 +260,22 @@ export function SourcesContent() {
                         </Text>
                       ) : null}
                     </View>
-                    <Switch
-                      value={enabled}
-                      disabled={!canToggle}
-                      onValueChange={(value) => setProviderEnabled(def.id, value)}
-                    />
+                    <View className="items-end gap-2">
+                      <Switch
+                        value={enabled}
+                        disabled={!canToggle}
+                        onValueChange={(value) => setProviderEnabled(def.id, value)}
+                      />
+                      {enabled && canToggle ? (
+                        <Button
+                          label={preferred ? 'Primary' : 'Set primary'}
+                          variant={preferred ? 'secondary' : 'ghost'}
+                          size="sm"
+                          disabled={preferred}
+                          onPress={() => setPreferredProvider(def.mediaTypes[0], def.id)}
+                        />
+                      ) : null}
+                    </View>
                   </View>
                 </View>
               );

@@ -42,3 +42,4 @@ The app resolves a default URL automatically via `lib/apiConfig.ts`.
 - Set `CONSUMET_BASE_URL` only for a self-hosted Consumet instance. Public Consumet remains unavailable (HTTP 451).
 - This backend does **not** scrape websites and does **not** accept arbitrary user-supplied fetch URLs (SSRF-safe).
 - Database remains **SQLite** for local development.
+- Production MySQL is not configured in this checkout. Before deployment, create a separate MySQL service, prepare a MySQL-compatible Prisma migration, set `DATABASE_URL` only in the production environment, and apply it with `npx prisma migrate deploy` after review. Do not use the SQLite migration against MySQL.

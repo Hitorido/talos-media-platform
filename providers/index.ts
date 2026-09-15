@@ -6,6 +6,7 @@ import { createConsumetMangaProvider } from '@/providers/consumet/createMangaPro
 import { jikanAnimeProvider } from '@/providers/jikan';
 import { kitsuAnimeProvider } from '@/providers/kitsu';
 import { mangaDexProvider } from '@/providers/mangadex';
+import { narouProvider } from '@/providers/narou';
 import { novelBackendProvider } from '@/providers/novel-backend';
 import { providerRegistry } from '@/providers/registry';
 
@@ -125,6 +126,7 @@ export function initializeProviders(): void {
   providerRegistry.register(aniListAnimeProvider);
   providerRegistry.register(jikanAnimeProvider);
   providerRegistry.register(novelBackendProvider);
+  providerRegistry.register(narouProvider);
 
   for (const provider of consumetMangaProviders) {
     providerRegistry.register(provider);
@@ -151,7 +153,8 @@ export function getDefaultProviderEnabledMap(): Record<string, boolean> {
       id === 'mangadex' ||
       id === 'kitsu-anime' ||
       id === 'anilist-anime' ||
-      id === 'jikan-anime';
+      id === 'jikan-anime' ||
+      id === 'narou';
   }
   return enabled;
 }

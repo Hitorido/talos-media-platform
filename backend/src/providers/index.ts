@@ -1,5 +1,7 @@
+import { asuraScansAdapter } from './asurascans/adapter.js';
 import { consumetProviderAdapter } from './consumet/adapter.js';
 import { novelProviderAdapter } from './novel/adapter.js';
+import { narouProviderAdapter } from './narou/adapter.js';
 import { registerProvider } from './registry.js';
 import { scraperProviderAdapter } from './scraper/adapter.js';
 
@@ -13,8 +15,10 @@ export function initializeBackendProviders(): void {
   if (initialized) return;
 
   registerProvider(novelProviderAdapter);
+  registerProvider(narouProviderAdapter);
   registerProvider(consumetProviderAdapter);
   registerProvider(scraperProviderAdapter);
+  registerProvider(asuraScansAdapter);
 
   initialized = true;
 }
@@ -34,6 +38,7 @@ export {
   registerProvider,
   unregisterProvider,
 } from './registry.js';
+export { ProviderGatewayError } from './types.js';
 export type {
   BackendMediaType,
   BackendProviderCapability,
@@ -41,4 +46,4 @@ export type {
   BackendProviderStatus,
   ContentProviderAdapter,
 } from './types.js';
-export { ProviderGatewayError } from './types.js';
+

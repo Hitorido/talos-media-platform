@@ -131,6 +131,16 @@ export async function fetchProviderHealth() {
     enabled: number;
     usable: number;
     note?: string;
-    providers: unknown[];
+    providers: {
+      id: string;
+      status: string;
+      enabled: boolean;
+      health?: {
+        lastSuccessAt?: number;
+        lastFailureAt?: number;
+        lastResponseMs?: number;
+        lastError?: string;
+      };
+    }[];
   }>('/api/providers/health');
 }

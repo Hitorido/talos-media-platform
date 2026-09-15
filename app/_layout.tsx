@@ -58,10 +58,6 @@ export default function RootLayout() {
     }
   }, [loaded, hydrated]);
 
-  if (!loaded || !hydrated) {
-    return null;
-  }
-
   return (
     <AppThemeProvider>
       <RootLayoutNav />

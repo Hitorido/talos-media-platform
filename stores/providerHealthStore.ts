@@ -5,6 +5,7 @@ type ProviderHealthState = {
   healthByProvider: Record<string, ProviderHealth>;
   recordSuccess: (providerId: string, responseMs: number) => void;
   recordFailure: (providerId: string, error: string, responseMs?: number) => void;
+  setHealth: (providerId: string, health: ProviderHealth) => void;
   getHealth: (providerId: string) => ProviderHealth | undefined;
 };
 
@@ -35,6 +36,15 @@ export const useProviderHealthStore = create<ProviderHealthState>()((set, get) =
           lastResponseMs: responseMs,
           lastError: error,
         },
+      },
+    }));
+  },
+
+  setHealth: (providerId, health) => {
+    set((state) => ({
+      healthByProvider: {
+        ...state.healthByProvider,
+        [providerId]: health,
       },
     }));
   },

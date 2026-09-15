@@ -44,12 +44,18 @@ export const useProviderStore = create<ProviderStoreState>()(
       isProviderEnabled: (providerId) => get().enabled[providerId] === true,
 
       setProviderEnabled: (providerId, enabled) => {
-        set((state) => ({
-          enabled: {
-            ...state.enabled,
-            [providerId]: enabled,
-          },
-        }));
+        set((state) => {
+          const preferredByMediaType = { ...state.preferredByMediaType };
+          if (!enabled) {
+            for (const [mediaType, preferredId] of Object.entries(preferredByMediaType)) {
+              if (preferredId === providerId) delete preferredByMediaType[mediaType];
+            }
+          }
+          return {
+            enabled: { ...state.enabled, [providerId]: enabled },
+            preferredByMediaType,
+          };
+        });
       },
 
       setPreferredProvider: (mediaType, providerId) => {

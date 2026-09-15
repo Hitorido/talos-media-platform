@@ -8,6 +8,8 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "prisma:generate": "prisma generate",
+    "prisma:generate:mysql": "prisma generate --schema prisma/mysql/schema.prisma",
+    "build:mysql": "npm run prisma:generate:mysql && tsc",
     "prisma:migrate": "prisma migrate dev",
     "prisma:push": "prisma db push"
   },
