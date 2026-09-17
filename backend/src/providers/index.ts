@@ -1,3 +1,4 @@
+import { weebCentralAdapter } from './weebcentral/adapter.js';
 import { asuraScansAdapter } from './asurascans/adapter.js';
 import { consumetProviderAdapter } from './consumet/adapter.js';
 import { novelProviderAdapter } from './novel/adapter.js';
@@ -14,6 +15,7 @@ let initialized = false;
 export function initializeBackendProviders(): void {
   if (initialized) return;
 
+  registerProvider(weebCentralAdapter);
   registerProvider(novelProviderAdapter);
   registerProvider(narouProviderAdapter);
   registerProvider(consumetProviderAdapter);

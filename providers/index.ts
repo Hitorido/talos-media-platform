@@ -1,3 +1,4 @@
+import { backendComicProvider } from '@/providers/backend-content';
 import { aniListAnimeProvider } from '@/providers/anilist';
 import { builtinMockProvider } from '@/providers/builtin-mock';
 import { stubProviders } from '@/providers/catalog/stubProviders';
@@ -122,6 +123,7 @@ export function initializeProviders(): void {
 
   providerRegistry.register(builtinMockProvider);
   providerRegistry.register(mangaDexProvider);
+  providerRegistry.register(backendComicProvider('weebcentral', 'WeebCentral'));
   providerRegistry.register(kitsuAnimeProvider);
   providerRegistry.register(aniListAnimeProvider);
   providerRegistry.register(jikanAnimeProvider);
