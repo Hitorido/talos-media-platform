@@ -29,3 +29,7 @@ Production push of the WeebCentral checkpoint was rejected by automatic approval
 ## MangaPill batch
 
 Added the manga-only adapter, source-specific bounded image relay, frontend URL mapping, gateway route, and two focused smoke scripts. Real source metadata and chapter images verified for two titles; frontend normalization and restricted relay verified through the local gateway. Render deployment remains pending approval. No change to general reader/download implementations was needed.
+
+## NovelArrow batch
+
+Added `backend/src/providers/novelarrow/adapter.ts`, a generic frontend novel-gateway bridge, registry entries, and `scripts/phase6.5-novelarrow-smoke.mjs`. Source's actual public chapter contract is parsed independently. Explicit locked-content flags stop reading rather than triggering an access workaround.

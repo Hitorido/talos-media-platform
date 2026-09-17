@@ -1,5 +1,5 @@
 import { animeParadiseProvider } from '@/providers/animeparadise';
-import { backendComicProvider } from '@/providers/backend-content';
+import { backendComicProvider, backendNovelProvider } from '@/providers/backend-content';
 import { aniListAnimeProvider } from '@/providers/anilist';
 import { builtinMockProvider } from '@/providers/builtin-mock';
 import { stubProviders } from '@/providers/catalog/stubProviders';
@@ -134,6 +134,7 @@ export function initializeProviders(): void {
   providerRegistry.register(animeParadiseProvider);
   providerRegistry.register(novelBackendProvider);
   providerRegistry.register(narouProvider);
+  providerRegistry.register(backendNovelProvider('novelarrow', 'NovelArrow'));
 
   for (const provider of consumetMangaProviders) {
     providerRegistry.register(provider);
