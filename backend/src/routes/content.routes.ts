@@ -1,3 +1,4 @@
+import { mangaPillImage } from '../providers/mangapill/image.js';
 import { Router } from 'express';
 
 import { contentController } from '../controllers/content.controller.js';
@@ -10,6 +11,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 export const contentRouter = Router();
 
 contentRouter.get('/providers', contentController.listProviders);
+contentRouter.get('/mangapill/image', asyncHandler(mangaPillImage));
 
 contentRouter.get(
   '/search',

@@ -125,6 +125,9 @@ export function initializeProviders(): void {
   providerRegistry.register(builtinMockProvider);
   providerRegistry.register(mangaDexProvider);
   providerRegistry.register(backendComicProvider('weebcentral', 'WeebCentral'));
+  const mangaPill = backendComicProvider('mangapill', 'MangaPill');
+  mangaPill.definition.mediaTypes = ['manga'];
+  providerRegistry.register(mangaPill);
   providerRegistry.register(kitsuAnimeProvider);
   providerRegistry.register(aniListAnimeProvider);
   providerRegistry.register(jikanAnimeProvider);
