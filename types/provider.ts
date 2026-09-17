@@ -94,6 +94,7 @@ export type NormalizedPlaybackSource = {
   audioLanguage?: string;
   subtitles?: { language: string; url: string }[];
   isDirectStream?: boolean;
+  contentType?: 'hls' | 'dash' | 'progressive';
   /** True when the stream is a legal development/demo sample, not licensed anime video. */
   isDemo?: boolean;
   availability?: 'available' | 'unavailable' | 'demo';

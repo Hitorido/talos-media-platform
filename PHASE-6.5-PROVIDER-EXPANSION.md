@@ -19,3 +19,9 @@ Use a physical phone with the project's compatible Expo runtime. Set EXPO_PUBLIC
 ## Previous phase completion evidence
 
 The already-running Phase 6.4 authenticated production smoke completed successfully during handoff: registration, login, authenticated me, profile, library/favorites/history, reading/watch progress all persisted across reauthentication. History/library were deleted, profile bio cleared, favorite removal verified; empty collections verified after a fresh login. Residual dedicated account `talos64_ffdf87faf6e8`, its profile, and reading/watch progress for `phase64-ffdf87faf6e8` remain because no delete APIs exist. Password/token were not printed. No further account work is part of Phase 6.5.
+
+## Anime playback batch
+
+Added `providers/animeparadise/index.ts`, registered it opt-in, added optional normalized playback `contentType`, and passed that type to the existing expo-video player. `scripts/phase6.5-animeparadise-smoke.mjs` runs the actual adapter with `phase6.5-test-loader.mjs` and optionally verifies H.264/AAC using ffprobe. The normal public API produced real Naruto playback, not demo footage. Native Android rendering and subtitle support are still limitations. Typecheck retains only the known cursor/canvas errors.
+
+Production push of the WeebCentral checkpoint was rejected by automatic approval review because deployment permission was not explicit enough. A specific approval request is pending; no workaround push was attempted. Local provider work continues.

@@ -1,6 +1,6 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -79,7 +79,9 @@ export default function AnimePlayerScreen() {
   const resumeSeconds = savedProgress?.positionSeconds ?? 0;
   const streamUrl = playback?.source.url ?? '';
 
-  const player = useVideoPlayer(streamUrl || null, (instance) => {
+  const videoSource = useMemo(() => streamUrl ? { uri: streamUrl, contentType: playback?.source.contentType ?? 'auto' as const } : null, [streamUrl, playback?.source.contentType]);
+
+  const player = useVideoPlayer(videoSource, (instance) => {
     instance.loop = false;
     instance.timeUpdateEventInterval = 1;
 

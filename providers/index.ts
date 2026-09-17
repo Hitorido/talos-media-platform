@@ -1,3 +1,4 @@
+import { animeParadiseProvider } from '@/providers/animeparadise';
 import { backendComicProvider } from '@/providers/backend-content';
 import { aniListAnimeProvider } from '@/providers/anilist';
 import { builtinMockProvider } from '@/providers/builtin-mock';
@@ -127,6 +128,7 @@ export function initializeProviders(): void {
   providerRegistry.register(kitsuAnimeProvider);
   providerRegistry.register(aniListAnimeProvider);
   providerRegistry.register(jikanAnimeProvider);
+  providerRegistry.register(animeParadiseProvider);
   providerRegistry.register(novelBackendProvider);
   providerRegistry.register(narouProvider);
 
