@@ -1,3 +1,4 @@
+import { kaliScanAdapter, mangaJinxAdapter } from './kaliscan/adapter.js';
 import { novelCodexAdapter } from './novelcodex/adapter.js';
 import { novelArrowAdapter } from './novelarrow/adapter.js';
 import { mangaPillAdapter } from './mangapill/adapter.js';
@@ -22,6 +23,8 @@ export function initializeBackendProviders(): void {
   registerProvider(mangaPillAdapter);
   registerProvider(novelArrowAdapter);
   registerProvider(novelCodexAdapter);
+  registerProvider(kaliScanAdapter);
+  registerProvider(mangaJinxAdapter);
   registerProvider(novelProviderAdapter);
   registerProvider(narouProviderAdapter);
   registerProvider(consumetProviderAdapter);

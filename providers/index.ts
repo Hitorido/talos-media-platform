@@ -128,6 +128,12 @@ export function initializeProviders(): void {
   const mangaPill = backendComicProvider('mangapill', 'MangaPill');
   mangaPill.definition.mediaTypes = ['manga'];
   providerRegistry.register(mangaPill);
+  for (const [id, name] of [['kaliscan', 'Kaliscan'], ['mangajinx', 'MangaJinx']]) {
+    const provider = backendComicProvider(id, name);
+    provider.definition.mediaTypes = ['manga'];
+    provider.definition.statusNote = 'Public content verified locally; some chapters have dead images. Format classification, Render and phone validation pending.';
+    providerRegistry.register(provider);
+  }
   providerRegistry.register(kitsuAnimeProvider);
   providerRegistry.register(aniListAnimeProvider);
   providerRegistry.register(jikanAnimeProvider);

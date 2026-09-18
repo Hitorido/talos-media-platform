@@ -37,3 +37,7 @@ Added `backend/src/providers/novelarrow/adapter.ts`, a generic frontend novel-ga
 ## NovelCodex.org batch
 
 Added the public-only backend adapter, backend/frontend registration and scripts/phase6.5-novelcodex-smoke.mjs. Backend build and actual search/details/list/text smoke passed, including blocked access above the anonymous free-chapter boundary. No account, database or production configuration changes.
+
+## Kaliscan / MangaJinx batch
+
+Added backend/src/providers/kaliscan/adapter.ts, source registrations and scripts/phase6.5-kaliscan-smoke.mjs. Backend build and both real image-flow checks passed. Frontend typecheck still reports only the four pre-existing cursor/canvas TS2307 errors. Dead chapter images are documented rather than hidden behind a Working status. These sources remain opt-in.
