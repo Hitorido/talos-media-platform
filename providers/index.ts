@@ -135,6 +135,7 @@ export function initializeProviders(): void {
   providerRegistry.register(novelBackendProvider);
   providerRegistry.register(narouProvider);
   providerRegistry.register(backendNovelProvider('novelarrow', 'NovelArrow'));
+  providerRegistry.register(backendNovelProvider('novelcodex', 'NovelCodex.org'));
 
   for (const provider of consumetMangaProviders) {
     providerRegistry.register(provider);

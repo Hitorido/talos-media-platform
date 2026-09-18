@@ -1,3 +1,4 @@
+import { novelCodexAdapter } from './novelcodex/adapter.js';
 import { novelArrowAdapter } from './novelarrow/adapter.js';
 import { mangaPillAdapter } from './mangapill/adapter.js';
 import { weebCentralAdapter } from './weebcentral/adapter.js';
@@ -20,6 +21,7 @@ export function initializeBackendProviders(): void {
   registerProvider(weebCentralAdapter);
   registerProvider(mangaPillAdapter);
   registerProvider(novelArrowAdapter);
+  registerProvider(novelCodexAdapter);
   registerProvider(novelProviderAdapter);
   registerProvider(narouProviderAdapter);
   registerProvider(consumetProviderAdapter);

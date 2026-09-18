@@ -33,3 +33,7 @@ Added the manga-only adapter, source-specific bounded image relay, frontend URL 
 ## NovelArrow batch
 
 Added `backend/src/providers/novelarrow/adapter.ts`, a generic frontend novel-gateway bridge, registry entries, and `scripts/phase6.5-novelarrow-smoke.mjs`. Source's actual public chapter contract is parsed independently. Explicit locked-content flags stop reading rather than triggering an access workaround.
+
+## NovelCodex.org batch
+
+Added the public-only backend adapter, backend/frontend registration and scripts/phase6.5-novelcodex-smoke.mjs. Backend build and actual search/details/list/text smoke passed, including blocked access above the anonymous free-chapter boundary. No account, database or production configuration changes.

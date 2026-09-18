@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+const { novelCodexAdapter: provider } = require('../backend/dist/providers/novelcodex/adapter.js');
+const results = await provider.search('gluttony');
+const selected = results.find(item => item.sourceId === 'the-second-coming-of-gluttony');
+assert.ok(selected, 'Expected title in actual search');
+const details = await provider.getDetails(selected.sourceId);
+assert.ok(details.title.includes('Gluttony'));
+const chapters = await provider.getChapters(selected.sourceId);
+assert.ok(chapters.length > 1);
+const first = await provider.getNovelContent(selected.sourceId, chapters[0].id);
+assert.ok(first.paragraphs.length > 3);
+assert.equal(first.previousChapterId, undefined);
+const limit = Number(chapters.at(-1).id);
+await assert.rejects(provider.getNovelContent(selected.sourceId, String(limit + 1)), error => error.code === 'CONTENT_LOCKED');
+await assert.rejects(provider.getNovelContent(selected.sourceId, '../1'), error => error.statusCode === 400);
+console.log('PASS NovelCodex.org search/details/free chapter list/text/locked rejection', chapters.length, 'public chapters;', first.paragraphs.length, 'paragraphs');
