@@ -7,7 +7,7 @@ function createAdapter(providerId: string, name: string, origin: string): Conten
   const id = (value: string) => checkedId(value, /^[0-9]+-[a-z0-9-]+$/);
   return {
     definition: { id: providerId, name, mediaTypes: ['manga'], capabilities: ['search','details','chapters','pages'],
-      status: 'limited', statusNote: 'Public images verified locally; some chapters have dead images. Format classification, Render and phone validation pending.', enabledByDefault: true },
+      status: 'limited', statusNote: 'Local images work; Render upstream HTTP 403. Some source images dead; format/phone validation pending.', enabledByDefault: true },
     async search(query) {
       const $ = load(await sourceText(origin, '/search?q=' + encodeURIComponent(query)));
       const results = new Map<string, BackendSearchResult>();

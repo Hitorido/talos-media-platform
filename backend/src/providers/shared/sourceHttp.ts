@@ -5,10 +5,10 @@ const pending = new Map<string, Promise<string>>();
 const queues = new Map<string, Promise<unknown>>();
 
 /** Fixed adapter-owned origins only. Never accept a caller-supplied URL. */
-export async function sourceText(origin: string, path: string): Promise<string> {
+export async function sourceText(origin: string, path: string, method: 'GET' | 'POST' = 'GET'): Promise<string> {
   const url = new URL(path, origin);
   if (url.origin !== origin || url.username || url.password) throw new ProviderGatewayError('Invalid source path.', 400);
-  const key = url.href;
+  const key = method + ' ' + url.href;
   const hit = cache.get(key);
   if (hit && hit.expires > Date.now()) return hit.text;
   if (pending.has(key)) return pending.get(key)!;
@@ -18,7 +18,7 @@ export async function sourceText(origin: string, path: string): Promise<string> 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 20_000);
     try {
-      const response = await fetch(key, { redirect: 'error', signal: controller.signal, headers: { Accept: 'text/html,application/json', 'User-Agent': 'Talos/1.0' } });
+      const response = await fetch(url.href, { method, redirect: 'error', signal: controller.signal, headers: { Accept: 'text/html,application/json', 'User-Agent': 'Talos/1.0' } });
       if (!response.ok) throw new ProviderGatewayError(`Source HTTP ${response.status}.`, response.status === 404 ? 404 : 502, 'UPSTREAM_FAILED');
       const reader = response.body?.getReader();
       if (!reader) throw new Error('Empty response');

@@ -409,3 +409,24 @@ These are bounded ordinary HTTP probes, not declarations of completed content fl
 - proxy-consumet: previously configuration-dependent; currently disabled in Render, search HTTP 403 PROVIDER_DISABLED. Public upstream separately still HTTP 451. No runtime enable/configuration changes made.
 - proxy-scraper: previously planned placeholder; still planned and disabled, search HTTP 403 PROVIDER_DISABLED. No implemented media flow to test.
 - New source-specific backend adapters remain local-only until an approved push/deployment and production content-flow tests.
+
+## Production deployment and source results - 2026-09-18
+
+The explicitly approved batch at 6ded54a was pushed to main and is live on Render. All four endpoints /health, /health/ready, /api/providers/health and /api/content/providers returned HTTP 200.
+
+- MangaPill: Render search/details/1,209 chapters/57 pages, cover and actual page image PASS through the frontend bridge. Physical reader remains pending.
+- NovelCodex.org: Render search/details/386 public chapters/173 first-chapter paragraphs PASS through the frontend bridge. Physical reader remains pending.
+- WeebCentral, Kaliscan, MangaJinx, NovelArrow: local complete flows still pass, but Render search returns upstream HTTP 403 (gateway HTTP 502 UPSTREAM_FAILED). No cloud-IP bypass attempted. Backend/frontend notes updated; these are not usable production reader paths at present. Exact upstream policy is unknown. A direct-client strategy requires separate CORS/native verification.
+
+## GdScans - Backend - Limited pending production/phone
+
+- Canonical tested domain https://gdscans.com; previous state was search-only candidate.
+- Independent adapter uses normal WordPress search, details HTML, read-only POST to /manga/:slug/ajax/chapters/, and ordinary chapter image elements. Shared source HTTP cache keys include method.
+- The Strongest Sage with 0 Magic Power: seven chapters; first and latest chapters yielded 21 and 27 page images respectively; real images HTTP 200 image/webp. Invalid chapter path rejected.
+- Existing frontend reader model reused; no source-specific UI. Discovery not wired.
+
+## Additional comic observations
+
+- MangaOwl.io search request timed out at 20 seconds in this continuation. Not declared dead.
+- MangaTown details and chapter HTML work; actual image returns 403 without Referer and 200 with the normal site Referer. Full adapter/pagination and a restricted image strategy are still needed.
+- DemonicScans.org Nano Machine chapter 1 and actual image returned 200. Ordinary search contract is /search.php?manga=...; full adapter not yet implemented.

@@ -80,3 +80,9 @@ Validation: phase6.5-search-test passes against the actual service; phase6.5-rea
 28. Security/access: fixed origins, bounded requests, no arbitrary URL relay, locked content rejected, no bypass mechanisms or database changes.
 29. Known limits: new backend sources local-only; phone rendering, discovery, additional requested full flows, title aliases and uniform request timeout coverage remain incomplete.
 30. Next work: complete GdScans/DemonicScans/MangaTown/MangaOwl flows; add real discovery feeds; finish timeout coverage; deploy approved checkpoints and repeat through Render; verify readers/player on the physical phone.
+
+## Approved production continuation
+
+User explicitly approved stable provider deployments in the continuation attachment. Pushed 6ded54a to main; Render now serves the new registry and all four requested health endpoints pass. MangaPill and NovelCodex full gateway content flows pass. WeebCentral/Kaliscan/MangaJinx/NovelArrow return upstream 403 from Render despite local success; status notes now disclose that limitation. Earlier statements saying deployment approval is pending are historical and superseded.
+
+Added GdScans adapter, source registration and focused smoke. MangaPill fixed-host relay now sets Cross-Origin-Resource-Policy: cross-origin for public images only; global CORS unchanged. Source HTTP helper supports the source-owned read-only chapter-list POST with method-separated cache keys. No database schema or account changes.

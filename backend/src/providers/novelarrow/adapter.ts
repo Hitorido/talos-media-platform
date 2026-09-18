@@ -5,7 +5,7 @@ const origin='https://novelarrow.com',providerId='novelarrow';
 const id=(v:string)=>checkedId(v,/^[a-z0-9][a-z0-9-]{0,220}$/);
 type Chapter={chapter_id:string;chapter_name:string;premium_content?:boolean;platinum_content?:boolean;coin_price?:number};
 export const novelArrowAdapter:ContentProviderAdapter={
- definition:{id:providerId,name:'NovelArrow',mediaTypes:['novel'],capabilities:['search','details','chapters','textContent'],status:'limited',statusNote:'Public unlocked text verified locally; locked chapters are rejected. Render/phone pending.',enabledByDefault:true},
+ definition:{id:providerId,name:'NovelArrow',mediaTypes:['novel'],capabilities:['search','details','chapters','textContent'],status:'limited',statusNote:'Public unlocked text works locally; Render upstream returned HTTP 403. Locked chapters rejected.',enabledByDefault:true},
  async search(query){
   const $=load(await sourceText(origin,`/novels/search?keyword=${encodeURIComponent(query)}`));const results=new Map<string,BackendSearchResult>();
   $('a[href^="/novel/"]').each((_,el)=>{const a=$(el),sourceId=a.attr('href')!.slice(7);if(!/^[a-z0-9][a-z0-9-]{0,220}$/.test(sourceId))return;const old=results.get(sourceId);const title=a.find('h2,h3').first().text().trim()||(!a.find('p').length?a.text().trim():'')||old?.title||'';results.set(sourceId,{id:sourceId,sourceId,providerId,mediaType:'novel',title,coverUrl:a.find('img').attr('src')||old?.coverUrl});});return [...results.values()].filter(x=>x.title).slice(0,20);

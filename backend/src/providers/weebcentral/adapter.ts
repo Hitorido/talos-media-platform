@@ -7,7 +7,7 @@ const id = (value: string) => checkedId(value, /^[0-9A-HJKMNP-TV-Z]{26}$/);
 const clean = (text: string) => text.replace(/\s+/g, ' ').trim();
 
 export const weebCentralAdapter: ContentProviderAdapter = {
-  definition: { id: providerId, name: 'WeebCentral', mediaTypes: ['manga','manhwa','manhua'], capabilities: ['search','details','chapters','pages'], status: 'limited', statusNote: 'Normal HTTP content flow verified locally; Render and physical reader verification pending.', enabledByDefault: true },
+  definition: { id: providerId, name: 'WeebCentral', mediaTypes: ['manga','manhwa','manhua'], capabilities: ['search','details','chapters','pages'], status: 'limited', statusNote: 'Local images verified; Render upstream returned HTTP 403. Physical reader unverified.', enabledByDefault: true },
   async search(query, mediaType) {
     const $ = load(await sourceText(origin, `/search/data?text=${encodeURIComponent(query)}`));
     const results = new Map<string, BackendSearchResult>();

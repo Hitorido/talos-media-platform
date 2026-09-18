@@ -17,7 +17,7 @@ export const novelCodexAdapter: ContentProviderAdapter = {
   definition: {
     id: providerId, name: 'NovelCodex.org', mediaTypes: ['novel'],
     capabilities: ['search', 'details', 'chapters', 'textContent'], status: 'limited',
-    statusNote: 'Public free chapters only. Render and physical reader validation pending.', enabledByDefault: true,
+    statusNote: 'Public free chapter flow verified through Render; physical reader validation pending.', enabledByDefault: true,
   },
   async search(query) {
     const data = JSON.parse(await sourceText(origin, '/api/novels/search?q=' + encodeURIComponent(query)));

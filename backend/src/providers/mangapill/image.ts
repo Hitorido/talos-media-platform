@@ -15,6 +15,6 @@ export async function mangaPillImage(req: Request, res: Response) {
     const reader=response.body?.getReader();if(!reader)throw new ProviderGatewayError('Empty source image.',502);
     const chunks:Uint8Array[]=[];let size=0;
     while(true){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>10_000_000){await reader.cancel();throw new ProviderGatewayError('Source image exceeds size limit.',502);}chunks.push(value);}
-    res.setHeader('Content-Type',type);res.setHeader('Cache-Control','public, max-age=3600');res.send(Buffer.concat(chunks));
+    res.setHeader('Cross-Origin-Resource-Policy','cross-origin');res.setHeader('Content-Type',type);res.setHeader('Cache-Control','public, max-age=3600');res.send(Buffer.concat(chunks));
   } finally {clearTimeout(timer);}
 }

@@ -1,3 +1,4 @@
+import { gdScansAdapter } from './gdscans/adapter.js';
 import { kaliScanAdapter, mangaJinxAdapter } from './kaliscan/adapter.js';
 import { novelCodexAdapter } from './novelcodex/adapter.js';
 import { novelArrowAdapter } from './novelarrow/adapter.js';
@@ -21,6 +22,7 @@ export function initializeBackendProviders(): void {
 
   registerProvider(weebCentralAdapter);
   registerProvider(mangaPillAdapter);
+  registerProvider(gdScansAdapter);
   registerProvider(novelArrowAdapter);
   registerProvider(novelCodexAdapter);
   registerProvider(kaliScanAdapter);
