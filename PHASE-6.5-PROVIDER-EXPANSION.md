@@ -47,3 +47,36 @@ Added backend/src/providers/kaliscan/adapter.ts, source registrations and script
 Global search now runs at most three actual provider operations concurrently, skips disabled/unsupported sources, preserves successful results after another source fails, and records health. Removed the demo-only special error query. Comic alternate-source suggestions require equal normalized titles, preventing sequels from silently qualifying; translated aliases still require future metadata matching. Existing direct clients do not all have request/body timeouts yet, so bounded concurrency is not claimed to solve every stalled source.
 
 Validation: phase6.5-search-test passes against the actual service; phase6.5-reader-gateway-smoke passes for Kaliscan, MangaJinx and NovelCodex.org including locked HTTP 403. Phase 3 novel, Phase 4 gateway, MangaDex classification, and Phase 5.6 beta smokes pass. Narou real text remains available. Public Consumet still returns HTTP 451. Frontend typecheck retains only the four known cursor/canvas errors. Physical rendering is unverified.
+
+## Current report and outstanding scope (2026-09-18)
+
+1. Architecture: existing provider registry, normalized media contracts, gateway and reader/player retained.
+2. Files changed: provider adapters/registries, shared source HTTP and image relay, frontend gateway bridge, playback content type, search service/helper, focused scripts and these reports; see local Phase 6.5 commits. Pre-existing Phase 6.4 changes remain separate.
+3. Previous failures: public Consumet, WeebCentral, MangaNelo, MangaKakalot, NovelUpdates, Asura and configured proxy slots retested; details in matrix.
+4. Old/current statuses: WeebCentral progressed from challenge indicators to real local images; Consumet remains 451; NovelUpdates remains challenge-blocked; other failures are recorded per request without claiming global discontinuation.
+5. Comic research: all ten requested names were investigated; current URLs and normal HTTP results are in the matrix. Additional candidate sources were probed. Several full flows remain unfinished.
+6. Comic integrations: WeebCentral, MangaPill, Kaliscan and MangaJinx have local content-flow evidence; MangaDex regression passed.
+7. Comic failures: Kaliscan/MangaJinx chapter 0 images 404; MangaGg/MangaNelo/MangaKakalot requests timed out; other concrete DNS/TLS/HTTP failures and unfinished candidates are recorded in matrix.
+8. Novel research: Narou, NovelUpdates, both NovelCodex identities, NovelArrow, FreeWebNovel and NovelBin.
+9. Novel readers: Narou regression passes; NovelArrow and NovelCodex.org public text adapters pass locally. Render/physical verification of new adapters remains pending.
+10. Novel metadata-only: NovelCodex.com is tracking/indexing; NovelUpdates remains blocked. Neither is integrated as a full reader.
+11. Anime research: old Consumet Gogoanime/Zoro paths, HiAnime, AnimeKai, AnimePahe and AnimeParadise; original AniWave not revived.
+12. Anime metadata: AniList, Jikan and Kitsu HTTP 200 on current retest.
+13. Real anime media: AnimeParadise search/details/episodes/HLS/segment and ffprobe H.264/AAC passed; physical expo-video playback remains unverified.
+14. Strategy: MangaDex and anime metadata/public AnimeParadise APIs Direct; HTML comic/novel adapters Backend; legacy proxy endpoints Configuration Required.
+15. Render: existing registry HTTP 200, proxy-novel search 503 configuration required, disabled proxy-consumet/proxy-scraper searches 403. New adapters not yet deployed or production-verified.
+16. Aggregation: three concurrent operations, enabled/media filtering, health/error isolation verified. Some older direct clients still need body/request timeout coverage.
+17. Source switching: existing UI retained, comic alternatives now require normalized title equality; translated alias/year matching remains future work. No silent cross-title switch added.
+18. Recommendations: home still uses existing mock data; provider-driven replacement remains required.
+19. Recently Updated: not yet provider-driven.
+20. Trending Manga: not yet provider-driven.
+21. Trending Novels: not yet provider-driven.
+22. Trending Anime: not yet provider-driven.
+23. Comic regression: MangaDex classification and real images pass; new frontend/gateway model/image tests pass. Physical device reader not run.
+24. Novel regression: Phase 3 and Narou beta text pass; NovelCodex gateway text and locked HTTP 403 pass.
+25. Player regression: typecheck has only four pre-existing canvas errors; actual native expo-video execution remains outstanding.
+26. Provider matrix: PHASE-6.5-PROVIDER-MATRIX.md contains source evidence and limitations.
+27. References: current source HTML/client request contracts, official Expo 57 docs, Cheerio docs, Consumet status project, anime-sdk public documentation, Keiyoushi MGJinx domain issue. No parser implementation copied.
+28. Security/access: fixed origins, bounded requests, no arbitrary URL relay, locked content rejected, no bypass mechanisms or database changes.
+29. Known limits: new backend sources local-only; phone rendering, discovery, additional requested full flows, title aliases and uniform request timeout coverage remain incomplete.
+30. Next work: complete GdScans/DemonicScans/MangaTown/MangaOwl flows; add real discovery feeds; finish timeout coverage; deploy approved checkpoints and repeat through Render; verify readers/player on the physical phone.
