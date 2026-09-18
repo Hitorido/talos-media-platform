@@ -98,3 +98,41 @@ Replaced home mock discovery arrays with seven real sections: Recommendations; R
 Files: services/discoveryService.ts, backend/src/providers/narou/discovery.ts, the content route, home screen, missing-cover handling in ContentPosterCard, and scripts/phase6.5-discovery-smoke.mjs. Each live section returned 12 real items; cache/deduplication/disabled sources/Narou detail navigation/invalid-feed rejection passed. Injected AniList outage preserved other feeds. Existing Phase 3/4 regressions pass. Frontend typecheck has only the four known canvas errors. Production web export passed with 19 static routes. No claim of physical rendering is made.
 
 Narou discovery route requires the next approved production deployment; frontend is committed app code, not a separately hosted Expo Web site. Global production CORS and database schemas are unchanged. Earlier report statements that home still uses mocks are superseded by this batch.
+
+## Latest deployment verification limitation
+
+Discovery commit 37538cd was pushed successfully. Its local tests and production web export passed. The first production discovery test failed only on the Render-backed Narou feeds with fetch failed; direct MangaDex/AniList feeds continued returning real items. Follow-up /health connections failed before HTTP with UND_ERR_CONNECT_TIMEOUT against the normally resolved Render addresses, while api.github.com returned 200. This is a reachability observation, not evidence of a code-level deployment failure or confirmed source blocking. GitHub commit status exposes no Render status entries. Browser dashboard inspection also failed because its Windows sandbox kernel could not start. The user has been asked for the current Render deployment status/log error. Do not claim this latest discovery route production-verified until a successful recheck. Earlier full Render checks at 6613808 remain valid historical evidence.
+
+## Physical Android checklist
+
+Use the project's compatible Expo runtime and the configured Render API URL; enable the desired opt-in provider in Sources. No emulator is required.
+
+- MangaPill: search One Piece, choose MangaPill, open Chapter 1. Expect all 57 pages to load, scrolling and next-chapter navigation to work, and source identity to remain visible.
+- GdScans: search sage, select The Strongest Sage with 0 Magic Power, open Ch.1.1. Expect 21 pages and correct next-chapter navigation.
+- NovelCodex.org: search gluttony, select The Second Coming of Gluttony, open Chapter 1 / Prologue. Expect readable paragraphs and next-chapter navigation; subscription-only chapters must not be offered as freely readable.
+- AnimeParadise: search Naruto using AnimeParadise, open Episode 1. Expect real video and audio, seek/pause/resume, and progression persistence through the existing local player. External subtitle integration remains unavailable.
+- Home discovery: enable MangaDex, AniList and Narou. Verify seven sections, visible source names, correct detail navigation and Refresh. Narou production feed verification is currently pending connectivity recovery; unavailability must show honestly.
+- Disabled sources: disable a source and verify its discovery cards disappear; re-enable and refresh. Recommendations are currently AniList related-title suggestions, not personalized predictions.
+
+## Current requested report
+
+1. Added this continuation: GdScans and DemonicScans adapters, real home discovery service and Narou discovery route.
+2. Upgraded: GdScans from research-only to full Render content verification; MangaPill/NovelCodex from local-only to full Render verification.
+3. Limited: all new providers still await physical reader/player validation; Kaliscan/MangaJinx have known dead chapters; DemonicScans supports simple slugs only.
+4. Blocked/unavailable: WeebCentral/Kaliscan/MangaJinx/NovelArrow/DemonicScans return upstream 403 from Render. NovelUpdates and FreeWebNovel search challenge failures remain recorded. MangaGg/MangaOwl full flows remain unfinished after timeout observations; no claim of global discontinuation.
+5. Novel text: Narou regression passes; NovelCodex public text verified through Render; NovelArrow works locally but its Render path fails.
+6. Anime playback: AnimeParadise actual HLS/segments/H.264/AAC verified, native expo-video rendering pending. Metadata APIs are not counted as playback.
+7. Discovery: all seven requested sections implemented with real data; live local tests pass. Recommendations currently anime-only.
+8. Search: three-provider concurrency and failure isolation preserved and tested.
+9. Switching: conservative normalized comic title matching retained; alternate-language aliases/year-aware matching remain incomplete.
+10. Render providers: MangaPill, GdScans, NovelCodex complete flows passed; five sources returned upstream 403.
+11. Deployment: earlier batches deployed and verified; discovery batch pushed, latest reachability/route confirmation pending as described above.
+12. Phone: checklist above; no native success fabricated.
+13. Reader: MangaDex classification/beta and new normalized image-flow tests passed.
+14. Novel reader: Phase 3, Narou beta and NovelCodex gateway tests passed; discovery navigation passed locally.
+15. Player: real AnimeParadise media/ffprobe regression passed; physical rendering still required.
+16. Typecheck/build: backend build passes; frontend has only four known canvas errors; web export passes with 19 routes.
+17. Limits: production source 403s, latest Render connectivity, physical UI verification, anime-only recommendations, no HTML-source discovery redundancy, some legacy direct-client timeout coverage and remaining source flows.
+18. Next: confirm latest Render deployment and feeds; physical checklist; MangaTown adapter plus restricted Referer image delivery; finish MangaGg/MangaOwl investigation; safe direct-client feasibility for cloud-blocked sources. Do not start Phase 6.6.
+
+Discovery references: official Narou API order documentation at https://dev.syosetu.com/man/api/; live public AniList GraphQL and MangaDex API contracts; exact Expo SDK 57 docs read before coding.

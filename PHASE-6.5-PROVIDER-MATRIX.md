@@ -453,3 +453,7 @@ Batch 007a30e deployed successfully; all four health endpoints returned 200. Dem
 - Recommendations currently anime-only. Additional manga/novel recommendations and provider feed redundancy remain future work.
 - Jikan current /watch/episodes and /recommendations/anime return HTTP 504 BadResponseException. Existing metadata endpoints remain separately verified; discovery uses AniList instead.
 - Existing HTML sources have no discovery feed integration yet.
+
+## Latest discovery production status
+
+Local seven-feed smoke passes with 12 real items per section, plus cache/deduplication/source disable and failure isolation. Discovery code pushed at 37538cd. Production Narou discovery requests and subsequent /health checks hit TCP connect timeouts before HTTP, while direct discovery feeds work. Latest deployment/route verification pending; this must not overwrite earlier successful Render image/text evidence or be misreported as an upstream Narou 403.
