@@ -86,3 +86,7 @@ Validation: phase6.5-search-test passes against the actual service; phase6.5-rea
 User explicitly approved stable provider deployments in the continuation attachment. Pushed 6ded54a to main; Render now serves the new registry and all four requested health endpoints pass. MangaPill and NovelCodex full gateway content flows pass. WeebCentral/Kaliscan/MangaJinx/NovelArrow return upstream 403 from Render despite local success; status notes now disclose that limitation. Earlier statements saying deployment approval is pending are historical and superseded.
 
 Added GdScans adapter, source registration and focused smoke. MangaPill fixed-host relay now sets Cross-Origin-Resource-Policy: cross-origin for public images only; global CORS unchanged. Source HTTP helper supports the source-owned read-only chapter-list POST with method-separated cache keys. No database schema or account changes.
+
+## Second production result and DemonicScans checkpoint
+
+GdScans is now Render-verified through actual cover/page images. Added independently implemented DemonicScans adapter and focused smoke; canonical chapter URL fixed the ordinary redirect failure. Local actual frontend/gateway contract passes. No account or schema changes. Tests retain only the known four frontend canvas errors.

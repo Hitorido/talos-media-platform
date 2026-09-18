@@ -430,3 +430,13 @@ The explicitly approved batch at 6ded54a was pushed to main and is live on Rende
 - MangaOwl.io search request timed out at 20 seconds in this continuation. Not declared dead.
 - MangaTown details and chapter HTML work; actual image returns 403 without Referer and 200 with the normal site Referer. Full adapter/pagination and a restricted image strategy are still needed.
 - DemonicScans.org Nano Machine chapter 1 and actual image returned 200. Ordinary search contract is /search.php?manga=...; full adapter not yet implemented.
+
+## GdScans production verification
+
+Batch 6613808 is live. All four health endpoints pass. GdScans full frontend-to-Render search/details/seven chapters/21 first-chapter pages/cover and actual image PASS. MangaPill and NovelCodex regression flows also PASS. Physical Android rendering still pending.
+
+## DemonicScans - Backend - Limited
+
+Current domain https://demonicscans.org. Previous state was homepage/chapter-image research only. Independent adapter uses /search.php?manga=, title HTML, listed chapter IDs and canonical /title/:slug/chapter/:number/1. Legacy chaptered.php redirects under the standard Talos request; following its observed canonical path resolves it without bypass.
+
+Nano Machine local adapter and frontend/gateway PASS: 334 listed chapter entries, chapter 1 with 25 page images, cover and first/last actual images HTTP 200. Invalid/unlisted chapter IDs rejected. Only simple ASCII title slugs are currently supported; encoded special-title slugs excluded. Generic comic classification only. Discovery, Render and physical rendering pending.

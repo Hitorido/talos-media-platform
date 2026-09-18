@@ -1,3 +1,4 @@
+import { demonicScansAdapter } from './demonicscans/adapter.js';
 import { gdScansAdapter } from './gdscans/adapter.js';
 import { kaliScanAdapter, mangaJinxAdapter } from './kaliscan/adapter.js';
 import { novelCodexAdapter } from './novelcodex/adapter.js';
@@ -23,6 +24,7 @@ export function initializeBackendProviders(): void {
   registerProvider(weebCentralAdapter);
   registerProvider(mangaPillAdapter);
   registerProvider(gdScansAdapter);
+  registerProvider(demonicScansAdapter);
   registerProvider(novelArrowAdapter);
   registerProvider(novelCodexAdapter);
   registerProvider(kaliScanAdapter);

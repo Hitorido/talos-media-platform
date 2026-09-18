@@ -4,7 +4,7 @@ import { ProviderGatewayError, type ContentProviderAdapter } from '../types.js';
 const origin = 'https://gdscans.com', providerId = 'gdscans';
 const id = (value: string) => checkedId(value, /^[a-z0-9]+(?:-[a-z0-9]+)*$/);
 export const gdScansAdapter: ContentProviderAdapter = {
- definition: { id: providerId, name: 'GdScans', mediaTypes: ['manga'], capabilities: ['search','details','chapters','pages'], status: 'limited', statusNote: 'Local public image flow verified; Render and phone validation pending.', enabledByDefault: true },
+ definition: { id: providerId, name: 'GdScans', mediaTypes: ['manga'], capabilities: ['search','details','chapters','pages'], status: 'limited', statusNote: 'Public image flow verified through Render; physical reader validation pending.', enabledByDefault: true },
  async search(query) {
   const $ = load(await sourceText(origin, '/?s=' + encodeURIComponent(query) + '&post_type=wp-manga'));
   return $('.post-title a').toArray().flatMap(el => {
