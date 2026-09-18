@@ -38,7 +38,9 @@ export function ContentPosterCard({
   return (
     <Pressable accessibilityRole="button" onPress={onPress} className={cn('w-28', className)}>
       <View className="overflow-hidden rounded-xl bg-neutral-200 dark:bg-neutral-800">
-        <Image source={{ uri: coverUrl }} className="aspect-[2/3] w-full" resizeMode="cover" />
+        {coverUrl ? <Image source={{ uri: coverUrl }} className="aspect-[2/3] w-full" resizeMode="cover" /> : (
+          <View className="aspect-[2/3] w-full items-center justify-center px-2"><Text variant="caption" tone="muted">No cover</Text></View>
+        )}
         <View className="absolute left-2 top-2">
           <Badge label={badgeLabelMap[type]} variant={badgeVariantMap[type]} />
         </View>

@@ -4,7 +4,7 @@ import { ProviderGatewayError, type ContentProviderAdapter, type BackendSearchRe
 const origin='https://mangapill.com', providerId='mangapill';
 const id=(s:string)=>checkedId(s,/^\d+\/[a-z0-9-]+$/);
 export const mangaPillAdapter: ContentProviderAdapter={
- definition:{id:providerId,name:'MangaPill',mediaTypes:['manga'],capabilities:['search','details','chapters','pages'],status:'limited',statusNote:'Manga content verified locally; Render/physical reader pending. Source discontinued manhwa support.',enabledByDefault:true},
+ definition:{id:providerId,name:'MangaPill',mediaTypes:['manga'],capabilities:['search','details','chapters','pages'],status:'limited',statusNote:'Manga content verified through Render; physical reader pending. Source discontinued manhwa support.',enabledByDefault:true},
  async search(query){
   const $=load(await sourceText(origin,`/search?q=${encodeURIComponent(query)}`));const results=new Map<string,BackendSearchResult>();
   $('a[href^="/manga/"]').each((_,el)=>{const a=$(el),sourceId=a.attr('href')!.slice(7);if(!/^\d+\/[a-z0-9-]+$/.test(sourceId))return;const old=results.get(sourceId);const title=a.text().trim()||old?.title||'';results.set(sourceId,{id:sourceId,sourceId,providerId,mediaType:'manga',title,coverUrl:a.find('img').attr('data-src')||old?.coverUrl});});

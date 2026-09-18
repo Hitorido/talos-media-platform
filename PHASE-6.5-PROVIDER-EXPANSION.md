@@ -90,3 +90,11 @@ Added GdScans adapter, source registration and focused smoke. MangaPill fixed-ho
 ## Second production result and DemonicScans checkpoint
 
 GdScans is now Render-verified through actual cover/page images. Added independently implemented DemonicScans adapter and focused smoke; canonical chapter URL fixed the ordinary redirect failure. Local actual frontend/gateway contract passes. No account or schema changes. Tests retain only the known four frontend canvas errors.
+
+## Real home discovery batch
+
+Replaced home mock discovery arrays with seven real sections: Recommendations; Recently Updated Manga/Novels/Anime; Trending Manga/Novels/Anime. Reused existing cards and local continue-reading/watching state. Source identity is displayed and route IDs remain provider-scoped. Five feed operations are bounded to three concurrent requests, with 20-second request/body timeouts, in-flight deduplication, two-minute cache, source enable filtering, refresh and isolated unavailable states.
+
+Files: services/discoveryService.ts, backend/src/providers/narou/discovery.ts, the content route, home screen, missing-cover handling in ContentPosterCard, and scripts/phase6.5-discovery-smoke.mjs. Each live section returned 12 real items; cache/deduplication/disabled sources/Narou detail navigation/invalid-feed rejection passed. Injected AniList outage preserved other feeds. Existing Phase 3/4 regressions pass. Frontend typecheck has only the four known canvas errors. Production web export passed with 19 static routes. No claim of physical rendering is made.
+
+Narou discovery route requires the next approved production deployment; frontend is committed app code, not a separately hosted Expo Web site. Global production CORS and database schemas are unchanged. Earlier report statements that home still uses mocks are superseded by this batch.

@@ -440,3 +440,16 @@ Batch 6613808 is live. All four health endpoints pass. GdScans full frontend-to-
 Current domain https://demonicscans.org. Previous state was homepage/chapter-image research only. Independent adapter uses /search.php?manga=, title HTML, listed chapter IDs and canonical /title/:slug/chapter/:number/1. Legacy chaptered.php redirects under the standard Talos request; following its observed canonical path resolves it without bypass.
 
 Nano Machine local adapter and frontend/gateway PASS: 334 listed chapter entries, chapter 1 with 25 page images, cover and first/last actual images HTTP 200. Invalid/unlisted chapter IDs rejected. Only simple ASCII title slugs are currently supported; encoded special-title slugs excluded. Generic comic classification only. Discovery, Render and physical rendering pending.
+
+## DemonicScans production result
+
+Batch 007a30e deployed successfully; all four health endpoints returned 200. DemonicScans search returned upstream HTTP 403 from Render (gateway 502), despite passing locally. Status notes now disclose production unavailability. No bypass attempted.
+
+## Discovery support implemented
+
+- MangaDex Direct: follower-popularity feed under Trending Manga; latest chapter upload ordering under Recently Updated Manga. Cards label the actual signal; no invented score/rank. Safe-rated catalog slice currently used.
+- Narou Backend: official weeklypoint and new orderings; Trending Novels and Recently Updated Novels. Japanese titles, no fabricated covers; neutral local placeholder.
+- AniList Direct: real TRENDING_DESC, recently aired episode schedule, and rated related-title recommendations from the current trending seed. These are metadata/discovery signals, not proof of stream availability or personalized predictions.
+- Recommendations currently anime-only. Additional manga/novel recommendations and provider feed redundancy remain future work.
+- Jikan current /watch/episodes and /recommendations/anime return HTTP 504 BadResponseException. Existing metadata endpoints remain separately verified; discovery uses AniList instead.
+- Existing HTML sources have no discovery feed integration yet.
