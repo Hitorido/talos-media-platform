@@ -6,6 +6,7 @@ import { encodeMediaRouteId, type NormalizedMedia, type NormalizedPage, type Pro
 /** Bridge the existing gateway models into the existing reader; no source-specific UI. */
 export function backendComicProvider(id: string, name: string): MediaProvider {
   const imageUrl = (url: string) => {
+    if (id === 'mangatown' && url.startsWith('/api/content/mangatown/image?')) return getApiBaseUrl() + url;
     if (id !== 'mangapill' || !url) return url;
     const parsed = new URL(url);
     if (parsed.origin !== 'https://cdn.readdetectiveconan.com') throw new Error('Unexpected MangaPill image host.');

@@ -136,3 +136,15 @@ Use the project's compatible Expo runtime and the configured Render API URL; ena
 18. Next: confirm latest Render deployment and feeds; physical checklist; MangaTown adapter plus restricted Referer image delivery; finish MangaGg/MangaOwl investigation; safe direct-client feasibility for cloud-blocked sources. Do not start Phase 6.6.
 
 Discovery references: official Narou API order documentation at https://dev.syosetu.com/man/api/; live public AniList GraphQL and MangaDex API contracts; exact Expo SDK 57 docs read before coding.
+
+## MangaTown continuation checkpoint
+
+Render priority check: /health, /health/ready, /api/providers/health and /api/content/providers all failed before HTTP with UND_ERR_CONNECT_TIMEOUT. No provider code was changed to address this transport problem.
+
+Implemented MangaTown adapter and restricted image route using existing normalized reader models. Verified one real title/chapter through the actual frontend bridge, all 29 sequential page descriptors and sampled cover/first/middle/last images. Rejected arbitrary URL/traversal/unknown parameters, out-of-range and unlisted pages. Focused search, Phase 3 novel and Phase 4 gateway regressions pass; backend build passes; frontend typecheck remains only the four known canvas errors.
+
+MangaGg now fails with normal-access 403 challenge, MangaOwl search remains a bounded timeout. Direct feasibility checks cannot establish native support without a phone: all five locally working/cloud-blocked sources return 200 locally but no browser CORS permission for the tested origin. No device is connected. Physical test request sent to the user; no result reported yet.
+
+Files: backend/src/providers/mangatown/adapter.ts and image.ts, backend/frontend registry entries, content route, existing frontend bridge URL normalization, scripts/phase6.5-mangatown-smoke.mjs and reports. No DB/account changes.
+
+Additional phone case when MangaTown is production-verified (or via the local LAN gateway): Koi wa Amaagari no You ni, Chapter 1, expect 29 actual pages with source identity and chapter navigation.

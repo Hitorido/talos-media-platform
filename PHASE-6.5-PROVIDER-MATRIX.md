@@ -1,5 +1,19 @@
 # Phase 6.5 Provider Matrix
 
+## Current status summary - 2026-09-18 continuation
+
+This summary supersedes older status statements below; earlier sections are retained as verification history. No physical phone success has been reported.
+
+- Render connectivity: all four requested endpoints currently fail before HTTP with UND_ERR_CONNECT_TIMEOUT. Latest discovery deployment confirmation remains pending; this is not a provider-specific failure.
+- Render content previously verified: MangaPill, GdScans and NovelCodex.org. Native rendering unverified.
+- Local content verified, Render upstream 403: WeebCentral, Kaliscan, MangaJinx, NovelArrow and DemonicScans. Native Direct support is not implemented or verified; tested browser requests receive no Access-Control-Allow-Origin.
+- MangaTown: local full reader contract and real cover/first/middle/last images PASS; 29 actual chapter pages. Render and phone validation pending.
+- MangaGg: current normal search returns HTTP 403 with challenge indicators, superseding the previous timeout-only evidence. No bypass attempted.
+- MangaOwl.io: current search still times out after 20 seconds; homepage-only evidence does not establish a reader.
+- Discovery: all seven sections implemented/local-verified. Production Narou discovery confirmation remains pending connectivity; recommendations are anime-only.
+- AnimeParadise: real HLS/video/audio verified, physical player behavior unverified. Narou reading regression remains verified.
+
+
 Verification date: 2026-09-17. Statuses distinguish local adapter success from Render deployment and physical-device UI verification. Enabled is not equivalent to working.
 
 ## WeebCentral — Backend — Limited (production verification pending)
@@ -457,3 +471,13 @@ Batch 007a30e deployed successfully; all four health endpoints returned 200. Dem
 ## Latest discovery production status
 
 Local seven-feed smoke passes with 12 real items per section, plus cache/deduplication/source disable and failure isolation. Discovery code pushed at 37538cd. Production Narou discovery requests and subsequent /health checks hit TCP connect timeouts before HTTP, while direct discovery feeds work. Latest deployment/route verification pending; this must not overwrite earlier successful Render image/text evidence or be misreported as an upstream Narou 403.
+
+## MangaTown implementation and direct feasibility follow-up
+
+Canonical domain: https://www.mangatown.com. Strategy: Backend HTML normalization and identifier-only source-specific image relay. Previous status: details/chapter HTML only, images required normal Referer. Current local search/details/chapters/page-list/actual-image/reader-contract PASS for Koi wa Amaagari no You ni, Chapter 1 (c001). Exactly 29 numbered pages; the extra Featured selector option is excluded. Cover and first/middle/last page requests passed.
+
+Relay input is only mediaId, chapterId and page; arbitrary URLs, extra query keys, traversal, out-of-range and unlisted pages are rejected. Source HTML comes only from fixed www.mangatown.com paths. Its actual image CDNs are fixed exact HTTPS origins fmcdn.mangahere.com (cover) and zjcdn.mangahere.org (chapter), with separate validated /store/manga paths. Image redirects are rejected, responses capped at 10 MB and image fetch/body timeout at 20 seconds. HTML requests independently have a 20-second/5-MB bound. A normal MangaTown Referer is supplied. No open proxy or global CORS change. Chapters over 300 pages, unsupported CDN structures or non-numeric pagination fail explicitly. Generic comic classification only; discovery not integrated.
+
+Current source retests: MangaGg search on mangagg.com returned 403 with challenge indicators at 2026-09-18T09:20:43Z; MangaOwl.io search hit TimeoutError at its 20-second limit.
+
+Direct feasibility: ordinary local HTTP requests with Origin http://localhost:8081 returned 200 for WeebCentral/Kaliscan/MangaJinx/NovelArrow/DemonicScans, with no Access-Control-Allow-Origin header on any. This does not establish browser Direct support. React Native requests do not use browser CORS enforcement, but actual device transport/parser/reader behavior is unverified: adb reports no connected devices. No Native Direct adapter was enabled on the basis of Node tests. Existing local-backend operation and production limitations remain separate.

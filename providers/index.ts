@@ -128,6 +128,9 @@ export function initializeProviders(): void {
   const mangaPill = backendComicProvider('mangapill', 'MangaPill');
   mangaPill.definition.mediaTypes = ['manga'];
   providerRegistry.register(mangaPill);
+  const mangaTown = backendComicProvider('mangatown', 'MangaTown');
+  mangaTown.definition.mediaTypes = ['manga'];
+  providerRegistry.register(mangaTown);
   for (const [id, name] of [['kaliscan', 'Kaliscan'], ['mangajinx', 'MangaJinx'], ['gdscans', 'GdScans'], ['demonicscans', 'DemonicScans']]) {
     const provider = backendComicProvider(id, name);
     provider.definition.mediaTypes = ['manga'];

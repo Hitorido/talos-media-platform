@@ -1,3 +1,4 @@
+import { mangaTownImage } from '../providers/mangatown/image.js';
 import { narouDiscovery } from '../providers/narou/discovery.js';
 import { mangaPillImage } from '../providers/mangapill/image.js';
 import { Router } from 'express';
@@ -14,6 +15,7 @@ export const contentRouter = Router();
 contentRouter.get('/providers', contentController.listProviders);
 contentRouter.get('/discovery/narou', asyncHandler(async (req,res) => { res.json({success:true,data:await narouDiscovery(req.query.feed)}); }));
 contentRouter.get('/mangapill/image', asyncHandler(mangaPillImage));
+contentRouter.get('/mangatown/image', asyncHandler(mangaTownImage));
 
 contentRouter.get(
   '/search',
