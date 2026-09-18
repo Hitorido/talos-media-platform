@@ -1,3 +1,4 @@
+import { settleProviderSearches, sameComicTitle } from '@/services/providerSearch';
 import { initializeProviders, providerRegistry } from '@/providers';
 import {
   resolveBuiltinMockAnime,
@@ -24,7 +25,6 @@ import {
 import type { SearchFilter, SearchResponse, SearchResult } from '@/types/search';
 import { isComicFormat } from '@/utils/comicFormat';
 
-const SEARCH_DELAY_MS = 250;
 const TITLE_MATCH_THRESHOLD = 80;
 
 export type ResolvedAnimePlaybackResult = {
@@ -154,23 +154,17 @@ function rankSearchResults(results: SearchResult[], filter: SearchFilter): Searc
 }
 
 export async function unifiedSearch(query: string, filter: SearchFilter): Promise<SearchResponse> {
-  await new Promise((resolve) => setTimeout(resolve, SEARCH_DELAY_MS));
-
   const trimmedQuery = query.trim();
-  if (trimmedQuery.toLowerCase() === 'error') {
-    throw new Error('Search is temporarily unavailable. Please try again.');
-  }
+  if (!trimmedQuery) return { query: trimmedQuery, filter, results: [] };
 
   const providers = orderProvidersForSearch(
-    getEnabledProviders().filter((provider) => providerSupports(provider, 'search')),
+    getEnabledProviders().filter((provider) => providerSupports(provider, 'search', filter === 'all' ? undefined : filter)),
     filter,
   );
 
-  const settled = await Promise.allSettled(
-    providers.map((provider) =>
-      withProviderHealth(provider.definition.id, () =>
-        provider.search(trimmedQuery, { filter, limit: 12 }),
-      ),
+  const settled = await settleProviderSearches(providers, (provider) =>
+    withProviderHealth(provider.definition.id, () =>
+      provider.search(trimmedQuery, { filter, limit: 12 }),
     ),
   );
 
@@ -196,7 +190,7 @@ export async function searchAlternateComicSources(params: {
 }): Promise<SearchResult[]> {
   const response = await unifiedSearch(params.title, 'all');
   return response.results.filter((result) => {
-    if (result.type !== 'manga') return false;
+    if (result.type !== 'manga' || !sameComicTitle(result.title, params.title)) return false;
     if (params.excludeProviderId && result.providerId === params.excludeProviderId) return false;
     if (params.excludeRouteId && result.id === params.excludeRouteId) return false;
     return true;

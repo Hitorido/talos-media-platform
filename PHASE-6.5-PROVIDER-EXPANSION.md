@@ -41,3 +41,9 @@ Added the public-only backend adapter, backend/frontend registration and scripts
 ## Kaliscan / MangaJinx batch
 
 Added backend/src/providers/kaliscan/adapter.ts, source registrations and scripts/phase6.5-kaliscan-smoke.mjs. Backend build and both real image-flow checks passed. Frontend typecheck still reports only the four pre-existing cursor/canvas TS2307 errors. Dead chapter images are documented rather than hidden behind a Working status. These sources remain opt-in.
+
+## Search and reader regression checkpoint
+
+Global search now runs at most three actual provider operations concurrently, skips disabled/unsupported sources, preserves successful results after another source fails, and records health. Removed the demo-only special error query. Comic alternate-source suggestions require equal normalized titles, preventing sequels from silently qualifying; translated aliases still require future metadata matching. Existing direct clients do not all have request/body timeouts yet, so bounded concurrency is not claimed to solve every stalled source.
+
+Validation: phase6.5-search-test passes against the actual service; phase6.5-reader-gateway-smoke passes for Kaliscan, MangaJinx and NovelCodex.org including locked HTTP 403. Phase 3 novel, Phase 4 gateway, MangaDex classification, and Phase 5.6 beta smokes pass. Narou real text remains available. Public Consumet still returns HTTP 451. Frontend typecheck retains only the four known cursor/canvas errors. Physical rendering is unverified.
