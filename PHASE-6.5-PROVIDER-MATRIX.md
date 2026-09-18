@@ -481,3 +481,7 @@ Relay input is only mediaId, chapterId and page; arbitrary URLs, extra query key
 Current source retests: MangaGg search on mangagg.com returned 403 with challenge indicators at 2026-09-18T09:20:43Z; MangaOwl.io search hit TimeoutError at its 20-second limit.
 
 Direct feasibility: ordinary local HTTP requests with Origin http://localhost:8081 returned 200 for WeebCentral/Kaliscan/MangaJinx/NovelArrow/DemonicScans, with no Access-Control-Allow-Origin header on any. This does not establish browser Direct support. React Native requests do not use browser CORS enforcement, but actual device transport/parser/reader behavior is unverified: adb reports no connected devices. No Native Direct adapter was enabled on the basis of Node tests. Existing local-backend operation and production limitations remain separate.
+
+## MangaTown post-push health check
+
+Code checkpoint 526928d pushed to main. At 2026-09-18T09:24:35Z all four Render endpoints still failed before HTTP with UND_ERR_CONNECT_TIMEOUT. MangaTown production flow and latest discovery deployment remain unverified; no provider-specific conclusion is drawn from these transport failures. No further unchanged-code redeploy was attempted.

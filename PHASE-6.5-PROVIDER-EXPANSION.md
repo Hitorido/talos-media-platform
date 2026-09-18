@@ -148,3 +148,26 @@ MangaGg now fails with normal-access 403 challenge, MangaOwl search remains a bo
 Files: backend/src/providers/mangatown/adapter.ts and image.ts, backend/frontend registry entries, content route, existing frontend bridge URL normalization, scripts/phase6.5-mangatown-smoke.mjs and reports. No DB/account changes.
 
 Additional phone case when MangaTown is production-verified (or via the local LAN gateway): Koi wa Amaagari no You ni, Chapter 1, expect 29 actual pages with source identity and chapter navigation.
+
+## Requested continuation report - current checkpoint
+
+1. Render connectivity/deployment: 526928d pushed; all four post-push health requests at 2026-09-18T09:24:35Z fail before HTTP with UND_ERR_CONNECT_TIMEOUT. Runtime deployment not confirmed.
+2. Discovery production: latest Narou route/seven-section production confirmation remains pending connectivity; local real feeds and isolated failure tests already pass.
+3. MangaTown: local full flow PASS; 29 actual pages, cover and sampled first/middle/last images through restricted relay. Production pending.
+4. MangaGg: ordinary current search HTTP 403 with challenge indicators. No bypass.
+5. MangaOwl: search TimeoutError after 20 seconds. Not declared dead.
+6. Direct/native: five sources respond 200 locally but no browser CORS permission. No connected phone; native Direct remains unverified/unimplemented.
+7. New Render-verified sources this checkpoint: none due transport failure. Previously verified MangaPill/GdScans/NovelCodex retained as historical verified results.
+8. Local-only: MangaTown pending production; WeebCentral/Kaliscan/MangaJinx/NovelArrow/DemonicScans have prior Render upstream 403 evidence.
+9. Physical MangaPill: user result pending.
+10. Physical GdScans: user result pending.
+11. Physical NovelCodex: user result pending; locked chapters remain rejected by existing access enforcement.
+12. Physical AnimeParadise: user result pending; previous real HLS/video/audio/ffprobe evidence is not native rendering proof.
+13. Physical discovery: pending production connectivity and user phone result. Recommendations remain anime-only.
+14. Search/source switching: focused service regression PASS; three-operation cap and conservative matching unchanged.
+15. Reader regression: actual MangaTown frontend bridge/image flow PASS, including page order and invalid input rejection. No reader UI changes.
+16. Novel reader: Phase 3 and gateway regressions PASS. No novel parsing changes in this checkpoint.
+17. Player: no player code changes; prior media regression retained, physical validation pending.
+18. Build/typecheck: backend build PASS; only four known frontend cursor/canvas TS2307 errors. Previous 19-route export retained; no unrelated rerun needed.
+19. Known limitations: transport outage, missing phone results, cloud-blocked sources, no native Direct claim, MangaTown supported CDN/path formats and 300-page cap, MangaGg challenge/MangaOwl timeout.
+20. Ready to close: no. Required production discovery/health and physical anime playback have not been verified. Phase 6.6 not started.
