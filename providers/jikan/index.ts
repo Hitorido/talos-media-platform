@@ -30,7 +30,7 @@ export const jikanAnimeProvider: MediaProvider = {
   },
 
   async search(query, context) {
-    const results = await searchJikanAnime(query, context.limit ?? 12);
+    const results = await searchJikanAnime(query, context.limit ?? 12, context.signal);
     return results.map((item): SearchResult => ({
       id: encodeMediaRouteId(PROVIDER_ID, String(item.mal_id)),
       providerId: PROVIDER_ID,
@@ -38,6 +38,7 @@ export const jikanAnimeProvider: MediaProvider = {
       title: item.title_english || item.title,
       coverUrl: item.images.jpg.large_image_url || item.images.jpg.image_url,
       type: 'anime',
+        episodeCount: Number.isSafeInteger(item.episodes) && (item.episodes ?? 0) > 0 ? item.episodes : undefined,
       subtitle: item.type ? `${item.type} · ${item.episodes ? `${item.episodes} eps` : 'Ongoing'}` : 'Anime',
       tags: ['Anime', ...item.genres.slice(0, 2).map((g) => g.name)],
     }));

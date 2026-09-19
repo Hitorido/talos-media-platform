@@ -8,6 +8,7 @@ type SearchBarProps = {
   value: string;
   onChangeText: (text: string) => void;
   onClear?: () => void;
+  onSubmit?: () => void;
   placeholder?: string;
   className?: string;
 };
@@ -16,6 +17,7 @@ export function SearchBar({
   value,
   onChangeText,
   onClear,
+  onSubmit,
   placeholder = 'Search anime, manga, novels...',
   className,
 }: SearchBarProps) {
@@ -39,6 +41,7 @@ export function SearchBar({
         autoCapitalize="none"
         autoCorrect={false}
         returnKeyType="search"
+        onSubmitEditing={onSubmit}
         selectionColor={theme.colors.primary}
         style={{
           flex: 1,

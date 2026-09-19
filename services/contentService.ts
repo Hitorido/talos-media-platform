@@ -1,4 +1,4 @@
-import { settleProviderSearches, sameComicTitle } from '@/services/providerSearch';
+import { settleProviderSearches, sameComicTitle, inSearchSlot, searchRequest } from '@/services/providerSearch';
 import { initializeProviders, providerRegistry } from '@/providers';
 import {
   resolveBuiltinMockAnime,
@@ -23,9 +23,12 @@ import {
   type NormalizedPlaybackSource,
 } from '@/types/provider';
 import type { SearchFilter, SearchResponse, SearchResult } from '@/types/search';
+import { getApiBaseUrl } from '@/lib/apiConfig';
+import { useBackendConfigStore } from '@/stores/backendConfigStore';
 import { isComicFormat } from '@/utils/comicFormat';
 
 const TITLE_MATCH_THRESHOLD = 80;
+const searchCache = new Map<string, { expires: number; items: SearchResult[] }>();
 
 export type ResolvedAnimePlaybackResult = {
   source: NormalizedPlaybackSource;
@@ -43,15 +46,15 @@ export type ResolvedNovelChapterResult = {
   isDemo: boolean;
 };
 
-async function withProviderHealth<T>(providerId: string, operation: () => Promise<T>): Promise<T> {
+async function withProviderHealth<T>(providerId: string, operation: () => Promise<T>, signal?: AbortSignal): Promise<T> {
   const startedAt = Date.now();
   try {
     const result = await operation();
-    useProviderHealthStore.getState().recordSuccess(providerId, Date.now() - startedAt);
+    if (!signal?.aborted) useProviderHealthStore.getState().recordSuccess(providerId, Date.now() - startedAt);
     return result;
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Provider request failed';
-    useProviderHealthStore.getState().recordFailure(providerId, message, Date.now() - startedAt);
+    if (!signal?.aborted) useProviderHealthStore.getState().recordFailure(providerId, message, Date.now() - startedAt);
     throw error;
   }
 }
@@ -153,7 +156,10 @@ function rankSearchResults(results: SearchResult[], filter: SearchFilter): Searc
   });
 }
 
-export async function unifiedSearch(query: string, filter: SearchFilter): Promise<SearchResponse> {
+export async function unifiedSearch(query: string, filter: SearchFilter, options: {
+  signal?: AbortSignal;
+  onProgress?: (results: SearchResult[]) => void;
+} = {}): Promise<SearchResponse> {
   const trimmedQuery = query.trim();
   if (!trimmedQuery) return { query: trimmedQuery, filter, results: [] };
 
@@ -162,13 +168,35 @@ export async function unifiedSearch(query: string, filter: SearchFilter): Promis
     filter,
   );
 
-  const settled = await settleProviderSearches(providers, (provider) =>
-    withProviderHealth(provider.definition.id, () =>
-      provider.search(trimmedQuery, { filter, limit: 12 }),
-    ),
-  );
-
-  const merged = settled.flatMap((result) => (result.status === 'fulfilled' ? result.value : []));
+  const started = Date.now();
+  let first = false;
+  const scope = JSON.stringify([getApiBaseUrl(), useBackendConfigStore.getState().backendUrls]);
+  const merged: SearchResult[] = [];
+  await settleProviderSearches(providers, (provider) => inSearchSlot(async () => {
+    if (options.signal?.aborted) return;
+    const key = JSON.stringify([scope, provider.definition.id, trimmedQuery, filter]);
+    const cached = searchCache.get(key);
+    const providerStarted = Date.now();
+    const results = cached && cached.expires > Date.now() ? cached.items :
+      await withProviderHealth(provider.definition.id, () =>
+        searchRequest(options.signal, signal => provider.search(trimmedQuery, { filter, limit: 12, signal })), options.signal);
+    if (!options.signal?.aborted) {
+      searchCache.delete(key);
+      searchCache.set(key, { expires: cached && cached.expires > Date.now() ? cached.expires : Date.now() + 60_000, items: results.slice(0, 12) });
+      while (searchCache.size > 100) searchCache.delete(searchCache.keys().next().value!);
+    }
+    if (typeof __DEV__ !== 'undefined' && __DEV__) console.debug('[search] provider', provider.definition.id, Date.now() - providerStarted, 'ms');
+    if (options.signal?.aborted) return;
+    merged.push(...results.slice(0, 12));
+    if (!first && merged.some(item => matchesSearchFilter(item, filter))) {
+      first = true;
+      if (typeof __DEV__ !== 'undefined' && __DEV__) console.debug('[search] first results', Date.now() - started, 'ms');
+    }
+    options.onProgress?.(rankSearchResults(dedupeSearchResults(
+      merged.filter((result) => matchesSearchFilter(result, filter)),
+    ), filter));
+  }));
+  if (typeof __DEV__ !== 'undefined' && __DEV__) console.debug('[search] total', Date.now() - started, 'ms');
   const filtered = merged.filter((result) => matchesSearchFilter(result, filter));
 
   return {

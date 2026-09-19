@@ -15,6 +15,8 @@ const make=(id,mediaTypes,titles,fail=false)=>({definition:{id,name:id,status:'w
 const providers=[make('comic',['manga'],['Solo Leveling','Solo Leveling: Ragnarok']),make('anime',['anime'],['Solo Leveling']),make('failed',['manga'],[],true),make('disabled',['manga'],['Solo Leveling'])];
 const service=loadProviderTs('services/contentService.ts',{
  '@/services/providerSearch':helpers,
+ '@/lib/apiConfig':{getApiBaseUrl:()=> 'https://test.invalid'},
+ '@/stores/backendConfigStore':{useBackendConfigStore:{getState:()=>({backendUrls:{}})}},
  '@/providers':{initializeProviders(){},providerRegistry:{list:()=>providers}},
  '@/providers/builtin-mock':{},
  '@/providers/types':loadProviderTs('providers/types.ts'),

@@ -22,8 +22,9 @@ export const novelCodexAdapter: ContentProviderAdapter = {
   async search(query) {
     const data = JSON.parse(await sourceText(origin, '/api/novels/search?q=' + encodeURIComponent(query)));
     if (!Array.isArray(data.items)) throw new ProviderGatewayError('Search unavailable.', 502);
-    return data.items.slice(0, 20).map((item: { slug: string; title: string; cover_url?: string; author?: string; genres?: string[] }) => ({
+    return data.items.slice(0, 20).map((item: { slug: string; title: string; cover_url?: string; author?: string; genres?: string[]; total_chapters?: number }) => ({
       id: id(item.slug), sourceId: item.slug, providerId, mediaType: 'novel' as const,
+      chapterCount: Number.isSafeInteger(item.total_chapters) && (item.total_chapters ?? 0) > 0 ? item.total_chapters : undefined,
       title: item.title, coverUrl: item.cover_url, author: item.author, genres: item.genres,
     }));
   },

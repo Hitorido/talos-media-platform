@@ -58,7 +58,7 @@ export function createConsumetAnimeProvider(config: ConsumetAnimeProviderConfig)
     },
 
     async search(query, context) {
-      const response = await consumetAnimeSearch(config.slug, query, 1);
+      const response = await consumetAnimeSearch(config.slug, query, 1, context.signal);
       return (response.results ?? []).slice(0, context.limit ?? 12).map((item): SearchResult => ({
         id: encodeMediaRouteId(providerId, item.id),
         providerId,

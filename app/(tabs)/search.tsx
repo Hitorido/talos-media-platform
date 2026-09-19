@@ -10,6 +10,7 @@ import {
   SearchLoadingState,
   SearchResultsList,
 } from '@/components/search';
+import { Text } from '@/components/ui/Text';
 import { Screen } from '@/components/ui';
 import { animeDetailsHref, mangaDetailsHref, novelDetailsHref } from '@/lib/routes';
 import { useSearch } from '@/hooks/useSearch';
@@ -35,7 +36,7 @@ export default function SearchScreen() {
     showEmpty,
   } = useSearch();
 
-  const showResults = hasQuery && !loading && !error && results.length > 0;
+  const showResults = hasQuery && !error && results.length > 0;
 
   return (
     <Screen className="flex-1">
@@ -44,18 +45,19 @@ export default function SearchScreen() {
         className="flex-1"
       >
         <View className="gap-3 border-b border-neutral-200 px-4 py-3 dark:border-neutral-800">
-          <SearchBar value={query} onChangeText={setQuery} onClear={clearQuery} />
+          <SearchBar value={query} onChangeText={setQuery} onClear={clearQuery} onSubmit={retry} />
           <SearchFilterTabs value={filter} onChange={setFilter} />
         </View>
 
         <View className="flex-1">
           {error ? <SearchErrorState message={error} onRetry={retry} /> : null}
 
-          {!error && loading ? <SearchLoadingState /> : null}
+          {!error && loading && !showResults ? <SearchLoadingState /> : null}
+          {!error && loading && showResults ? <Text className="px-4 py-2">Searching more sources...</Text> : null}
 
           {!error && !loading && showEmpty ? <SearchEmptyState query={query.trim()} /> : null}
 
-          {!error && !loading && showResults ? (
+          {!error && showResults ? (
             <SearchResultsList
               results={results}
               query={query.trim()}

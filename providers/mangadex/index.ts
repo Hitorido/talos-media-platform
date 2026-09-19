@@ -36,7 +36,7 @@ export const mangaDexProvider: MediaProvider = {
   },
 
   async search(query, context) {
-    const manga = await searchMangaDex(query, context.limit ?? 12);
+    const manga = await searchMangaDex(query, context.limit ?? 12, context.signal);
     return manga.map((entry): SearchResult => {
       const mapped = mapMangaDexToNormalized(entry);
       return {

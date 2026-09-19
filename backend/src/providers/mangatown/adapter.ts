@@ -4,6 +4,14 @@ import { ProviderGatewayError, type ContentProviderAdapter } from '../types.js';
 
 const origin = 'https://www.mangatown.com';
 const providerId = 'mangatown';
+// Search already supplies covers. Never fetch a title/chapter list to paint a search card.
+const covers = new Map<string, {url: string; expires: number}>();
+function rememberCover(id: string, url?: string) {
+  if (!url) return;
+  covers.delete(id);
+  covers.set(id, {url, expires: Date.now() + 5 * 60_000});
+  while (covers.size > 200) covers.delete(covers.keys().next().value!);
+}
 const mediaId = (value: string) => checkedId(value, /^[a-z0-9]+(?:_[a-z0-9]+)*$/);
 const chapterId = (value: string) => checkedId(value, /^c[0-9]+(?:[.][0-9]+)?$/);
 const imagePath = (sourceId: string, chapter?: string, page?: number) =>
@@ -29,11 +37,18 @@ async function chapterDocument(sourceId: string, chapter: string) {
 }
 
 /** Resolve only source-owned identifiers; callers never supply an upstream URL. */
-export async function mangaTownImageUrl(sourceId: string, chapter?: string, page?: number): Promise<string> {
+export async function mangaTownImageUrl(sourceId: string, chapter?: string, page?: number, searchCover = false): Promise<string> {
   let raw: string | undefined;
   if (!chapter) {
-    const $ = load(await sourceText(origin, '/manga/' + mediaId(sourceId) + '/'));
-    raw = $('.detail_info > img').first().attr('src');
+    const cover = covers.get(mediaId(sourceId));
+    if (cover && cover.expires > Date.now()) raw = cover.url;
+    else if (searchCover) throw new ProviderGatewayError('Cover expired; refresh search.', 404);
+    else {
+      // Preserve saved detail/library cover URLs across server restarts.
+      const $ = load(await sourceText(origin, '/manga/' + mediaId(sourceId) + '/'));
+      raw = $('.detail_info > img').first().attr('src');
+      rememberCover(sourceId, raw);
+    }
   } else {
     const document = await chapterDocument(sourceId, chapter);
     const path = document.paths.get(page!);
@@ -56,11 +71,13 @@ export const mangaTownAdapter: ContentProviderAdapter = {
     return $('.title a').toArray().flatMap(el => {
       const a = $(el), sourceId = a.attr('href')?.match(/^\/manga\/([a-z0-9_]+)\/$/)?.[1];
       if (!sourceId) return [];
-      return [{ id: sourceId, sourceId, providerId, mediaType: 'manga' as const, title: a.attr('title') || a.text().trim(), coverUrl: imagePath(sourceId) }];
+      rememberCover(sourceId, a.closest('li').find('.manga_cover img').attr('src'));
+      return [{ id: sourceId, sourceId, providerId, mediaType: 'manga' as const, title: a.attr('title') || a.text().trim(), coverUrl: imagePath(sourceId) + '&search=1' }];
     }).slice(0, 20);
   },
   async getDetails(sourceId) {
     const $ = load(await sourceText(origin, '/manga/' + mediaId(sourceId) + '/'));
+    rememberCover(sourceId, $('.detail_info > img').first().attr('src'));
     const title = $('h1').first().text().trim();
     if (!title) throw new ProviderGatewayError('MangaTown details unavailable.', 502);
     return { providerId, sourceId, mediaType: 'manga', title, coverUrl: imagePath(sourceId), description: $('#show').text().trim(), genres: [] };

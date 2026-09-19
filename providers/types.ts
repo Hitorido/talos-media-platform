@@ -15,6 +15,7 @@ import type { SearchFilter, SearchResult } from '@/types/search';
 export type ProviderSearchContext = {
   filter: SearchFilter;
   limit?: number;
+  signal?: AbortSignal;
 };
 
 export interface MediaProvider {

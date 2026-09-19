@@ -53,8 +53,11 @@ type JikanResponse<T> = {
   };
 };
 
-async function jikanFetch<T>(path: string, retries = 2): Promise<T> {
+async function jikanFetch<T>(path: string, retries = 2, signal?: AbortSignal): Promise<T> {
   const controller = new AbortController();
+  const abort = () => controller.abort();
+  if (signal?.aborted) abort();
+  else signal?.addEventListener('abort', abort, { once: true });
   const timeoutId = setTimeout(() => controller.abort(), 8000);
 
   try {
@@ -62,8 +65,6 @@ async function jikanFetch<T>(path: string, retries = 2): Promise<T> {
       headers: JIKAN_HEADERS,
       signal: controller.signal,
     });
-    clearTimeout(timeoutId);
-
     if (!response.ok) {
       if (retries > 0 && (response.status === 429 || response.status >= 500)) {
         await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -80,12 +81,15 @@ async function jikanFetch<T>(path: string, retries = 2): Promise<T> {
       return jikanFetch<T>(path, retries - 1);
     }
     throw error;
+  } finally {
+    clearTimeout(timeoutId);
+    signal?.removeEventListener('abort', abort);
   }
 }
 
-export async function searchJikanAnime(query: string, limit = 12): Promise<JikanAnimeItem[]> {
+export async function searchJikanAnime(query: string, limit = 12, signal?: AbortSignal): Promise<JikanAnimeItem[]> {
   const payload = await jikanFetch<JikanResponse<JikanAnimeItem[]>>(
-    `/anime?q=${encodeURIComponent(query)}&limit=${limit}&sfw=true`,
+    `/anime?q=${encodeURIComponent(query)}&limit=${limit}&sfw=true`, 0, signal,
   );
   return payload.data ?? [];
 }

@@ -3,14 +3,15 @@ import { mangaTownImageUrl } from './adapter.js';
 import { ProviderGatewayError } from '../types.js';
 
 export async function mangaTownImage(req: Request, res: Response) {
-  const { mediaId, chapterId, page } = req.query;
-  if (Object.keys(req.query).some(key => !['mediaId', 'chapterId', 'page'].includes(key)) ||
+  const { mediaId, chapterId, page, search } = req.query;
+  if (Object.keys(req.query).some(key => !['mediaId', 'chapterId', 'page', 'search'].includes(key)) ||
+      (search !== undefined && (search !== '1' || chapterId !== undefined || page !== undefined)) ||
       typeof mediaId !== 'string' || !/^[a-z0-9]+(?:_[a-z0-9]+)*$/.test(mediaId) ||
       (chapterId !== undefined && (typeof chapterId !== 'string' || !/^c[0-9]+(?:[.][0-9]+)?$/.test(chapterId))) ||
       (chapterId === undefined ? page !== undefined : typeof page !== 'string' || !/^[1-9][0-9]{0,2}$/.test(page) || Number(page) > 300)) {
     throw new ProviderGatewayError('Invalid MangaTown image identifiers.', 400, 'INVALID_IMAGE_PATH');
   }
-  const url = await mangaTownImageUrl(mediaId, chapterId as string | undefined, page === undefined ? undefined : Number(page));
+  const url = await mangaTownImageUrl(mediaId, chapterId as string | undefined, page === undefined ? undefined : Number(page), search === '1');
   const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 20000);
   try {
     const response = await fetch(url, { redirect: 'error', signal: controller.signal, headers: { Referer: 'https://www.mangatown.com/' } });

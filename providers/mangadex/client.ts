@@ -82,8 +82,8 @@ type MangaDexAtHomeResponse = {
   };
 };
 
-async function mangadexFetch<T>(url: string): Promise<T> {
-  const response = await fetch(url, { headers: MANGADEX_HEADERS });
+async function mangadexFetch<T>(url: string, signal?: AbortSignal): Promise<T> {
+  const response = await fetch(url, { headers: MANGADEX_HEADERS, signal });
   if (!response.ok) {
     throw new Error(`MangaDex request failed (${response.status})`);
   }
@@ -103,7 +103,7 @@ function buildCoverUrl(manga: MangaDexManga): string {
   return `https://uploads.mangadex.org/covers/${manga.id}/${coverRel.attributes.fileName}.256.jpg`;
 }
 
-export async function searchMangaDex(query: string, limit = 12): Promise<MangaDexManga[]> {
+export async function searchMangaDex(query: string, limit = 12, signal?: AbortSignal): Promise<MangaDexManga[]> {
   const params = new URLSearchParams();
   params.set('title', query);
   params.set('limit', String(limit));
@@ -112,6 +112,7 @@ export async function searchMangaDex(query: string, limit = 12): Promise<MangaDe
 
   const payload = await mangadexFetch<MangaDexResponse<MangaDexManga[]>>(
     `${MANGADEX_API}/manga?${params.toString()}`,
+    signal,
   );
   return payload.data ?? [];
 }

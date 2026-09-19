@@ -67,9 +67,10 @@ export function getNovelProviderBaseUrl(): string {
   return `${getApiBaseUrl()}/api/novels`;
 }
 
-async function novelGatewayFetch<T>(path: string): Promise<T> {
+async function novelGatewayFetch<T>(path: string, signal?: AbortSignal): Promise<T> {
   const base = getNovelProviderBaseUrl();
   const response = await fetch(`${base}${path}`, {
+    signal,
     headers: {
       Accept: 'application/json',
       'User-Agent': 'MangaAnimeNovelReader/1.0',
@@ -135,7 +136,7 @@ export const novelBackendProvider: MediaProvider = {
 
   async search(query, context) {
     const data = await novelGatewayFetch<{ results?: NovelGatewaySearchItem[] }>(
-      `/search?q=${encodeURIComponent(query)}`,
+      `/search?q=${encodeURIComponent(query)}`, context.signal,
     );
     return (data.results ?? []).slice(0, context.limit ?? 12).map((item): SearchResult => ({
       id: encodeMediaRouteId(PROVIDER_ID, item.id),

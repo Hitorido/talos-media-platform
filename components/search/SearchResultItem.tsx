@@ -2,6 +2,7 @@ import { Image, Pressable, View } from 'react-native';
 
 import { Badge, Text } from '@/components/ui';
 import type { SearchResult } from '@/types/search';
+import { getProviderDisplayName } from '@/services/contentService';
 import { cn } from '@/utils/cn';
 import { comicFormatLabel } from '@/utils/comicFormat';
 
@@ -34,7 +35,7 @@ export function SearchResultItem({ item, onPress, className }: SearchResultItemP
       <View className="flex-1 justify-center gap-2">
         <View className="flex-row flex-wrap gap-2">
           <Badge label={typeLabel} variant={badgeVariant} />
-          <Badge label={item.subtitle.split('·')[0]?.trim() || item.providerId} variant="secondary" />
+          <Badge label={getProviderDisplayName(item.providerId)} variant="secondary" />
         </View>
         <Text variant="label" numberOfLines={2}>
           {item.title}
@@ -42,6 +43,11 @@ export function SearchResultItem({ item, onPress, className }: SearchResultItemP
         <Text variant="caption" tone="muted" numberOfLines={2}>
           {item.subtitle}
         </Text>
+        {(item.episodeCount ?? item.chapterCount ?? 0) > 0 ? (
+          <Text variant="caption" tone="muted">
+            {item.episodeCount ? item.episodeCount + ' Episodes' : item.chapterCount + ' Chapters in catalog'}
+          </Text>
+        ) : null}
       </View>
     </Pressable>
   );

@@ -58,6 +58,8 @@ export type BackendProviderDefinition = {
 };
 
 export type BackendSearchResult = {
+  chapterCount?: number;
+  episodeCount?: number;
   id: string;
   providerId: string;
   sourceId: string;

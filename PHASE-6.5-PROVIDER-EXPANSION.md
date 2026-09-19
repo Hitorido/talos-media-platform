@@ -171,3 +171,57 @@ Additional phone case when MangaTown is production-verified (or via the local LA
 18. Build/typecheck: backend build PASS; only four known frontend cursor/canvas TS2307 errors. Previous 19-route export retained; no unrelated rerun needed.
 19. Known limitations: transport outage, missing phone results, cloud-blocked sources, no native Direct claim, MangaTown supported CDN/path formats and 300-page cap, MangaGg challenge/MangaOwl timeout.
 20. Ready to close: no. Required production discovery/health and physical anime playback have not been verified. Phase 6.6 not started.
+
+
+## Search performance continuation ? 2026-09-19
+
+This is a focused Phase 6.5 performance pass; no providers or account/community features were added. Overall Phase 6.5 and physical-device verification remain open.
+
+### Previous versus current behavior
+
+Previously global search awaited every provider before exposing any results, the screen hid results while loading, and obsolete requests could update the screen during the next query's debounce or after clearing. MangaTown search-card covers could fetch a full title page (including chapter-list HTML) per card.
+
+Search now publishes each completed provider's lightweight results while remaining providers load. Editing, filtering, clearing, submitting again, and unmounting invalidate old callbacks immediately. A 400 ms debounce remains; keyboard Search and Retry submit immediately and cancel the pending debounce. Network cancellation propagates through backend bridges, MangaDex, AniList, Jikan, Kitsu, AnimeParadise, Narou, and configurable legacy novel/Consumet transports. Cancelled work is not recorded as a provider health failure.
+
+A shared search semaphore caps overlapping searches at three actual client provider operations. Slots remain occupied until transport settlement; there is no uncancelled Promise.race releasing a slot early. Each search operation receives a 20-second abort deadline (Jikan retains its shorter 8-second timeout and search makes no automatic retry). Providers are still filtered by enabled state/media type and ordered by existing source preference/status. Results remain source-scoped; conservative exact normalized-title source matching is unchanged.
+
+At most 12 results per provider enter the initial UI and cache. A 60-second, 100-entry in-memory cache stores only normalized search cards, keyed by provider/query/filter and API/backend configuration. Failed requests are not cached; cached hits do not extend expiry or fabricate health successes. No existing query-cache integration was present to reuse. Cache content is not written to disk. Development-only logs contain provider identifiers and elapsed milliseconds for provider completion, first results, and total search, without query strings, tokens, or production logging.
+
+### Provider audit and lazy boundaries
+
+- MangaDex: one search endpoint including cover relationship; no chapter/count enrichment requests.
+- MangaPill, GdScans, MangaTown, Kaliscan, MangaJinx, WeebCentral, DemonicScans: existing source search parsers and shared comic gateway only. No chapter lists/pages requested by frontend search. MangaTown now seeds a bounded five-minute/200-cover cache from search HTML. Search-cover relay requests use a strictly validated search=1 flag and never fall back to title HTML; expired covers require refreshed search. Existing detail/library cover URLs retain their fixed-origin fallback for server restarts. Existing host/path validation, image bounds, redirect rejection and normal Referer remain intact.
+- Narou and NovelCodex.org: counts already supplied by search are forwarded without additional requests. Actual local gateway responses returned catalog counts 16 and 552 respectively for the sampled searches. NovelCodex's 552 is a catalog total, not a claim of 552 public chapters; the separately verified public chapter list remains 386 and locked-text rejection is unchanged.
+- NovelArrow: metadata search only; no count enrichment or chapter text.
+- AnimeParadise: search only; no details/episode list or playback resolution to obtain a count. Its 220-episode list is deliberately not fetched for search cards.
+- AniList/Jikan/Kitsu: normalize optional episode counts directly from search responses. AniList search no longer requests full description/banner/rating/year fields; details queries are unchanged. Unknown/zero counts do not become displayed zero counts. Source badges now use registry names rather than guessing source identity from subtitles.
+
+Optional chapterCount/episodeCount fields do not duplicate the full media model. The UI labels novel counts as chapters in the catalog. Comic counts stay absent when the source only exposes latest chapter numbers, which are not reliable totals.
+
+Existing details hooks still request details plus chapters/episodes upon entering the detail screen. Existing reader/player resolvers fetch only the selected chapter's pages/text or episode playback. No content prefetch was added. Details already display their actual loaded chapter/episode list count.
+
+### Verification
+
+- Existing bounded-search/media-filter/enabled-filter/failure-health/conservative-source-switching tests PASS.
+- New behavioral performance test PASS: progressive results, maximum three operations across overlapping queries, 12-item cap, successful-result cache reuse, failed-provider retry, configuration invalidation, disabled-source filtering, and stale-query suppression.
+- Actual useSearch hook harness PASS: stale progress and final responses cannot overwrite a newer query during debounce; clear and unmount invalidate requests; explicit submit cancels debounce; cancelled terms do not enter history.
+- Fifteen real frontend provider search paths exercised with instrumented transports: metadata-only boundaries, cheap counts, missing-count omission, direct abort transport, selected comic/novel content requests PASS. MangaTown backend cover test proves no hidden detail/chapter HTML fetch from search covers.
+- Live MangaDex classification and manga/manhwa/manhua image flows PASS. MangaPill gateway/image relay, GdScans first/latest images, MangaTown search-cover-before-details and 29-page reader/images/invalid relay parameters, NovelCodex public text/locked rejection, Narou text, Phase 3 novel and Phase 4 gateway regressions PASS.
+- AnimeParadise search/details/220 episodes/selected HLS/media segment and ffprobe H.264/AAC media verification PASS. This is not physical expo-video rendering verification.
+- Phase 5.6 smoke PASS after starting the local gateway; an earlier run correctly failed with localhost ECONNREFUSED while that gateway was stopped. Consumet remains configuration-dependent/HTTP 451.
+- All seven local discovery sections returned 12 real items each; cache/deduplication/source disabling and injected failure isolation PASS. Recommendations remain anime-only.
+- Backend TypeScript build PASS. Frontend typecheck retains only the four pre-existing cursor/canvas module errors.
+- Controlled timing test: first batch at 32 ms while the deliberately slow provider takes 90 ms. This demonstrates progressive delivery; it is not a measured real-network or phone speedup. Actual phone before/after timing remains pending.
+
+### Physical-phone checklist
+
+1. Use the updated frontend and backend. Enable the intended sources, then search One Piece, Solo Leveling and Naruto. Compare time to first cards, input responsiveness, progressive arrivals, visible source names and available counts. Unknown counts must not show zero.
+2. Type one, then quickly one piece; clear during loading; submit with the keyboard before debounce finishes. Old cards must not replace the latest query and submit must begin immediately.
+3. Open a result. Confirm full metadata and chapters/episodes load there, with their actual list count. Only opening the selected chapter/episode should load its pages, novel text, or playback.
+4. Verify MangaPill One Piece Chapter 1 (57 pages), GdScans Ch.1.1 (21 pages), NovelCodex Prologue/public text and locked rejection, and AnimeParadise Naruto Episode 1 (video/audio/pause/seek/local resume, correct source, no demo fallback).
+
+No phone success is claimed. Render verification/deployment status is recorded separately from local performance tests; earlier transport timeouts remain transport evidence, not source failures.
+
+Final search UI integration: Expo web export to .expo/phase65-search-web-check PASS, 19 static routes generated (exit 0). Expo printed its existing forced-exit notice after export completed.
+
+Render pre-push recheck on 2026-09-19: /health, /health/ready, /api/providers/health and /api/content/providers all failed before HTTP with UND_ERR_CONNECT_TIMEOUT (TCP 443 to 216.24.57.16 / 216.24.57.18; connection timeout 10000 ms). No provider code was changed to address this network failure. Production verification of this new batch remains pending connectivity; local success is not production success.

@@ -42,8 +42,8 @@ export type ConsumetChapterPages = {
   pages?: string[];
 };
 
-export async function consumetFetch<T>(path: string): Promise<T> {
-  const response = await fetch(`${getConsumetBaseUrl()}${path}`, { headers: CONSUMET_HEADERS });
+export async function consumetFetch<T>(path: string, signal?: AbortSignal): Promise<T> {
+  const response = await fetch(`${getConsumetBaseUrl()}${path}`, { headers: CONSUMET_HEADERS, signal });
   if (!response.ok) {
     if (response.status === 451) {
       throw new Error(
@@ -62,9 +62,10 @@ export async function consumetMangaSearch(
   providerSlug: string,
   query: string,
   page = 1,
+  signal?: AbortSignal,
 ): Promise<ConsumetSearchResponse> {
   return consumetFetch<ConsumetSearchResponse>(
-    `/manga/${providerSlug}/${encodeURIComponent(query)}?page=${page}`,
+    `/manga/${providerSlug}/${encodeURIComponent(query)}?page=${page}`, signal,
   );
 }
 
@@ -120,9 +121,10 @@ export async function consumetAnimeSearch(
   providerSlug: string,
   query: string,
   page = 1,
+  signal?: AbortSignal,
 ): Promise<ConsumetSearchResponse> {
   return consumetFetch<ConsumetSearchResponse>(
-    `/anime/${providerSlug}/${encodeURIComponent(query)}?page=${page}`,
+    `/anime/${providerSlug}/${encodeURIComponent(query)}?page=${page}`, signal,
   );
 }
 

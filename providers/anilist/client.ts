@@ -21,13 +21,9 @@ query ($search: String, $limit: Int) {
         large
         medium
       }
-      bannerImage
-      description
       episodes
       status
-      averageScore
       genres
-      seasonYear
       format
     }
   }
@@ -94,9 +90,10 @@ export type AniListAnime = {
   };
 };
 
-async function anilistFetch<T>(query: string, variables: Record<string, unknown>): Promise<T> {
+async function anilistFetch<T>(query: string, variables: Record<string, unknown>, signal?: AbortSignal): Promise<T> {
   const response = await fetch(ANILIST_GRAPHQL_ENDPOINT, {
     method: 'POST',
+    signal,
     headers: ANILIST_HEADERS,
     body: JSON.stringify({ query, variables }),
   });
@@ -113,11 +110,11 @@ async function anilistFetch<T>(query: string, variables: Record<string, unknown>
   return json.data as T;
 }
 
-export async function searchAniListAnime(query: string, limit = 12): Promise<AniListAnime[]> {
+export async function searchAniListAnime(query: string, limit = 12, signal?: AbortSignal): Promise<AniListAnime[]> {
   const data = await anilistFetch<{ Page: { media: AniListAnime[] } }>(ANILIST_SEARCH_QUERY, {
     search: query,
     limit,
-  });
+  }, signal);
   return data.Page?.media ?? [];
 }
 

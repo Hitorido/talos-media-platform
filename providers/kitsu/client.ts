@@ -49,17 +49,18 @@ type KitsuResponse<T> = {
   data: T;
 };
 
-async function kitsuFetch<T>(path: string): Promise<T> {
-  const response = await fetch(`${KITSU_API}${path}`, { headers: KITSU_HEADERS });
+async function kitsuFetch<T>(path: string, signal?: AbortSignal): Promise<T> {
+  const response = await fetch(`${KITSU_API}${path}`, { headers: KITSU_HEADERS, signal });
   if (!response.ok) {
     throw new Error(`Kitsu Anime API request failed (${response.status})`);
   }
   return (await response.json()) as T;
 }
 
-export async function searchKitsuAnime(query: string, limit = 12): Promise<KitsuAnimeItem[]> {
+export async function searchKitsuAnime(query: string, limit = 12, signal?: AbortSignal): Promise<KitsuAnimeItem[]> {
   const payload = await kitsuFetch<KitsuResponse<KitsuAnimeItem[]>>(
     `/anime?filter[text]=${encodeURIComponent(query)}&page[limit]=${limit}`,
+    signal,
   );
   return payload.data ?? [];
 }

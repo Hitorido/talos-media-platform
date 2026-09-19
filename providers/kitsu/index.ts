@@ -26,7 +26,7 @@ export const kitsuAnimeProvider: MediaProvider = {
   },
 
   async search(query, context) {
-    const items = await searchKitsuAnime(query, context.limit ?? 12);
+    const items = await searchKitsuAnime(query, context.limit ?? 12, context.signal);
     return items.map((item): SearchResult => {
       const attr = item.attributes;
       const title = attr.titles?.en || attr.canonicalTitle || 'Anime';
@@ -44,6 +44,7 @@ export const kitsuAnimeProvider: MediaProvider = {
         title,
         coverUrl,
         type: 'anime',
+        episodeCount: Number.isSafeInteger(attr.episodeCount) && (attr.episodeCount ?? 0) > 0 ? attr.episodeCount : undefined,
         subtitle: `${showType} · ${epCount}`,
         tags: ['Anime', showType],
       };

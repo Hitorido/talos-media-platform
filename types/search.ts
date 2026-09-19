@@ -13,6 +13,9 @@ export type SearchResult = {
   comicFormat?: ComicFormat;
   subtitle: string;
   tags: string[];
+  /** Catalog counts only when supplied by the search response; not necessarily unlocked. */
+  chapterCount?: number;
+  episodeCount?: number;
 };
 
 export type SearchResponse = {

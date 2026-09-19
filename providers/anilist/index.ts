@@ -31,7 +31,7 @@ export const aniListAnimeProvider: MediaProvider = {
   },
 
   async search(query, context) {
-    const results = await searchAniListAnime(query, context.limit ?? 12);
+    const results = await searchAniListAnime(query, context.limit ?? 12, context.signal);
     return results.map((item): SearchResult => {
       const title = item.title.english || item.title.romaji || item.title.native || 'Anime';
       const coverUrl =
@@ -51,6 +51,7 @@ export const aniListAnimeProvider: MediaProvider = {
         title,
         coverUrl,
         type: 'anime',
+        episodeCount: Number.isSafeInteger(item.episodes) && (item.episodes ?? 0) > 0 ? item.episodes : undefined,
         subtitle,
         tags: ['Anime', ...(item.genres ?? []).slice(0, 2)],
       };

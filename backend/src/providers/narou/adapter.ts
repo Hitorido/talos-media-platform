@@ -139,6 +139,7 @@ export const narouProviderAdapter: ContentProviderAdapter = {
         sourceId: item.ncode,
         mediaType: 'novel' as const,
         title: item.title,
+        chapterCount: Number.isSafeInteger(item.general_all_no) && (item.general_all_no ?? 0) > 0 ? item.general_all_no : undefined,
         coverUrl: `https://sbo.syosetu.com/${item.ncode.toLowerCase()}/twitter.png`,
         author: item.writer,
         description: item.story,
