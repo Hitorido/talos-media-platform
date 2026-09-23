@@ -37,7 +37,7 @@ export const useProviderStore = create<ProviderStoreState>()(
         manhwa: 'mangadex',
         manhua: 'mangadex',
         anime: 'kitsu-anime',
-        novel: 'builtin-mock',
+        novel: 'novelcodex',
       },
       statusOverrides: {},
 

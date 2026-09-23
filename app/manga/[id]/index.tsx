@@ -1,3 +1,4 @@
+import { SourceWebsiteButton } from '@/components/content/SourceWebsiteButton';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
@@ -84,6 +85,7 @@ export default function MangaDetailsScreen() {
       <Screen scrollable contentContainerClassName="flex-grow justify-center gap-4">
         <Text variant="h2">Manga not found</Text>
         {error ? <Text tone="muted">{error}</Text> : null}
+        <SourceWebsiteButton routeId={id} />
         <Button label="Go back" variant="secondary" onPress={() => router.back()} />
       </Screen>
     );

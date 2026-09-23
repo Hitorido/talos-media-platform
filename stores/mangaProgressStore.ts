@@ -1,3 +1,4 @@
+import { useLibraryStore } from '@/stores/libraryStore';
 import { useMemo } from 'react';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
@@ -58,20 +59,21 @@ export function buildContinueReading(
     .sort((a, b) => b.updatedAt - a.updatedAt)
     .map((progress) => {
       const manga = getMangaById(progress.mangaId);
-      if (!manga) {
+      const saved = useLibraryStore.getState().media[progress.mangaId];
+      if (!manga && !saved) {
         return null;
       }
 
       const progressRatio = progress.totalPages > 0 ? progress.pageNumber / progress.totalPages : 0;
 
       return {
-        mangaId: manga.id,
-        title: manga.title,
-        coverUrl: manga.coverUrl,
+        mangaId: manga?.id ?? saved!.id,
+        title: manga?.title ?? saved!.title,
+        coverUrl: manga?.coverUrl ?? saved!.coverUrl,
         chapterId: progress.chapterId,
         chapterNumber: progress.chapterNumber,
         chapterTitle:
-          manga.chapters.find((ch) => ch.id === progress.chapterId)?.title ?? progress.chapterTitle,
+          manga?.chapters.find((ch) => ch.id === progress.chapterId)?.title ?? progress.chapterTitle,
         pageNumber: progress.pageNumber,
         totalPages: progress.totalPages,
         progress: Math.min(Math.max(progressRatio, 0), 1),
@@ -155,6 +157,7 @@ export const useMangaProgressStore = create<MangaProgressState>()(
 
 
 export function useContinueReading(): ContinueReadingEntry[] {
+  const media = useLibraryStore(state => state.media);
   const progressByManga = useMangaProgressStore((state) => state.progressByManga);
-  return useMemo(() => buildContinueReading(progressByManga), [progressByManga]);
+  return useMemo(() => buildContinueReading(progressByManga), [progressByManga, media]);
 }

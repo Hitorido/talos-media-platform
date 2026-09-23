@@ -225,3 +225,42 @@ No phone success is claimed. Render verification/deployment status is recorded s
 Final search UI integration: Expo web export to .expo/phase65-search-web-check PASS, 19 static routes generated (exit 0). Expo printed its existing forced-exit notice after export completed.
 
 Render pre-push recheck on 2026-09-19: /health, /health/ready, /api/providers/health and /api/content/providers all failed before HTTP with UND_ERR_CONNECT_TIMEOUT (TCP 443 to 216.24.57.16 / 216.24.57.18; connection timeout 10000 ms). No provider code was changed to address this network failure. Production verification of this new batch remains pending connectivity; local success is not production success.
+
+## Core media stabilization — 2026-09-23
+
+This section supersedes earlier statements where they conflict. Phase 6.5 remains open. No account/cloud synchronization, database migration, or Phase 6.6 work was performed.
+
+### Phone feedback and fixes
+
+The user confirmed that AnimeParadise plays on Android after enabling it, but playback repeats short intervals. NovelCodex text renders on the phone, with lag and normal-mode end navigation issues. DemonicScans worked for one title but not another. MangaPill details and GdScans reading produced route errors; WeebCentral returned missing-title/chapter errors. These are partial physical results, not a complete native PASS.
+
+- Player resume is now a snapshot per episode and applied once per source. Ongoing progress writes no longer trigger backward seeks. Actual component/effect regression verifies one seek across repeated ready events and progress saves. Retry and honest player errors/browser fallback are available. Smooth physical playback still needs retesting.
+- Continuous novel mode remains seamless: current chapter plus two chapters ahead load incrementally after entering the reader, and more append as the reader advances. It is not restricted to normal chapter mode. Normal mode loads its selected chapter. Progress updates no longer reset the active chapter; scrolling is distinguished from tapping, chapter-relative progress is retained as content appends, and normal navigation has explicit stacking/hit handling. The closed chapter picker no longer builds thousands of rows; the open list is virtualized. Actual screen regressions pass; physical touch/lag confirmation remains pending.
+- All reader/detail route builders encode source and chapter IDs. This fixes slash-containing MangaPill IDs and GdScans chapter IDs being interpreted as extra app route segments. It does not fix an upstream HTTP failure.
+- Local library metadata now persists for real providers and feeds favorites, tags, history and continue cards across comics, novels and anime. Existing entries without metadata remain visible with a refresh placeholder until reopened. Store recreation and real-source continue-card tests pass. This is device-local functionality, not cloud synchronization.
+- Narou now handles short stories as a readable one-shot and follows paginated serial chapter indexes using HTML parsing. Invalid identifiers are rejected; pagination is capped with an explicit error rather than silent truncation. Fixture tests cover href-before-class markup, multiple index pages, and one-shot text. Live/native Narou confirmation remains outstanding.
+- Search preserves progressive results, three concurrent operations, cancellation, debounce, cache and metadata-only requests. A confirmed empty comic chapter list is excluded for five minutes and restored on successful retry. Transport errors are not treated as empty catalogs. This cannot guarantee that every previously unopened result has readable images. Comic cards reuse a known saved chapter count without additional requests; unknown counts are not invented.
+
+### English novels, discovery and website fallback
+
+English is the default novel language filter; Japanese and All remain selectable. NovelCodex is the default novel provider for fresh settings; explicitly disabled saved providers remain disabled. Narou remains available for Japanese reading. The language choice currently lasts for the app session.
+
+NovelCodex homepage Trending Today and Latest Updates now drive English novel discovery using their actual source labels. Local gateway requests returned 12 trending items and 10 latest-update items. Deterministic tests pass for English/Japanese selection, cache, in-flight deduplication, disabled sources and failure isolation. Anime recommendations remain metadata-based and anime-only.
+
+On 2026-09-23, NovelCodex search reported Shadow Slave total_chapters=2997; its public access endpoint reported total=2997 and lockThreshold=2097. Catalog count and anonymously readable count are different. Talos does not invent newer chapters or bypass locked chapters. The user's comparison with other sites is not proof that this source hosts the same catalog.
+
+Fixed-origin browser links and source/capability labels are available on details, error states and Sources. Website-only links do not establish native reader integration or browser access success. NovelBin.cc remains labeled a separate catalog, not verified as the original NovelBin.com. Earlier ordinary-access findings remain: FreeWebNovel/NovelUpdates challenge failures, NovelBin.com DNS failure, NovelArrow local success but Render 403. No bypass was added.
+
+### Current verification and limitations
+
+- Focused stabilization tests PASS: real player effects, continuous and normal reader behavior, route encoding, fixed-origin links, local favorites/tags persistence, real-source continue cards, Narou parsing and discovery isolation.
+- Search service, performance, actual hook and 15-provider metadata-only boundary tests PASS. Confirmed-empty filtering/recovery PASS. Phase 3/4 structural regressions PASS; those runs reported the local gateway unavailable and must not be described as live gateway passes.
+- Backend build PASS. Frontend typecheck retains only the four existing cursor/canvas TS2307 errors. Final updated web export is recorded below when complete.
+- All four Render health endpoints timed out before HTTP under a 15-second bound. No latest deployment or production discovery PASS is claimed.
+- Today's MangaDex and MangaPill ordinary requests failed certificate validation with UNABLE_TO_VERIFY_LEAF_SIGNATURE. TLS verification was not disabled. The live seven-feed smoke therefore failed on MangaDex despite successful independent English novel feeds.
+- GdScans retry reached search/details/chapter listings but failed at chapter-page retrieval. NovelCodex full adapter smoke also failed with the shared source transport error, despite separate successful search/access and homepage discovery requests. Intermittent successes do not constitute a current complete media-flow PASS.
+- Earlier Render content verification remains historical evidence. These local changes have not been deployed. Production health, failed live provider flows and phone retests remain open; no stable-core completion claim is made.
+
+Phone retest: AnimeParadise Naruto Episode 1 (several minutes without repeated seconds, seek/pause/resume); NovelCodex normal end buttons and continuous cross-chapter scrolling; real-source favorite/tag/history after restarting; MangaPill details and GdScans chapter navigation with encoded IDs. Report any remaining source error separately from an app "page doesn't exist" route error.
+
+Final stabilization compilation: backend build PASS; Expo production web export to `.expo/phase65-stabilization-web-check` PASS with 19 static routes and exit code 0. Focused discovery isolation/language/cache tests also PASS. Expo emitted its existing forced-exit notice after successful export. No production deployment was attempted because live provider and Render checks remain incomplete.

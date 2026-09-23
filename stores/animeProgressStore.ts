@@ -1,3 +1,4 @@
+import { useLibraryStore } from '@/stores/libraryStore';
 import { useMemo } from 'react';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
@@ -52,7 +53,8 @@ export function buildContinueWatching(
     .sort((a, b) => b.updatedAt - a.updatedAt)
     .map((progress) => {
       const anime = getAnimeById(progress.animeId);
-      if (!anime) {
+      const saved = useLibraryStore.getState().media[progress.animeId];
+      if (!anime && !saved) {
         return null;
       }
 
@@ -60,16 +62,16 @@ export function buildContinueWatching(
         progress.durationSeconds > 0 ? progress.positionSeconds / progress.durationSeconds : 0;
 
       return {
-        animeId: anime.id,
-        title: anime.title,
-        coverUrl: anime.bannerUrl,
-        bannerUrl: anime.bannerUrl,
+        animeId: anime?.id ?? saved!.id,
+        title: anime?.title ?? saved!.title,
+        coverUrl: anime?.bannerUrl ?? saved!.bannerUrl ?? saved!.coverUrl,
+        bannerUrl: anime?.bannerUrl ?? saved!.bannerUrl ?? saved!.coverUrl,
         episodeId: progress.episodeId,
         episodeNumber: progress.episodeNumber,
         episodeTitle:
-          anime.episodes.find((episode) => episode.id === progress.episodeId)?.title ??
+          anime?.episodes.find((episode) => episode.id === progress.episodeId)?.title ??
           progress.episodeTitle,
-        totalEpisodes: anime.episodes.length,
+        totalEpisodes: anime?.episodes.length ?? saved?.episodeCount ?? 0,
         progress: Math.min(Math.max(progressRatio, 0), 1),
       } satisfies ContinueWatchingEntry;
     })
@@ -120,7 +122,8 @@ export const useAnimeProgressStore = create<AnimeProgressState>()(
 
 
 export function useContinueWatching(): ContinueWatchingEntry[] {
+  const media = useLibraryStore(state => state.media);
   const progressByAnime = useAnimeProgressStore((state) => state.progressByAnime);
 
-  return useMemo(() => buildContinueWatching(progressByAnime), [progressByAnime]);
+  return useMemo(() => buildContinueWatching(progressByAnime), [progressByAnime, media]);
 }

@@ -14,3 +14,10 @@ export type LibraryEntry = {
 };
 
 export type LibraryView = 'library' | 'favorites' | 'history';
+
+/** Local display metadata; never chapter bodies or playback URLs. */
+export type LibraryMedia = {
+  id: string; title: string; coverUrl: string; bannerUrl?: string;
+  mediaType: LibraryMediaType; genres: string[];
+  chapterCount?: number; episodeCount?: number;
+};

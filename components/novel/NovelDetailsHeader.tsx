@@ -1,3 +1,4 @@
+import { MediaSourceHeader } from '@/components/content/MediaSourceHeader';
 import { useState } from 'react';
 import { Image, View } from 'react-native';
 
@@ -43,6 +44,7 @@ export function NovelDetailsHeader({ novel }: NovelDetailsHeaderProps) {
 
         <View className="gap-2">
           <Text variant="h1">{novel.title}</Text>
+          <MediaSourceHeader id={novel.id} type={'Novel'} count={novel.chapters.length} language={novel.language} />
 
           {novel.altTitles && novel.altTitles.length > 0 ? (
             <Text variant="caption" tone="muted">
@@ -63,7 +65,7 @@ export function NovelDetailsHeader({ novel }: NovelDetailsHeaderProps) {
 
           <View className="flex-row flex-wrap gap-2 pt-1">
             <Badge label={novel.status === 'ongoing' ? 'Ongoing' : 'Completed'} variant="primary" />
-            <Badge label={`★ ${novel.rating.toFixed(1)}`} variant="secondary" />
+            {novel.rating > 0 ? <Badge label={`★ ${novel.rating.toFixed(1)}`} variant="secondary" /> : null}
             {novel.genres.map((genre) => (
               <Badge key={genre} label={genre} variant="default" />
             ))}

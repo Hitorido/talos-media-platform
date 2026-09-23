@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocalSearchParams } from 'expo-router';
 
+import { useNovelPreferencesStore } from '@/stores/novelPreferencesStore';
 import { unifiedSearch } from '@/services/contentService';
 import { useSettingsStore } from '@/stores/settingsStore';
 import type { SearchFilter, SearchResult } from '@/types/search';
@@ -12,6 +13,7 @@ export function useSearch() {
   const initialQuery = typeof params.q === 'string' ? params.q : '';
   const [query, setQueryState] = useState(initialQuery);
   const [filter, setFilterState] = useState<SearchFilter>('all');
+  const novelLanguage = useNovelPreferencesStore(state => state.language);
   const history = useSettingsStore((state) => state.searchHistory);
   const addSearchHistory = useSettingsStore((state) => state.addSearchHistory);
   const removeSearchHistory = useSettingsStore((state) => state.removeSearchHistory);
@@ -72,6 +74,7 @@ export function useSearch() {
       try {
         const response = await unifiedSearch(trimmed, searchFilter, {
           signal: controller.signal,
+          novelLanguage,
           onProgress: (items) => {
             if (requestId === requestIdRef.current) setResults(items);
           },
@@ -100,10 +103,13 @@ export function useSearch() {
         }
       }
     },
-    [addSearchHistory, invalidate],
+    [addSearchHistory, invalidate, novelLanguage],
   );
 
   useEffect(() => {
+    invalidate();
+    setResults([]);
+    setLoading(Boolean(query.trim()));
     timerRef.current = setTimeout(() => {
       void runSearch(query, filter);
     }, DEBOUNCE_MS);

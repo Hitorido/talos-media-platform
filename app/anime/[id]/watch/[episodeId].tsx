@@ -1,3 +1,4 @@
+import { SourceWebsiteButton } from '@/components/content/SourceWebsiteButton';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -18,14 +19,18 @@ export default function AnimePlayerScreen() {
   const insets = useSafeAreaInsets();
   const { id, episodeId } = useLocalSearchParams<{ id: string; episodeId: string }>();
   const setEpisodeProgress = useAnimeProgressStore((state) => state.setEpisodeProgress);
-  const savedProgress = useAnimeProgressStore((state) =>
-    id && episodeId ? state.getEpisodeProgress(id, episodeId) : undefined,
-  );
+  // Snapshot resume once per selected episode, never from live progress writes.
+  const resumeSeconds = useMemo(() => id && episodeId
+    ? useAnimeProgressStore.getState().getEpisodeProgress(id, episodeId)?.positionSeconds ?? 0 : 0,
+    [id, episodeId]);
+  const resumedSourceRef = useRef<string | null>(null);
   const lastSavedAtRef = useRef(0);
   const latestTimeRef = useRef(0);
 
   const [playback, setPlayback] = useState<ResolvedAnimePlaybackResult | null>(null);
   const [loading, setLoading] = useState(true);
+  const [retry, setRetry] = useState(0);
+  const [playerStatus, setPlayerStatus] = useState('idle');
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -55,7 +60,7 @@ export default function AnimePlayerScreen() {
     return () => {
       cancelled = true;
     };
-  }, [id, episodeId]);
+  }, [id, episodeId, retry]);
 
   const saveProgress = useCallback(
     (positionSeconds: number, durationSeconds: number) => {
@@ -76,7 +81,6 @@ export default function AnimePlayerScreen() {
     [id, episodeId, playback, setEpisodeProgress],
   );
 
-  const resumeSeconds = savedProgress?.positionSeconds ?? 0;
   const streamUrl = playback?.source.url ?? '';
 
   const videoSource = useMemo(() => streamUrl ? { uri: streamUrl, contentType: playback?.source.contentType ?? 'auto' as const } : null, [streamUrl, playback?.source.contentType]);
@@ -85,9 +89,6 @@ export default function AnimePlayerScreen() {
     instance.loop = false;
     instance.timeUpdateEventInterval = 1;
 
-    if (resumeSeconds > 0) {
-      instance.currentTime = resumeSeconds;
-    }
   });
 
   useEffect(() => {
@@ -95,19 +96,23 @@ export default function AnimePlayerScreen() {
       return;
     }
 
-    let hasResumed = false;
+    const resumeKey = id + ':' + episodeId + ':' + streamUrl;
+    const resumeOnce = () => {
+      if (resumedSourceRef.current === resumeKey) return;
+      resumedSourceRef.current = resumeKey;
+      if (resumeSeconds > 0) player.currentTime = resumeSeconds;
+    };
 
-    const statusSub = player.addListener('statusChange', ({ status }) => {
-      if (status === 'readyToPlay' && !hasResumed && resumeSeconds > 0) {
-        hasResumed = true;
-        player.currentTime = resumeSeconds;
+    const statusSub = player.addListener('statusChange', ({ status, error: nativeError }) => {
+      setPlayerStatus(status);
+      if (status === 'error') {
+        setError('The player could not load this stream. Retry or open the source website.');
+        if (__DEV__) console.warn('[player]', {status, providerId:playback?.source.providerId, error: nativeError ? 'Native playback error' : 'Unknown playback error'});
       }
+      if (status === 'readyToPlay') resumeOnce();
     });
 
-    if (player.status === 'readyToPlay' && !hasResumed && resumeSeconds > 0) {
-      hasResumed = true;
-      player.currentTime = resumeSeconds;
-    }
+    if (player.status === 'readyToPlay') resumeOnce();
 
     const timeSub = player.addListener('timeUpdate', ({ currentTime }) => {
       latestTimeRef.current = currentTime;
@@ -126,7 +131,7 @@ export default function AnimePlayerScreen() {
       statusSub.remove();
       timeSub.remove();
     };
-  }, [player, streamUrl, playback?.durationSeconds, resumeSeconds, saveProgress]);
+  }, [player, streamUrl, playback?.durationSeconds, resumeSeconds, saveProgress, id, episodeId]);
 
   useEffect(() => {
     return () => {
@@ -153,6 +158,8 @@ export default function AnimePlayerScreen() {
         <Text className="text-center text-neutral-400">
           {error ?? 'No playback source was resolved.'}
         </Text>
+        <Pressable onPress={() => {resumedSourceRef.current=null;setRetry(value=>value+1);}} className="mt-2"><Text tone="primary">Retry playback</Text></Pressable>
+        <SourceWebsiteButton routeId={id} />
         <Pressable onPress={() => router.back()} className="mt-2">
           <Text tone="primary">Go back</Text>
         </Pressable>
@@ -181,6 +188,7 @@ export default function AnimePlayerScreen() {
         </Pressable>
       </View>
 
+      {playerStatus === 'loading' ? <Text className="px-4 py-2 text-white">Buffering stream...</Text> : null}
       <VideoView
         player={player}
         style={{ width: '100%', aspectRatio: 16 / 9 }}
@@ -189,6 +197,7 @@ export default function AnimePlayerScreen() {
       />
 
       <View className="gap-2 px-4 py-4">
+        <SourceWebsiteButton routeId={playback.source.providerId} />
         <View className="flex-row items-center justify-between gap-2">
           <Text variant="h3" className="flex-1 text-white">
             {playback.animeTitle}

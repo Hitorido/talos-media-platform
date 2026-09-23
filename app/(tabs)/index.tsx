@@ -9,6 +9,8 @@ import {
     HomeHeader,
     HorizontalSection,
 } from '@/components/home';
+import { NovelLanguageFilter } from '@/components/search/NovelLanguageFilter';
+import { useNovelPreferencesStore } from '@/stores/novelPreferencesStore';
 import { Screen, Text } from '@/components/ui';
 import { animeDetailsHref, mangaDetailsHref, novelDetailsHref } from '@/lib/routes';
 import { emptyDiscovery, getDiscovery } from '@/services/discoveryService';
@@ -27,6 +29,7 @@ export default function HomeScreen() {
   const continueReadingNovels = useContinueReadingNovels();
   const [readingCategory, setReadingCategory] = useState<ReadingCategory>('all');
 
+  const novelLanguage = useNovelPreferencesStore(state => state.language);
   const enabled = useProviderStore(state => state.enabled);
   const [discovery, setDiscovery] = useState(emptyDiscovery);
   const [loadingDiscovery, setLoadingDiscovery] = useState(true);
@@ -34,13 +37,13 @@ export default function HomeScreen() {
   useEffect(() => {
     let active = true;
     setLoadingDiscovery(true);
-    getDiscovery(enabled, refresh > 0).then(result => {
+    getDiscovery(enabled, refresh > 0, novelLanguage).then(result => {
       if (active) setDiscovery(result);
     }).catch(() => {
       if (active) setDiscovery(emptyDiscovery().map(section => ({...section, unavailable: true})));
     }).finally(() => { if (active) setLoadingDiscovery(false); });
     return () => { active = false; };
-  }, [enabled, refresh]);
+  }, [enabled, refresh, novelLanguage]);
 
   const combinedReadingItems = useMemo(() => {
     const mangaItems = continueReadingManga.map((item) => ({
@@ -79,6 +82,7 @@ export default function HomeScreen() {
   return (
     <Screen scrollable contentContainerClassName="gap-8 pb-8">
       <HomeHeader />
+      <NovelLanguageFilter />
 
       <HorizontalSection title="Continue Watching">
         {continueWatching.map((item) => (

@@ -1,3 +1,4 @@
+import { MediaSourceHeader } from '@/components/content/MediaSourceHeader';
 import { useState } from 'react';
 import { Image, View } from 'react-native';
 
@@ -48,6 +49,7 @@ export function MangaDetailsHeader({ manga }: MangaDetailsHeaderProps) {
 
         <View className="gap-2">
           <Text variant="h1">{manga.title}</Text>
+          <MediaSourceHeader id={manga.id} type={mangaType === 'manhwa' ? 'Manhwa' : mangaType === 'manhua' ? 'Manhua' : 'Manga'} count={manga.chapters.length} />
 
           {manga.altTitles && manga.altTitles.length > 0 ? (
             <Text variant="caption" tone="muted">
@@ -68,7 +70,7 @@ export function MangaDetailsHeader({ manga }: MangaDetailsHeaderProps) {
 
           <View className="flex-row flex-wrap gap-2 pt-1">
             <Badge label={manga.status === 'ongoing' ? 'Ongoing' : 'Completed'} variant="primary" />
-            <Badge label={`★ ${manga.rating.toFixed(1)}`} variant="secondary" />
+            {manga.rating > 0 ? <Badge label={`★ ${manga.rating.toFixed(1)}`} variant="secondary" /> : null}
             {manga.genres.map((genre) => (
               <Badge key={genre} label={genre} variant="default" />
             ))}

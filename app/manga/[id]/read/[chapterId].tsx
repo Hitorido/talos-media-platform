@@ -1,3 +1,4 @@
+import { SourceWebsiteButton } from '@/components/content/SourceWebsiteButton';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, View } from 'react-native';
@@ -354,6 +355,7 @@ export default function MangaReaderScreen() {
       <View className="flex-1 items-center justify-center bg-black px-6">
         <Stack.Screen options={{ headerShown: true, title: 'Reader' }} />
         <Text className="text-center text-white">{pagesError}</Text>
+        <SourceWebsiteButton routeId={id} chapterId={chapterId} />
         <Pressable onPress={() => router.back()} className="mt-4">
           <Text tone="primary">Go back</Text>
         </Pressable>
@@ -366,6 +368,7 @@ export default function MangaReaderScreen() {
       <View className="flex-1 items-center justify-center bg-black px-6">
         <Stack.Screen options={{ headerShown: true, title: 'Reader' }} />
         <Text className="text-white">Unable to load this chapter.</Text>
+        <SourceWebsiteButton routeId={id} chapterId={chapterId} />
         <Pressable onPress={() => router.back()} className="mt-4">
           <Text tone="primary">Go back</Text>
         </Pressable>

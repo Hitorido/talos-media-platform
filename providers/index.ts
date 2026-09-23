@@ -172,7 +172,7 @@ export function getDefaultProviderEnabledMap(): Record<string, boolean> {
       id === 'kitsu-anime' ||
       id === 'anilist-anime' ||
       id === 'jikan-anime' ||
-      id === 'narou';
+      id === 'narou' || id === 'novelcodex';
   }
   return enabled;
 }

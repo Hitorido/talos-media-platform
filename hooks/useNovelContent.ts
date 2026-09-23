@@ -1,3 +1,4 @@
+import { useLibraryStore } from '@/stores/libraryStore';
 import { useEffect, useState } from 'react';
 
 import {
@@ -14,7 +15,9 @@ function toNovelDetails(media: NormalizedMedia, chapters: NormalizedChapter[]): 
 
   return {
     id: routeId,
+    language: media.language,
     title: media.title,
+    altTitles: media.alternativeTitles,
     description: media.description ?? '',
     coverUrl: media.coverUrl,
     bannerUrl: media.bannerUrl ?? media.coverUrl,
@@ -71,6 +74,12 @@ export function useNovelContent(routeId: string | undefined): NovelContentState 
     Promise.all([getMediaDetails(routeId), getMediaChapters(routeId)])
       .then(([media, chapters]) => {
         if (cancelled) return;
+        useLibraryStore.getState().rememberMedia({
+          id: encodeMediaRouteId(media.ref.providerId, media.ref.sourceId), title:media.title, coverUrl:media.coverUrl,
+          bannerUrl:media.bannerUrl ?? media.coverUrl, genres:media.genres,
+          mediaType:'novel',
+          chapterCount:chapters.length,
+        });
         setState({
           novel: toNovelDetails(media, chapters),
           loading: false,

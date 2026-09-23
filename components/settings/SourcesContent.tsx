@@ -1,3 +1,5 @@
+import { SourceWebsiteButton } from '@/components/content/SourceWebsiteButton';
+import { sourceWebsite } from '@/services/sourceWebsite';
 import { useState } from 'react';
 import { Switch, View } from 'react-native';
 
@@ -213,6 +215,8 @@ export function SourcesContent() {
                   <View className="flex-row items-start justify-between gap-3">
                     <View className="flex-1 gap-1">
                       <Text variant="label">{def.name}</Text>
+                      {sourceWebsite(def.id)?<Text variant="caption">{sourceWebsite(def.id)!.mode}</Text>:null}
+                      <SourceWebsiteButton routeId={def.id} />
                       <Text variant="caption" tone="muted">
                         {def.description}
                       </Text>

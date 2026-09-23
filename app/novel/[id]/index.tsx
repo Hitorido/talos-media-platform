@@ -1,3 +1,4 @@
+import { SourceWebsiteButton } from '@/components/content/SourceWebsiteButton';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
@@ -34,6 +35,7 @@ export default function NovelDetailsScreen() {
       <Screen scrollable contentContainerClassName="flex-grow justify-center gap-4">
         <Text variant="h2">Novel not found</Text>
         {error ? <Text tone="muted">{error}</Text> : null}
+        <SourceWebsiteButton routeId={id} />
         <Button label="Go back" variant="secondary" onPress={() => router.back()} />
       </Screen>
     );

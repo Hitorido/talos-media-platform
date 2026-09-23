@@ -63,6 +63,7 @@ export const narouProvider: MediaProvider = {
       title: item.title,
       coverUrl: item.coverUrl ?? 'https://placehold.co/400x600/1f2937/9ca3af?text=Novel',
       type: 'novel',
+      language: 'ja',
       chapterCount: item.chapterCount,
       subtitle: item.author ? `${item.author} · Narou` : 'Narou',
       tags: ['Novel', 'Japanese', ...(item.genres ?? []).slice(0, 3)],

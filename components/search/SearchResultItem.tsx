@@ -3,6 +3,8 @@ import { Image, Pressable, View } from 'react-native';
 import { Badge, Text } from '@/components/ui';
 import type { SearchResult } from '@/types/search';
 import { getProviderDisplayName } from '@/services/contentService';
+import { useLibraryStore } from '@/stores/libraryStore';
+import { languageLabel } from '@/utils/novelLanguage';
 import { cn } from '@/utils/cn';
 import { comicFormatLabel } from '@/utils/comicFormat';
 
@@ -13,6 +15,8 @@ type SearchResultItemProps = {
 };
 
 export function SearchResultItem({ item, onPress, className }: SearchResultItemProps) {
+  const savedCount = useLibraryStore(state => state.media[item.id]?.chapterCount);
+  const chapterCount = item.chapterCount ?? savedCount;
   const comicLabel =
     item.type === 'manga' ? comicFormatLabel(item.comicFormat ?? 'manga') : undefined;
   const typeLabel =
@@ -35,6 +39,7 @@ export function SearchResultItem({ item, onPress, className }: SearchResultItemP
       <View className="flex-1 justify-center gap-2">
         <View className="flex-row flex-wrap gap-2">
           <Badge label={typeLabel} variant={badgeVariant} />
+          {item.type === 'novel' ? <Badge label={languageLabel(item.language)} variant="secondary" /> : null}
           <Badge label={getProviderDisplayName(item.providerId)} variant="secondary" />
         </View>
         <Text variant="label" numberOfLines={2}>
@@ -43,11 +48,11 @@ export function SearchResultItem({ item, onPress, className }: SearchResultItemP
         <Text variant="caption" tone="muted" numberOfLines={2}>
           {item.subtitle}
         </Text>
-        {(item.episodeCount ?? item.chapterCount ?? 0) > 0 ? (
+        {(item.episodeCount ?? chapterCount ?? 0) > 0 ? (
           <Text variant="caption" tone="muted">
-            {item.episodeCount ? item.episodeCount + ' Episodes' : item.chapterCount + ' Chapters in catalog'}
+            {item.episodeCount ? item.episodeCount + ' Episodes' : chapterCount + ' Chapters in catalog'}
           </Text>
-        ) : null}
+        ) : item.type === 'manga' ? <Text variant="caption" tone="muted">Chapter availability checked in details</Text> : null}
       </View>
     </Pressable>
   );

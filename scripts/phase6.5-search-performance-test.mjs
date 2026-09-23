@@ -8,6 +8,7 @@ const enabled={fast:true,slow:true,broken:true};
 const providers=[['fast',5],['slow',90],['broken',10]].map(([id,delay])=>({definition:{id,name:id,status:'working',mediaTypes:['anime'],capabilities:['search']},async search(q,{signal}){calls++;active++;peak=Math.max(peak,active);try{await new Promise((resolve,reject)=>{const timer=setTimeout(resolve,delay);signal.addEventListener('abort',()=>{clearTimeout(timer);reject(new DOMException('Cancelled','AbortError'));},{once:true});});if(id==='broken')throw Error('unavailable');return Array.from({length:30},(_,n)=>item(id,q+n));}finally{active--;}}}));
 const failures=[];
 const service=loadProviderTs('services/contentService.ts',{
+ '@/utils/novelLanguage':loadProviderTs('utils/novelLanguage.ts'),
  '@/services/providerSearch':helpers,'@/lib/apiConfig':{getApiBaseUrl:()=>base},
  '@/stores/backendConfigStore':{useBackendConfigStore:{getState:()=>({backendUrls:{}})}},
  '@/providers':{initializeProviders(){},providerRegistry:{list:()=>providers,get:id=>providers.find(p=>p.definition.id===id)}},
@@ -32,7 +33,7 @@ let timerId=0;const timers=new Map();globalThis.setTimeout=fn=>{timers.set(++tim
 const slots=[];let cursor=0,pendingEffects=[],view;const same=(a,b)=>a&&b&&a.length===b.length&&a.every((x,i)=>x===b[i]);
 const React={useState(initial){const i=cursor++;if(!(i in slots))slots[i]=initial;return[slots[i],value=>{slots[i]=typeof value==='function'?value(slots[i]):value;}];},useRef(initial){const i=cursor++;return slots[i]??(slots[i]={current:initial});},useCallback(fn,deps){const i=cursor++;if(!same(slots[i]?.deps,deps))slots[i]={deps,fn};return slots[i].fn;},useEffect(fn,deps){const i=cursor++;if(!same(slots[i]?.deps,deps)){const previous=slots[i];slots[i]={deps,cleanup:previous?.cleanup};pendingEffects.push(()=>{previous?.cleanup?.();slots[i].cleanup=fn();});}}};
 const jobs=[],history=[];const state={searchHistory:[],addSearchHistory:q=>history.push(q),removeSearchHistory(){},clearSearchHistory(){}};
-const {useSearch}=loadProviderTs('hooks/useSearch.ts',{'react':React,'expo-router':{useLocalSearchParams:()=>({})},'@/stores/settingsStore':{useSettingsStore:selector=>selector(state)},'@/services/contentService':{unifiedSearch:(q,f,options)=>new Promise(resolve=>jobs.push({q,options,resolve}))}});
+const {useSearch}=loadProviderTs('hooks/useSearch.ts',{'@/stores/novelPreferencesStore':{useNovelPreferencesStore:selector=>selector({language:'en'})},'react':React,'expo-router':{useLocalSearchParams:()=>({})},'@/stores/settingsStore':{useSettingsStore:selector=>selector(state)},'@/services/contentService':{unifiedSearch:(q,f,options)=>new Promise(resolve=>jobs.push({q,options,resolve}))}});
 const render=()=>{cursor=0;view=useSearch();const effects=pendingEffects;pendingEffects=[];effects.forEach(fn=>fn());};
 const tick=()=>{const jobs=[...timers.values()];timers.clear();jobs.forEach(fn=>fn());};
 try{

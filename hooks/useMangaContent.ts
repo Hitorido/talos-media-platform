@@ -1,3 +1,4 @@
+import { useLibraryStore } from '@/stores/libraryStore';
 import { useEffect, useState } from 'react';
 
 import {
@@ -88,6 +89,12 @@ export function useMangaContent(routeId: string | undefined): MangaContentState 
     Promise.all([getMediaDetails(routeId), getMediaChapters(routeId)])
       .then(([media, chapters]) => {
         if (cancelled) return;
+        useLibraryStore.getState().rememberMedia({
+          id: encodeMediaRouteId(media.ref.providerId, media.ref.sourceId), title:media.title, coverUrl:media.coverUrl,
+          bannerUrl:media.bannerUrl ?? media.coverUrl, genres:media.genres,
+          mediaType:media.mediaType === 'manhwa' || media.mediaType === 'manhua' ? media.mediaType : 'manga',
+          chapterCount:chapters.length,
+        });
         setState({
           manga: toMangaDetails(media, chapters),
           loading: false,

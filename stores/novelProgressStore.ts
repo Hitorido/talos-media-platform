@@ -1,3 +1,4 @@
+import { useLibraryStore } from '@/stores/libraryStore';
 import { useMemo } from 'react';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
@@ -71,18 +72,19 @@ export function buildContinueReadingNovels(
     .sort((a, b) => b.updatedAt - a.updatedAt)
     .map((progress) => {
       const novel = getNovelById(progress.novelId);
-      if (!novel) return null;
+      const saved = useLibraryStore.getState().media[progress.novelId];
+      if (!novel && !saved) return null;
 
       return {
-        novelId: novel.id,
-        title: novel.title,
-        coverUrl: novel.coverUrl,
+        novelId: novel?.id ?? saved!.id,
+        title: novel?.title ?? saved!.title,
+        coverUrl: novel?.coverUrl ?? saved!.coverUrl,
         chapterId: progress.chapterId,
         chapterNumber: progress.chapterNumber,
         chapterTitle:
-          novel.chapters.find((ch) => ch.id === progress.chapterId)?.title ?? progress.chapterTitle,
+          novel?.chapters.find((ch) => ch.id === progress.chapterId)?.title ?? progress.chapterTitle,
         scrollPercentage: Math.min(Math.max(progress.scrollPercentage, 0), 1),
-        totalChapters: novel.chapters.length,
+        totalChapters: novel?.chapters.length ?? saved?.chapterCount ?? 0,
         updatedAt: progress.updatedAt,
       };
     })
@@ -198,6 +200,7 @@ export const useNovelProgressStore = create<NovelProgressState>()(
 
 
 export function useContinueReadingNovels(): ContinueReadingNovelEntry[] {
+  const media = useLibraryStore(state => state.media);
   const progressByNovel = useNovelProgressStore((state) => state.progressByNovel);
-  return useMemo(() => buildContinueReadingNovels(progressByNovel), [progressByNovel]);
+  return useMemo(() => buildContinueReadingNovels(progressByNovel), [progressByNovel, media]);
 }

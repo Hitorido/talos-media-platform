@@ -61,6 +61,7 @@ function getMangaMediaType(genres: string[]): 'manga' | 'manhwa' | 'manhua' {
 
 export default function LibraryScreen() {
   const router = useRouter();
+  const realMedia = useLibraryStore(state => state.media);
   const entries = useLibraryStore((state) => state.entries);
   const removeFromLibrary = useLibraryStore((state) => state.removeFromLibrary);
   const toggleFavorite = useLibraryStore((state) => state.toggleFavorite);
@@ -90,11 +91,12 @@ export default function LibraryScreen() {
 
   const catalog = useMemo(
     () => [
+      ...Object.values(realMedia),
       ...animeCatalog.map((item) => ({ ...item, mediaType: 'anime' as const })),
       ...mangaCatalog.map((item) => ({ ...item, mediaType: getMangaMediaType(item.genres) })),
       ...novelCatalog.map((item) => ({ ...item, mediaType: 'novel' as const })),
     ],
-    [],
+    [realMedia],
   );
 
   const rows = useMemo(() => {
@@ -118,7 +120,7 @@ export default function LibraryScreen() {
       ...Object.values(mangaProgress).map((progress) => ({
         mediaId: progress.mangaId,
         mediaType: getMangaMediaType(
-          mangaCatalog.find((item) => item.id === progress.mangaId)?.genres ?? [],
+          realMedia[progress.mangaId]?.genres ?? mangaCatalog.find((item) => item.id === progress.mangaId)?.genres ?? [],
         ),
         status:
           progress.pageNumber >= progress.totalPages
@@ -190,8 +192,7 @@ export default function LibraryScreen() {
       .flatMap((entry) => {
         const item = catalog.find(
           (candidate) => candidate.id === entry.mediaId && candidate.mediaType === entry.mediaType,
-        );
-        if (!item) return [];
+        ) ?? {id:entry.mediaId,title:'Saved title - open to refresh',coverUrl:'',mediaType:entry.mediaType,genres:[]};
         const anime = entry.mediaType === 'anime' ? animeProgress[entry.mediaId] : undefined;
         const manga =
           entry.mediaType !== 'anime' && entry.mediaType !== 'novel'
@@ -230,6 +231,7 @@ export default function LibraryScreen() {
       });
   }, [
     animeProgress,
+    realMedia,
     catalog,
     downloadedMediaIds,
     entries,

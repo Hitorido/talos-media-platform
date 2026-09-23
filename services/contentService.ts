@@ -25,6 +25,7 @@ import {
 import type { SearchFilter, SearchResponse, SearchResult } from '@/types/search';
 import { getApiBaseUrl } from '@/lib/apiConfig';
 import { useBackendConfigStore } from '@/stores/backendConfigStore';
+import { providerNovelLanguage, type NovelLanguage } from '@/utils/novelLanguage';
 import { isComicFormat } from '@/utils/comicFormat';
 
 const TITLE_MATCH_THRESHOLD = 80;
@@ -98,6 +99,11 @@ function orderProvidersForSearch(
       if (a.definition.id === preferredId && b.definition.id !== preferredId) return -1;
       if (b.definition.id === preferredId && a.definition.id !== preferredId) return 1;
     }
+    if (filter === 'novel') {
+      const rank = (id: string) => ['novelcodex','novelarrow'].includes(id) ? ['novelcodex','novelarrow'].indexOf(id) : 9;
+      const diff = rank(a.definition.id) - rank(b.definition.id);
+      if (diff) return diff;
+    }
     const statusDiff = statusRank(a) - statusRank(b);
     if (statusDiff !== 0) return statusDiff;
     return a.definition.name.localeCompare(b.definition.name);
@@ -152,19 +158,27 @@ function rankSearchResults(results: SearchResult[], filter: SearchFilter): Searc
       if (a.providerId === preferredId && b.providerId !== preferredId) return -1;
       if (b.providerId === preferredId && a.providerId !== preferredId) return 1;
     }
+    if (a.type === 'novel' && b.type === 'novel') {
+      const rank = (item: SearchResult) => (item.language ?? providerNovelLanguage(item.providerId)) === 'en' ? 0 : 1;
+      const diff = rank(a) - rank(b);
+      if (diff) return diff;
+    }
     return a.title.localeCompare(b.title);
   });
 }
 
 export async function unifiedSearch(query: string, filter: SearchFilter, options: {
   signal?: AbortSignal;
+  novelLanguage?: NovelLanguage;
   onProgress?: (results: SearchResult[]) => void;
 } = {}): Promise<SearchResponse> {
   const trimmedQuery = query.trim();
   if (!trimmedQuery) return { query: trimmedQuery, filter, results: [] };
 
+  const novelLanguage = options.novelLanguage ?? 'en';
+  const languageMatches = (item: SearchResult) => item.type !== 'novel' || novelLanguage === 'all' || (item.language ?? providerNovelLanguage(item.providerId)) === novelLanguage;
   const providers = orderProvidersForSearch(
-    getEnabledProviders().filter((provider) => providerSupports(provider, 'search', filter === 'all' ? undefined : filter)),
+    getEnabledProviders().filter((provider) => providerSupports(provider, 'search', filter === 'all' ? undefined : filter) && (novelLanguage === 'all' || !provider.definition.mediaTypes.every(type => type === 'novel') || !providerNovelLanguage(provider.definition.id) || providerNovelLanguage(provider.definition.id) === novelLanguage)),
     filter,
   );
 
@@ -188,16 +202,16 @@ export async function unifiedSearch(query: string, filter: SearchFilter, options
     if (typeof __DEV__ !== 'undefined' && __DEV__) console.debug('[search] provider', provider.definition.id, Date.now() - providerStarted, 'ms');
     if (options.signal?.aborted) return;
     merged.push(...results.slice(0, 12));
-    if (!first && merged.some(item => matchesSearchFilter(item, filter))) {
+    if (!first && merged.some(item => matchesSearchFilter(item, filter) && languageMatches(item) && !hasKnownEmptyChapters(item))) {
       first = true;
       if (typeof __DEV__ !== 'undefined' && __DEV__) console.debug('[search] first results', Date.now() - started, 'ms');
     }
     options.onProgress?.(rankSearchResults(dedupeSearchResults(
-      merged.filter((result) => matchesSearchFilter(result, filter)),
+      merged.filter((result) => matchesSearchFilter(result, filter) && languageMatches(result) && !hasKnownEmptyChapters(result)),
     ), filter));
   }));
   if (typeof __DEV__ !== 'undefined' && __DEV__) console.debug('[search] total', Date.now() - started, 'ms');
-  const filtered = merged.filter((result) => matchesSearchFilter(result, filter));
+  const filtered = merged.filter((result) => matchesSearchFilter(result, filter) && languageMatches(result) && !hasKnownEmptyChapters(result));
 
   return {
     query: trimmedQuery,
@@ -236,6 +250,16 @@ export async function getMediaDetails(routeId: string): Promise<NormalizedMedia>
   return withProviderHealth(ref.providerId, () => provider.getDetails!(ref));
 }
 
+// Only suppress a title after an actual empty chapter-list response, never a transport failure.
+const emptyChapterLists = new Map<string, number>();
+function chapterAvailabilityKey(routeId: string) { return getApiBaseUrl() + ':' + routeId; }
+function hasKnownEmptyChapters(item: SearchResult) {
+  if (item.type !== 'manga') return false;
+  const key = chapterAvailabilityKey(item.id), until = emptyChapterLists.get(key);
+  if (until && until > Date.now()) return true;
+  emptyChapterLists.delete(key); return false;
+}
+
 export async function getMediaChapters(routeId: string): Promise<NormalizedChapter[]> {
   const ref = resolveMediaRef(routeId);
   assertProviderEnabled(ref.providerId);
@@ -244,7 +268,14 @@ export async function getMediaChapters(routeId: string): Promise<NormalizedChapt
     throw new Error(`Provider "${ref.providerId}" does not support chapters.`);
   }
 
-  return withProviderHealth(ref.providerId, () => provider.getChapters!(ref));
+  const chapters = await withProviderHealth(ref.providerId, () => provider.getChapters!(ref));
+  const key = chapterAvailabilityKey(routeId);
+  if (chapters.length) emptyChapterLists.delete(key);
+  else {
+    if (emptyChapterLists.size >= 200) emptyChapterLists.delete(emptyChapterLists.keys().next().value!);
+    emptyChapterLists.set(key, Date.now() + 5 * 60_000);
+  }
+  return chapters;
 }
 
 export async function getMediaEpisodes(routeId: string) {

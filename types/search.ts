@@ -14,6 +14,7 @@ export type SearchResult = {
   subtitle: string;
   tags: string[];
   /** Catalog counts only when supplied by the search response; not necessarily unlocked. */
+  language?: string;
   chapterCount?: number;
   episodeCount?: number;
 };

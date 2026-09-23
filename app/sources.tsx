@@ -1,3 +1,4 @@
+import { SourceWebsiteButton } from '@/components/content/SourceWebsiteButton';
 import { Stack } from 'expo-router';
 import { View } from 'react-native';
 
@@ -13,10 +14,13 @@ export default function SourcesScreen() {
           <Text variant="h2">Content Sources</Text>
           <Text tone="muted">
             Enable providers for search and reading. Disabled providers are skipped automatically.
-            Scraper-based sources require a self-hosted backend and are shown as Requires Backend.
+            Some providers use the Talos content gateway; availability depends on the source and platform.
           </Text>
         </View>
         <SourcesContent />
+        <Text variant="h3">Website reading and discovery</Text>
+        <Text tone="muted">These open the source in your browser; they are not native Talos reader integrations. Site availability varies.</Text>
+        {['novelarrow','freewebnovel','novelbin','novelupdates','mangagg','mangaowl'].map(id=><SourceWebsiteButton key={id} routeId={id} />)}
       </Screen>
     </>
   );

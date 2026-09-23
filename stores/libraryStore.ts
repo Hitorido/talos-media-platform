@@ -2,10 +2,12 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { appPersistStorage } from '@/stores/persistStorage';
-import type { LibraryEntry, LibraryMediaType, LibraryStatus } from '@/types/library';
+import type { LibraryEntry, LibraryMedia, LibraryMediaType, LibraryStatus } from '@/types/library';
 
 type LibraryState = {
   entries: LibraryEntry[];
+  media: Record<string, LibraryMedia>;
+  rememberMedia: (media: LibraryMedia) => void;
   tags: string[];
   addToLibrary: (mediaId: string, mediaType: LibraryMediaType) => void;
   removeFromLibrary: (mediaId: string, mediaType: LibraryMediaType) => void;
@@ -64,6 +66,8 @@ export const useLibraryStore = create<LibraryState>()(
   persist(
     (set, get) => ({
   entries: initialEntries,
+  media: {},
+  rememberMedia: (media) => set(state => JSON.stringify(state.media[media.id]) === JSON.stringify(media) ? state : ({media:{...state.media,[media.id]:media}})),
   tags: ['Favorites'],
 
   addToLibrary: (mediaId, mediaType) => {
@@ -168,6 +172,7 @@ export const useLibraryStore = create<LibraryState>()(
       storage: createJSONStorage(() => appPersistStorage),
       partialize: (state) => ({
         entries: state.entries,
+        media: state.media,
         tags: state.tags,
       }),
     },

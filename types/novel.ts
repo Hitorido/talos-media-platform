@@ -13,6 +13,7 @@ export type NovelChapter = {
 };
 
 export type NovelDetails = {
+  language?: string;
   id: string;
   title: string;
   altTitles?: string[];

@@ -1,3 +1,4 @@
+import { useLibraryStore } from '@/stores/libraryStore';
 import { useEffect, useState } from 'react';
 
 import {
@@ -70,6 +71,12 @@ export function useAnimeContent(routeId: string | undefined): AnimeContentState 
     Promise.all([getMediaDetails(routeId), getMediaEpisodes(routeId)])
       .then(([media, episodes]) => {
         if (cancelled) return;
+        useLibraryStore.getState().rememberMedia({
+          id: encodeMediaRouteId(media.ref.providerId, media.ref.sourceId), title:media.title, coverUrl:media.coverUrl,
+          bannerUrl:media.bannerUrl ?? media.coverUrl, genres:media.genres,
+          mediaType:'anime',
+          episodeCount:episodes.length,
+        });
         setState({
           anime: toAnimeDetails(media, episodes),
           loading: false,

@@ -1,3 +1,4 @@
+import { MediaSourceHeader } from '@/components/content/MediaSourceHeader';
 import { useState } from 'react';
 import { Image, View } from 'react-native';
 
@@ -35,9 +36,10 @@ export function AnimeDetailsHeader({ anime }: AnimeDetailsHeaderProps) {
         </View>
         <View className="gap-2">
           <Text variant="h1">{anime.title}</Text>
+          <MediaSourceHeader id={anime.id} type={'Anime'} count={anime.episodes.length} />
           <View className="flex-row flex-wrap gap-2">
             <Badge label={anime.status === 'ongoing' ? 'Ongoing' : 'Completed'} variant="primary" />
-            <Badge label={`★ ${anime.rating.toFixed(1)}`} variant="secondary" />
+            {anime.rating > 0 ? <Badge label={`★ ${anime.rating.toFixed(1)}`} variant="secondary" /> : null}
             {anime.genres.map((genre) => (
               <Badge key={genre} label={genre} variant="default" />
             ))}

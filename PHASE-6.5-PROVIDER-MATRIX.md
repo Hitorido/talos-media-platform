@@ -485,3 +485,17 @@ Direct feasibility: ordinary local HTTP requests with Origin http://localhost:80
 ## MangaTown post-push health check
 
 Code checkpoint 526928d pushed to main. At 2026-09-18T09:24:35Z all four Render endpoints still failed before HTTP with UND_ERR_CONNECT_TIMEOUT. MangaTown production flow and latest discovery deployment remain unverified; no provider-specific conclusion is drawn from these transport failures. No further unchanged-code redeploy was attempted.
+
+## Current stabilization status — 2026-09-23 (supersedes older summaries)
+
+- Physical feedback: AnimeParadise plays but repeats short intervals; NovelCodex text renders but normal navigation/lag need fixes and retest. DemonicScans works for at least one user-tested title, not all titles. MangaPill/GdScans app route failures and WeebCentral content failures were reported.
+- Local fixes: encoded source/chapter routes, one-time player resume, preserved seamless continuous novel lookahead, normal navigation/touch handling, virtualized chapter picker, real-source local library/history metadata, Narou one-shot and paginated chapter parsing. Focused actual-screen/store tests pass; phone retest pending.
+- Render: all four health requests timed out before HTTP within 15 seconds. Latest deployment/production discovery still unverified. This is not provider-specific evidence.
+- Current live checks: MangaDex and MangaPill certificate validation failed (UNABLE_TO_VERIFY_LEAF_SIGNATURE), without disabling TLS checks. GdScans search/details/list reached successfully on retry but chapter retrieval failed; NovelCodex complete adapter smoke failed intermittently at search. No new complete content-flow PASS claimed.
+- NovelCodex English discovery: actual local gateway Trending Today returned 12 items; Latest Updates returned 10. Default English; Narou selectable Japanese. Isolated failure, enable filtering, language selection and caching tests pass. Production route unverified.
+- Shadow Slave: source catalog 2997, anonymous access threshold 2097 from current source API. No extra chapters fabricated and no locked-content workaround.
+- Search: confirmed empty comic lists temporarily omitted; transport failures never classified as empty catalogs. Unknown content availability remains unknown. Known comic counts can be reused from saved metadata without detail enrichment during search.
+- Browser links are fixed-origin fallbacks, not proof of website usability or native integration. NovelBin.cc is separately labeled; no original-service identity asserted.
+- No account/cloud sync or database work. No Phase 6.6. See the latest stabilization section in PHASE-6.5-PROVIDER-EXPANSION.md for full verification and phone checklist.
+
+Stabilization build: backend PASS; web export PASS, 19 routes, exit 0. Typecheck remains only the four known canvas errors. Current changes are locally verified; no new Render or physical PASS is claimed.
