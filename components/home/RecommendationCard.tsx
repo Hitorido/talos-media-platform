@@ -33,7 +33,7 @@ export function RecommendationCard({ item, onPress, className }: RecommendationC
       )}
     >
       <View className="flex-row">
-        <Image source={{ uri: item.coverUrl }} className="h-28 w-20" resizeMode="cover" />
+        <Image source={item.coverUrl?.trim() ? { uri: item.coverUrl } : undefined} className="h-28 w-20" resizeMode="cover" />
         <View className="flex-1 gap-2 p-3">
           <Badge label={badgeLabelMap[item.type]} variant={badgeVariantMap[item.type]} />
           <Text variant="label" numberOfLines={2}>

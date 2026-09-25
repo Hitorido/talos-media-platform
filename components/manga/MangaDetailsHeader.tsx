@@ -34,13 +34,13 @@ export function MangaDetailsHeader({ manga }: MangaDetailsHeaderProps) {
       <View className="gap-4">
         <View className="relative overflow-hidden rounded-2xl bg-neutral-200 dark:bg-neutral-800">
           <Image
-            source={{ uri: manga.bannerUrl }}
+            source={manga.bannerUrl?.trim() ? { uri: manga.bannerUrl } : undefined}
             className="aspect-video w-full"
             resizeMode="cover"
           />
           <View className="absolute bottom-3 left-3 flex-row items-end gap-3">
             <Image
-              source={{ uri: manga.coverUrl }}
+              source={manga.coverUrl?.trim() ? { uri: manga.coverUrl } : undefined}
               className="h-28 w-20 rounded-lg shadow-md"
               resizeMode="cover"
             />

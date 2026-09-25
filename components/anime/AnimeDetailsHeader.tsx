@@ -29,7 +29,7 @@ export function AnimeDetailsHeader({ anime }: AnimeDetailsHeaderProps) {
       <View className="gap-4">
         <View className="overflow-hidden rounded-2xl bg-neutral-200 dark:bg-neutral-800">
           <Image
-            source={{ uri: anime.bannerUrl }}
+            source={anime.bannerUrl?.trim() ? { uri: anime.bannerUrl } : undefined}
             className="aspect-video w-full"
             resizeMode="cover"
           />

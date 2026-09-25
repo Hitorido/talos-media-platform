@@ -175,10 +175,10 @@ export async function unifiedSearch(query: string, filter: SearchFilter, options
   const trimmedQuery = query.trim();
   if (!trimmedQuery) return { query: trimmedQuery, filter, results: [] };
 
-  const novelLanguage = options.novelLanguage ?? 'en';
-  const languageMatches = (item: SearchResult) => item.type !== 'novel' || novelLanguage === 'all' || (item.language ?? providerNovelLanguage(item.providerId)) === novelLanguage;
+  const novelLanguage: NovelLanguage = 'en';
+  const languageMatches = (item: SearchResult) => item.type !== 'novel' || (item.language ?? providerNovelLanguage(item.providerId)) === novelLanguage;
   const providers = orderProvidersForSearch(
-    getEnabledProviders().filter((provider) => providerSupports(provider, 'search', filter === 'all' ? undefined : filter) && (novelLanguage === 'all' || !provider.definition.mediaTypes.every(type => type === 'novel') || !providerNovelLanguage(provider.definition.id) || providerNovelLanguage(provider.definition.id) === novelLanguage)),
+    getEnabledProviders().filter((provider) => provider.definition.id !== 'animeparadise' && providerSupports(provider, 'search', filter === 'all' ? undefined : filter) && (!provider.definition.mediaTypes.every(type => type === 'novel') || !providerNovelLanguage(provider.definition.id) || providerNovelLanguage(provider.definition.id) === novelLanguage)),
     filter,
   );
 

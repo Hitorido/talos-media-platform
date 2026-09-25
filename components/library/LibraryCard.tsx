@@ -38,7 +38,7 @@ export function LibraryCard({
       onPress={onPress}
       className="flex-row gap-3 border-b border-neutral-200 bg-neutral-50 py-3 dark:border-neutral-800 dark:bg-neutral-950"
     >
-      <Image source={{ uri: coverUrl }} className="h-24 w-16 rounded-lg" resizeMode="cover" />
+      <Image source={coverUrl?.trim() ? { uri: coverUrl } : undefined} className="h-24 w-16 rounded-lg" resizeMode="cover" />
       <View className="flex-1 justify-center gap-1.5">
         <View className="flex-row items-start justify-between gap-2">
           <Text variant="label" numberOfLines={2} className="flex-1">

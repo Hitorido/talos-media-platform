@@ -1,3 +1,4 @@
+import { MediaCount } from '@/components/content/MediaCount';
 import { Image, Pressable, View } from 'react-native';
 
 import { Badge, Text } from '@/components/ui';
@@ -5,6 +6,9 @@ import type { ContentType } from '@/types/content';
 import { cn } from '@/utils/cn';
 
 type ContentPosterCardProps = {
+  routeId?: string;
+  episodeCount?: number;
+  chapterCount?: number;
   title: string;
   coverUrl: string;
   type: ContentType;
@@ -27,6 +31,7 @@ const badgeLabelMap: Record<ContentType, string> = {
 };
 
 export function ContentPosterCard({
+  routeId, episodeCount, chapterCount,
   title,
   coverUrl,
   type,
@@ -38,7 +43,7 @@ export function ContentPosterCard({
   return (
     <Pressable accessibilityRole="button" onPress={onPress} className={cn('w-28', className)}>
       <View className="overflow-hidden rounded-xl bg-neutral-200 dark:bg-neutral-800">
-        {coverUrl ? <Image source={{ uri: coverUrl }} className="aspect-[2/3] w-full" resizeMode="cover" /> : (
+        {coverUrl ? <Image source={coverUrl?.trim() ? { uri: coverUrl } : undefined} className="aspect-[2/3] w-full" resizeMode="cover" /> : (
           <View className="aspect-[2/3] w-full items-center justify-center px-2"><Text variant="caption" tone="muted">No cover</Text></View>
         )}
         <View className="absolute left-2 top-2">
@@ -60,6 +65,7 @@ export function ContentPosterCard({
           {subtitle}
         </Text>
       ) : null}
+      {routeId ? <MediaCount routeId={routeId} type={type} episodeCount={episodeCount} chapterCount={chapterCount} /> : null}
     </Pressable>
   );
 }

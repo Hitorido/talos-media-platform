@@ -3,7 +3,7 @@ import { Image, Pressable, View } from 'react-native';
 import { Badge, Text } from '@/components/ui';
 import type { SearchResult } from '@/types/search';
 import { getProviderDisplayName } from '@/services/contentService';
-import { useLibraryStore } from '@/stores/libraryStore';
+import { MediaCount } from '@/components/content/MediaCount';
 import { languageLabel } from '@/utils/novelLanguage';
 import { cn } from '@/utils/cn';
 import { comicFormatLabel } from '@/utils/comicFormat';
@@ -15,8 +15,6 @@ type SearchResultItemProps = {
 };
 
 export function SearchResultItem({ item, onPress, className }: SearchResultItemProps) {
-  const savedCount = useLibraryStore(state => state.media[item.id]?.chapterCount);
-  const chapterCount = item.chapterCount ?? savedCount;
   const comicLabel =
     item.type === 'manga' ? comicFormatLabel(item.comicFormat ?? 'manga') : undefined;
   const typeLabel =
@@ -34,7 +32,7 @@ export function SearchResultItem({ item, onPress, className }: SearchResultItemP
       )}
     >
       <View className="overflow-hidden rounded-lg bg-neutral-200 dark:bg-neutral-800">
-        <Image source={{ uri: item.coverUrl }} className="h-20 w-14" resizeMode="cover" />
+        <Image source={item.coverUrl?.trim() ? { uri: item.coverUrl } : undefined} className="h-20 w-14" resizeMode="cover" />
       </View>
       <View className="flex-1 justify-center gap-2">
         <View className="flex-row flex-wrap gap-2">
@@ -48,11 +46,7 @@ export function SearchResultItem({ item, onPress, className }: SearchResultItemP
         <Text variant="caption" tone="muted" numberOfLines={2}>
           {item.subtitle}
         </Text>
-        {(item.episodeCount ?? chapterCount ?? 0) > 0 ? (
-          <Text variant="caption" tone="muted">
-            {item.episodeCount ? item.episodeCount + ' Episodes' : chapterCount + ' Chapters in catalog'}
-          </Text>
-        ) : item.type === 'manga' ? <Text variant="caption" tone="muted">Chapter availability checked in details</Text> : null}
+        <MediaCount routeId={item.id} type={item.type} episodeCount={item.episodeCount} chapterCount={item.chapterCount} />
       </View>
     </Pressable>
   );

@@ -29,13 +29,13 @@ export function NovelDetailsHeader({ novel }: NovelDetailsHeaderProps) {
       <View className="gap-4">
         <View className="relative overflow-hidden rounded-2xl bg-neutral-200 dark:bg-neutral-800">
           <Image
-            source={{ uri: novel.bannerUrl }}
+            source={novel.bannerUrl?.trim() ? { uri: novel.bannerUrl } : undefined}
             className="aspect-video w-full"
             resizeMode="cover"
           />
           <View className="absolute bottom-3 left-3 flex-row items-end gap-3">
             <Image
-              source={{ uri: novel.coverUrl }}
+              source={novel.coverUrl?.trim() ? { uri: novel.coverUrl } : undefined}
               className="h-28 w-20 rounded-lg shadow-md"
               resizeMode="cover"
             />

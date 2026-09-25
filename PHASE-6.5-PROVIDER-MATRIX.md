@@ -499,3 +499,13 @@ Code checkpoint 526928d pushed to main. At 2026-09-18T09:24:35Z all four Render 
 - No account/cloud sync or database work. No Phase 6.6. See the latest stabilization section in PHASE-6.5-PROVIDER-EXPANSION.md for full verification and phone checklist.
 
 Stabilization build: backend PASS; web export PASS, 19 routes, exit 0. Typecheck remains only the four known canvas errors. Current changes are locally verified; no new Render or physical PASS is claimed.
+
+## English media checkpoint - 2026-09-25
+
+NovelPing: integrated public English search/details/full chapter archive/text through the existing gateway bridge. Local two-title PASS: Shadow Slave (3,195 chapter links, sampled text 91 paragraphs), Lord of Mysteries 2 (1,181 chapters, sampled text 98 paragraphs). Actual Hot Novel/Latest Release feeds PASS, 12 items each. Production and phone verification pending. Existing sources retained.
+
+AnimeParadise: playback resolves behind metadata details; separate playback-source search card hidden. Supplied English WebVTT joined to native HLS through a validated identifier-only gateway. Local HLS/segment/ffprobe PASS (webvtt,h264,aac); fullscreen/English-track/resume component tests PASS. Original-stream fallback is explicit. Missing tracks, native subtitle timing, production gateway and smooth phone playback remain limitations.
+
+MangaDex/cards: English translation and English chapter-update filters; English alternate titles preferred. Live English aggregate HTTP 200. Counts collapse alternate upload entries. Two card count operations are bounded separately from three search operations, with cache and obsolete queued-work suppression. Unknown counts are not fabricated. Geometry-based page fit, 50%-300% pinch/button zoom and empty-URI guards are implemented; phone verification pending.
+
+All seven discovery sections PASS locally. Backend build and 19-route web export PASS; frontend retains four existing canvas module errors. Render pre-deployment health timed out before HTTP; production remains separate from local verification.

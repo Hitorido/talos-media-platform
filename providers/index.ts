@@ -145,6 +145,7 @@ export function initializeProviders(): void {
   providerRegistry.register(narouProvider);
   providerRegistry.register(backendNovelProvider('novelarrow', 'NovelArrow'));
   providerRegistry.register(backendNovelProvider('novelcodex', 'NovelCodex.org'));
+  providerRegistry.register(backendNovelProvider('novelping', 'NovelPing'));
 
   for (const provider of consumetMangaProviders) {
     providerRegistry.register(provider);
@@ -172,7 +173,7 @@ export function getDefaultProviderEnabledMap(): Record<string, boolean> {
       id === 'kitsu-anime' ||
       id === 'anilist-anime' ||
       id === 'jikan-anime' ||
-      id === 'narou' || id === 'novelcodex';
+      id === 'narou' || id === 'novelcodex' || id === 'novelping';
   }
   return enabled;
 }

@@ -1,6 +1,6 @@
 import { SourceWebsiteButton } from '@/components/content/SourceWebsiteButton';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useVideoPlayer, VideoView } from 'expo-video';
+import { useVideoPlayer, VideoView, type SubtitleTrack } from 'expo-video';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 
@@ -23,10 +23,14 @@ export default function AnimePlayerScreen() {
   const resumeSeconds = useMemo(() => id && episodeId
     ? useAnimeProgressStore.getState().getEpisodeProgress(id, episodeId)?.positionSeconds ?? 0 : 0,
     [id, episodeId]);
+  const videoViewRef = useRef<VideoView>(null);
+  const fullscreenSourceRef = useRef('');
+  const [subtitleLabel, setSubtitleLabel] = useState('Checking English subtitles...');
   const resumedSourceRef = useRef<string | null>(null);
   const lastSavedAtRef = useRef(0);
   const latestTimeRef = useRef(0);
 
+  const [useDirectStream,setUseDirectStream] = useState(false);
   const [playback, setPlayback] = useState<ResolvedAnimePlaybackResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [retry, setRetry] = useState(0);
@@ -44,6 +48,7 @@ export default function AnimePlayerScreen() {
     setLoading(true);
     setError(null);
     setPlayback(null);
+    setUseDirectStream(false);
 
     resolveAnimePlayback(id, episodeId)
       .then((resolved) => {
@@ -81,7 +86,7 @@ export default function AnimePlayerScreen() {
     [id, episodeId, playback, setEpisodeProgress],
   );
 
-  const streamUrl = playback?.source.url ?? '';
+  const streamUrl = (useDirectStream ? playback?.source.fallbackUrl : playback?.source.url) ?? '';
 
   const videoSource = useMemo(() => streamUrl ? { uri: streamUrl, contentType: playback?.source.contentType ?? 'auto' as const } : null, [streamUrl, playback?.source.contentType]);
 
@@ -90,6 +95,26 @@ export default function AnimePlayerScreen() {
     instance.timeUpdateEventInterval = 1;
 
   });
+
+  const enterFullscreen = useCallback(async () => {
+    if (!streamUrl || !videoViewRef.current || fullscreenSourceRef.current === streamUrl) return;
+    fullscreenSourceRef.current = streamUrl;
+    try { await videoViewRef.current.enterFullscreen(); } catch { fullscreenSourceRef.current = ''; }
+  }, [streamUrl]);
+
+  useEffect(() => {
+    if (!streamUrl) return;
+    setSubtitleLabel('Checking English subtitles...');
+    const selectEnglish = (tracks: SubtitleTrack[]) => {
+      const english = tracks.find(track => /^en(?:g|[-_].*)?$/i.test(track.language ?? '') || /english/i.test(track.label ?? ''));
+      if (english) player.subtitleTrack = english;
+      setSubtitleLabel(english ? 'English subtitles enabled' : 'No English subtitle track supplied by this stream');
+    };
+    if (player.availableSubtitleTracks?.length) selectEnglish(player.availableSubtitleTracks);
+    const tracksSub = player.addListener('availableSubtitleTracksChange', ({availableSubtitleTracks}) => selectEnglish(availableSubtitleTracks));
+    const loadSub = player.addListener('sourceLoad', ({availableSubtitleTracks}) => selectEnglish(availableSubtitleTracks));
+    return () => {tracksSub.remove();loadSub.remove();};
+  }, [player, streamUrl]);
 
   useEffect(() => {
     if (!player || !streamUrl) {
@@ -159,6 +184,7 @@ export default function AnimePlayerScreen() {
           {error ?? 'No playback source was resolved.'}
         </Text>
         <Pressable onPress={() => {resumedSourceRef.current=null;setRetry(value=>value+1);}} className="mt-2"><Text tone="primary">Retry playback</Text></Pressable>
+        {playback?.source.fallbackUrl && !useDirectStream ? <Pressable onPress={() => {setUseDirectStream(true);setError(null);}}><Text tone="primary">Play original stream without external subtitles</Text></Pressable> : null}
         <SourceWebsiteButton routeId={id} />
         <Pressable onPress={() => router.back()} className="mt-2">
           <Text tone="primary">Go back</Text>
@@ -190,6 +216,10 @@ export default function AnimePlayerScreen() {
 
       {playerStatus === 'loading' ? <Text className="px-4 py-2 text-white">Buffering stream...</Text> : null}
       <VideoView
+        ref={videoViewRef}
+        onFirstFrameRender={() => { void enterFullscreen(); }}
+        onFullscreenExit={() => { latestTimeRef.current=player.currentTime; saveProgress(player.currentTime,player.duration || playback.durationSeconds || 0); }}
+        fullscreenOptions={{ enable: true, orientation: 'landscape' }}
         player={player}
         style={{ width: '100%', aspectRatio: 16 / 9 }}
         contentFit="contain"
@@ -197,6 +227,8 @@ export default function AnimePlayerScreen() {
       />
 
       <View className="gap-2 px-4 py-4">
+        <Text variant="caption" className="text-neutral-300">{subtitleLabel}</Text>
+        <Pressable onPress={() => { fullscreenSourceRef.current=''; void enterFullscreen(); }}><Text tone="primary">Fullscreen</Text></Pressable>
         <SourceWebsiteButton routeId={playback.source.providerId} />
         <View className="flex-row items-center justify-between gap-2">
           <Text variant="h3" className="flex-1 text-white">

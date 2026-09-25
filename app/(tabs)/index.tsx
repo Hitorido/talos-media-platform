@@ -9,7 +9,6 @@ import {
     HomeHeader,
     HorizontalSection,
 } from '@/components/home';
-import { NovelLanguageFilter } from '@/components/search/NovelLanguageFilter';
 import { useNovelPreferencesStore } from '@/stores/novelPreferencesStore';
 import { Screen, Text } from '@/components/ui';
 import { animeDetailsHref, mangaDetailsHref, novelDetailsHref } from '@/lib/routes';
@@ -82,7 +81,6 @@ export default function HomeScreen() {
   return (
     <Screen scrollable contentContainerClassName="gap-8 pb-8">
       <HomeHeader />
-      <NovelLanguageFilter />
 
       <HorizontalSection title="Continue Watching">
         {continueWatching.map((item) => (
@@ -155,7 +153,8 @@ export default function HomeScreen() {
         <HorizontalSection key={section.id} title={section.title}>
           {section.items.filter(item => enabled[item.providerId]).map(item => (
             <ContentPosterCard key={item.id} title={item.title} coverUrl={item.coverUrl} type={item.type}
-              subtitle={item.sourceName + ' ? ' + item.signal}
+              routeId={item.id} episodeCount={item.episodeCount} chapterCount={item.chapterCount}
+              subtitle={item.sourceName + ' - ' + item.signal}
               onPress={() => {
                 if (item.type === 'anime') router.push(animeDetailsHref(item.id));
                 else if (item.type === 'novel') router.push(novelDetailsHref(item.id));

@@ -13,7 +13,6 @@ import {
 import { Text } from '@/components/ui/Text';
 import { Screen } from '@/components/ui';
 import { animeDetailsHref, mangaDetailsHref, novelDetailsHref } from '@/lib/routes';
-import { NovelLanguageFilter } from '@/components/search/NovelLanguageFilter';
 import { useSearch } from '@/hooks/useSearch';
 
 export default function SearchScreen() {
@@ -48,7 +47,6 @@ export default function SearchScreen() {
         <View className="gap-3 border-b border-neutral-200 px-4 py-3 dark:border-neutral-800">
           <SearchBar value={query} onChangeText={setQuery} onClear={clearQuery} onSubmit={retry} />
           <SearchFilterTabs value={filter} onChange={setFilter} />
-          {filter === 'novel' || filter === 'all' ? <NovelLanguageFilter /> : null}
         </View>
 
         <View className="flex-1">

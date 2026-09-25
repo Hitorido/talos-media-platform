@@ -29,6 +29,7 @@ type MangaDexRelationship = {
 
 type MangaDexMangaAttributes = {
   title: MangaDexLocalizedString;
+  altTitles?: MangaDexLocalizedString[];
   description: MangaDexLocalizedString;
   status: string;
   originalLanguage?: string;
@@ -109,6 +110,7 @@ export async function searchMangaDex(query: string, limit = 12, signal?: AbortSi
   params.set('limit', String(limit));
   params.append('includes[]', 'cover_art');
   params.set('order[relevance]', 'desc');
+  params.append('availableTranslatedLanguage[]','en');
 
   const payload = await mangadexFetch<MangaDexResponse<MangaDexManga[]>>(
     `${MANGADEX_API}/manga?${params.toString()}`,
@@ -222,7 +224,7 @@ export function mapMangaDexToNormalized(manga: MangaDexManga) {
   }
 
   return {
-    title: pickLocalized(manga.attributes.title),
+    title: manga.attributes.altTitles?.map(title=>title.en).find(title=>title?.trim()) || pickLocalized(manga.attributes.title),
     description: pickLocalized(manga.attributes.description),
     coverUrl: buildCoverUrl(manga),
     genres,

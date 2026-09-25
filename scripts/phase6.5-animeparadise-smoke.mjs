@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { loadProviderTs } from './phase6.5-test-loader.mjs';
 const types=loadProviderTs('types/provider.ts');
-const {animeParadiseProvider:p}=loadProviderTs('providers/animeparadise/index.ts',{'@/types/provider':types});
+const {animeParadiseProvider:p}=loadProviderTs('providers/animeparadise/index.ts',{'@/types/provider':types,'@/lib/apiConfig':{getApiBaseUrl:()=>process.env.API_BASE||'http://127.0.0.1:5001'}});
 const results=await p.search('Naruto',{filter:'anime',limit:30});
 const found=results.find(x=>x.sourceId==='naruto');assert.ok(found);
 const ref={providerId:p.definition.id,sourceId:found.sourceId};

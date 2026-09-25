@@ -1,9 +1,9 @@
+import { ZoomablePage } from './ZoomablePage';
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from 'react';
-import { Dimensions, FlatList, Image, Pressable, View, ViewToken } from 'react-native';
+import { FlatList, View, ViewToken } from 'react-native';
 
 import type { MangaChapter, MangaPage } from '@/types/manga';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export type VerticalReaderRef = {
   scrollToPage: (pageNumber: number, animated?: boolean) => void;
@@ -63,6 +63,7 @@ export const VerticalReader = forwardRef<VerticalReaderRef, VerticalReaderProps>
     ref,
   ) => {
     const flatListRef = useRef<FlatList<FlatItem>>(null);
+    const scrollRetryRef = useRef({index:-1,attempts:0});
     const isReadyRef = useRef(false);
     const currentChapterRef = useRef(activeChapterId);
     const lastChapterSwitchRef = useRef<{ chapterId: string; at: number } | null>(null);
@@ -160,25 +161,7 @@ export const VerticalReader = forwardRef<VerticalReaderRef, VerticalReaderProps>
       onPageChange(focusPage.chapterId, focusIndex);
     }).current;
 
-    const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 65 }).current;
-
-    const getItemLayout = useCallback(
-      (_: ArrayLike<FlatItem> | null | undefined, index: number) => {
-        const item = flatItems[index];
-        const height =
-          item?.type === 'separator' ? 8 : SCREEN_WIDTH / (item?.page.aspectRatio ?? 0.67);
-        let offset = 0;
-        for (let i = 0; i < index; i++) {
-          const previousItem = flatItems[i];
-          offset +=
-            previousItem?.type === 'separator'
-              ? 8
-              : SCREEN_WIDTH / (previousItem?.page.aspectRatio ?? 0.67);
-        }
-        return { length: height, offset, index };
-      },
-      [flatItems],
-    );
+    const viewabilityConfig = useRef({ viewAreaCoveragePercentThreshold: 40 }).current;
 
     const renderItem = useCallback(
       ({ item }: { item: FlatItem }) => {
@@ -186,16 +169,7 @@ export const VerticalReader = forwardRef<VerticalReaderRef, VerticalReaderProps>
           return <View className="h-2 bg-neutral-950" />;
         }
 
-        return (
-          <Pressable onPress={onTapScreen} className="w-full items-center bg-black">
-            <Image
-              source={{ uri: item.page.imageUrl }}
-              className="w-full"
-              style={{ aspectRatio: item.page.aspectRatio ?? 0.67 }}
-              resizeMode="contain"
-            />
-          </Pressable>
-        );
+        return <ZoomablePage page={item.page} onTapScreen={onTapScreen} />;
       },
       [onTapScreen],
     );
@@ -211,17 +185,18 @@ export const VerticalReader = forwardRef<VerticalReaderRef, VerticalReaderProps>
         data={flatItems}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
-        initialScrollIndex={initialIndex}
-        getItemLayout={getItemLayout}
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}
         showsVerticalScrollIndicator={false}
-        removeClippedSubviews
+        removeClippedSubviews={false}
         initialNumToRender={8}
         maxToRenderPerBatch={8}
         windowSize={7}
         className="flex-1 bg-black"
         onScrollToIndexFailed={(info) => {
+          if (scrollRetryRef.current.index !== info.index) scrollRetryRef.current={index:info.index,attempts:0};
+          if (scrollRetryRef.current.attempts++ >= 3) return;
+          flatListRef.current?.scrollToOffset({offset:info.averageItemLength*info.index,animated:false});
           setTimeout(() => {
             flatListRef.current?.scrollToIndex({ index: info.index, animated: false });
             isReadyRef.current = true;

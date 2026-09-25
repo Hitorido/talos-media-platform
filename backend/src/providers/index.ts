@@ -1,3 +1,4 @@
+import { novelPingAdapter } from './novelping/adapter.js';
 import { mangaTownAdapter } from './mangatown/adapter.js';
 import { demonicScansAdapter } from './demonicscans/adapter.js';
 import { gdScansAdapter } from './gdscans/adapter.js';
@@ -29,6 +30,7 @@ export function initializeBackendProviders(): void {
   registerProvider(demonicScansAdapter);
   registerProvider(novelArrowAdapter);
   registerProvider(novelCodexAdapter);
+  registerProvider(novelPingAdapter);
   registerProvider(kaliScanAdapter);
   registerProvider(mangaJinxAdapter);
   registerProvider(novelProviderAdapter);

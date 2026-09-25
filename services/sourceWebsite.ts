@@ -8,6 +8,7 @@ const sources: Record<string,{name:string;origin:string;prefix?:string;mode:stri
  mangajinx:{name:'MangaJinx',origin:'https://mgjinx.com',prefix:'/manga/',mode:'Native Reader - local backend'},
  weebcentral:{name:'WeebCentral',origin:'https://weebcentral.com',prefix:'/series/',mode:'Native Reader - local backend'},
  demonicscans:{name:'DemonicScans',origin:'https://demonicscans.org',prefix:'/manga/',mode:'Native Reader - local backend'},
+ novelping:{name:'NovelPing',origin:'https://novelping.com',prefix:'/book/',mode:'Native Reader - production verification pending'},
  novelcodex:{name:'NovelCodex.org',origin:'https://www.novelcodex.org',prefix:'/novel/',mode:'Native Reader - public chapters'},
  novelarrow:{name:'NovelArrow',origin:'https://novelarrow.com',prefix:'/novel/',mode:'Native Reader - local backend'},
  narou:{name:'Narou',origin:'https://ncode.syosetu.com',prefix:'/',mode:'Native Reader - Japanese'},

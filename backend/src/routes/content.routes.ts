@@ -1,3 +1,5 @@
+import { animeParadisePlaylist } from '../providers/animeparadise/playlist.js';
+import { novelPingDiscovery } from '../providers/novelping/discovery.js';
 import { novelCodexDiscovery } from '../providers/novelcodex/discovery.js';
 import { mangaTownImage } from '../providers/mangatown/image.js';
 import { narouDiscovery } from '../providers/narou/discovery.js';
@@ -14,6 +16,11 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 export const contentRouter = Router();
 
 contentRouter.get('/providers', contentController.listProviders);
+contentRouter.get('/animeparadise/:title/:episodeId/:resource', asyncHandler(async (req,res) => {
+ const result=await animeParadisePlaylist(req.params.title,req.params.episodeId,req.params.resource);
+ res.setHeader('Cache-Control','public, max-age=30');res.type(result.type).send(result.body);
+}));
+contentRouter.get('/discovery/novelping', asyncHandler(async (req,res) => { res.json({success:true,data:await novelPingDiscovery(req.query.feed)}); }));
 contentRouter.get('/discovery/novelcodex', asyncHandler(async (req,res) => { res.json({success:true,data:await novelCodexDiscovery(req.query.feed)}); }));
 contentRouter.get('/discovery/narou', asyncHandler(async (req,res) => { res.json({success:true,data:await narouDiscovery(req.query.feed)}); }));
 contentRouter.get('/mangapill/image', asyncHandler(mangaPillImage));

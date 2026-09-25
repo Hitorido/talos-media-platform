@@ -24,7 +24,7 @@ try{
  const mdClient=loadProviderTs('providers/mangadex/client.ts');
  const md=loadProviderTs('providers/mangadex/index.ts',{'@/providers/mangadex/client':mdClient,'@/types/provider':types,'@/utils/comicFormat':loadProviderTs('utils/comicFormat.ts')}).mangaDexProvider;
  payload={data:[{id:'1',attributes:{title:{en:'One Piece'},description:{},status:'ongoing',originalLanguage:'ja',tags:[]},relationships:[]}]};requests=[];await md.search('One Piece',context);assert.equal(requests.length,1);assert.match(requests[0].url,/\/manga\?/);assert.equal(requests[0].options.signal,controller.signal);
- const anime=loadProviderTs('providers/animeparadise/index.ts',{'@/types/provider':types}).animeParadiseProvider;
+ const anime=loadProviderTs('providers/animeparadise/index.ts',{'@/types/provider':types,'@/lib/apiConfig':{getApiBaseUrl:()=>process.env.API_BASE||'http://127.0.0.1:5001'}}).animeParadiseProvider;
  payload={success:true,data:[{_id:'1',link:'naruto',title:'Naruto'}]};requests=[];await anime.search('Naruto',context);assert.equal(requests.length,1);assert.match(requests[0].url,/\/search\?/);
  const paths=[];
  const apiRequest=async(path,options)=>{paths.push(path);if(path.includes('/search?')){assert.equal(options.signal,context.signal);return{results:[{id:'1',sourceId:'1',title:'Title',mediaType:'manga',chapterCount:552}]};}if(path.endsWith('/chapters'))return{chapters:[{id:'selected',chapterNumber:1,title:'Chapter'}]};if(path.endsWith('/pages'))return{pages:[{pageNumber:1,imageUrl:'https://cdn.readdetectiveconan.com/manga/1/1000-001.png'}]};if(path.endsWith('/content'))return{paragraphs:['Public text']};return{title:'Title',coverUrl:'',genres:[]};};

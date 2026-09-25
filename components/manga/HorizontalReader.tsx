@@ -1,9 +1,9 @@
+import { ZoomablePage } from './ZoomablePage';
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
-import { Dimensions, FlatList, Image, Pressable } from 'react-native';
+import { FlatList, useWindowDimensions } from 'react-native';
 
 import type { MangaPage, ReadingDirection } from '@/types/manga';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export type HorizontalReaderRef = {
   scrollToPage: (pageNumber: number, animated?: boolean) => void;
@@ -21,6 +21,7 @@ type HorizontalReaderProps = {
 
 export const HorizontalReader = forwardRef<HorizontalReaderRef, HorizontalReaderProps>(
   ({ pages, activeChapterId, direction, initialPage = 1, onPageChange, onTapScreen }, ref) => {
+    const { width: SCREEN_WIDTH } = useWindowDimensions();
     const flatListRef = useRef<FlatList<MangaPage>>(null);
     const isInitializedRef = useRef(false);
     const lastPageRef = useRef<{ chapterId: string; pageNumber: number } | null>(null);
@@ -132,15 +133,7 @@ export const HorizontalReader = forwardRef<HorizontalReaderRef, HorizontalReader
           offset: SCREEN_WIDTH * index,
           index,
         })}
-        renderItem={({ item }) => (
-          <Pressable
-            onPress={onTapScreen}
-            style={{ width: SCREEN_WIDTH }}
-            className="relative flex-1 items-center justify-center bg-black"
-          >
-            <Image source={{ uri: item.imageUrl }} className="h-full w-full" resizeMode="contain" />
-          </Pressable>
-        )}
+        renderItem={({item})=><ZoomablePage page={item} onTapScreen={onTapScreen} paged />}
       />
     );
   },

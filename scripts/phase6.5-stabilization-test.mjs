@@ -31,11 +31,18 @@ const state={getEpisodeProgress:()=>({positionSeconds:saved}),setEpisodeProgress
 const useStore=selector=>selector(state);useStore.getState=()=>state;
 const jsx=(type,props)=>({type,props});
 const Player=loadComponent('app/anime/[id]/watch/[episodeId].tsx',{'react':React,'react/jsx-runtime':{jsx,jsxs:jsx},'expo-router':{Stack:{Screen:'Screen'},useRouter:()=>({back(){}}),useLocalSearchParams:()=>({id:'animeparadise__naruto',episodeId:'1'})},'expo-video':{useVideoPlayer:()=>player,VideoView:'VideoView'},'react-native':{ActivityIndicator:'Spinner',Pressable:'Button',View:'View'},'react-native-safe-area-context':{useSafeAreaInsets:()=>({top:0})},'@/components/ui':{Badge:'Badge',Text:'Text'},'@/components/content/SourceWebsiteButton':{SourceWebsiteButton:'Website'},'@/stores/animeProgressStore':{useAnimeProgressStore:useStore},'@/services/contentService':{getProviderDisplayName:()=> 'AnimeParadise',resolveAnimePlayback:async()=>({source:{url:'https://test.invalid/stream',providerId:'animeparadise',contentType:'hls'},episodeNumber:1,episodeTitle:'Episode 1',durationSeconds:1400})}});
-function render(){cursor=0;Player();const pending=effects;effects=[];pending.forEach(fn=>fn())}
+let playerTree;function render(){cursor=0;playerTree=Player();const pending=effects;effects=[];pending.forEach(fn=>fn())}
 render();await Promise.resolve();render();assert.deepEqual(seeks,[42]);
 for(const t of [43,44,45]){for(const fn of listeners.timeUpdate??[])fn({currentTime:t});render();for(const fn of listeners.statusChange??[])fn({status:'readyToPlay'});render();}
 assert.deepEqual(seeks,[42],'progress saves and repeated ready events must never seek backward');assert.equal(saved,43);
-slots.forEach(slot=>slot?.cleanup?.());assert.equal(saved,45,'unmount saves final observed position');
+const englishTrack={id:'en',language:'en',label:'English'};
+for(const fn of listeners.sourceLoad??[])fn({availableSubtitleTracks:[{id:'ja',language:'ja',label:'Japanese'},englishTrack]});
+assert.equal(player.subtitleTrack,englishTrack,'select the real English native track');
+render();const video=find(playerTree,'VideoView');let fullscreenCalls=0;video.props.ref.current={enterFullscreen:async()=>{fullscreenCalls++}};
+video.props.onFirstFrameRender();video.props.onFirstFrameRender();await Promise.resolve();assert.equal(fullscreenCalls,1);assert.equal(video.props.fullscreenOptions.orientation,'landscape');
+position=90;video.props.onFullscreenExit();assert.equal(saved,90,'native fullscreen exit saves actual player time');
+console.log('PASS native English track selection and one automatic fullscreen request per stream');
+slots.forEach(slot=>slot?.cleanup?.());assert.equal(saved,90,'unmount saves final observed position');
 console.log('PASS actual player effects: one resume seek, progress writes do not replay seconds, final progress saved');
 // Execute the real novel screen: continuous loads ahead, normal remains selected-only.
 slots.length=0;cursor=0;effects=[];
@@ -86,8 +93,8 @@ let failEnglish=false;const feedCalls=[];
 try{globalThis.fetch=async url=>{feedCalls.push(String(url));if(failEnglish&&String(url).includes('novelcodex'))throw Error('isolated outage');return new Response(JSON.stringify({data:{results:[{sourceId:'title',title:'Source fixture',coverUrl:'',signal:'Source signal'}]}}))};
  const enabled={novelcodex:true,narou:true};const first=discovery.getDiscovery(enabled),second=discovery.getDiscovery(enabled);assert.equal(first,second);
  const en=await first;assert.ok(feedCalls.every(url=>url.includes('novelcodex')));assert.equal(en.find(x=>x.id==='trendingNovels').items[0].providerId,'novelcodex');assert.equal(await discovery.getDiscovery(enabled),en);
- feedCalls.length=0;const ja=await discovery.getDiscovery(enabled,false,'ja');assert.ok(feedCalls.every(url=>url.includes('narou')));assert.equal(ja.find(x=>x.id==='trendingNovels').items[0].providerId,'narou');
- failEnglish=true;const mixed=await discovery.getDiscovery(enabled,true,'all');assert.equal(mixed.find(x=>x.id==='trendingNovels').items[0].providerId,'narou');assert.equal(mixed.find(x=>x.id==='trendingNovels').unavailable,false);
+ feedCalls.length=0;const ja=await discovery.getDiscovery(enabled,false,'ja');assert.equal(feedCalls.length,0);assert.equal(ja.find(x=>x.id==='trendingNovels').items[0].providerId,'novelcodex');
+ failEnglish=true;const mixed=await discovery.getDiscovery({...enabled,novelping:true},true,'all');assert.equal(mixed.find(x=>x.id==='trendingNovels').items[0].providerId,'novelping');assert.equal(mixed.find(x=>x.id==='trendingNovels').unavailable,false);
  assert.ok((await discovery.getDiscovery({})).every(section=>section.items.length===0));
- console.log('PASS English/Japanese discovery selection, deduplication, cache, disabled sources and isolated English feed failure');
+ console.log('PASS English-only discovery with NovelPing fallback, deduplication, cache, disabled sources and isolated English feed failure');
 }finally{globalThis.fetch=originalFetch;}

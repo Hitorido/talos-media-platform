@@ -90,6 +90,8 @@ export type NormalizedPlaybackSource = {
   mediaId?: string;
   episodeId?: string;
   url: string;
+  /** Original stream for an explicit fallback when subtitle delivery is unavailable. */
+  fallbackUrl?: string;
   quality?: string;
   audioLanguage?: string;
   subtitles?: { language: string; url: string }[];

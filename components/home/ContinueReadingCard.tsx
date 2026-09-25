@@ -21,7 +21,7 @@ export function ContinueReadingCard({ item, onPress, className }: ContinueReadin
       className={cn('w-64 flex-row gap-3', className)}
     >
       <View className="overflow-hidden rounded-xl bg-neutral-200 dark:bg-neutral-800">
-        <Image source={{ uri: item.coverUrl }} className="h-28 w-20" resizeMode="cover" />
+        <Image source={item.coverUrl?.trim() ? { uri: item.coverUrl } : undefined} className="h-28 w-20" resizeMode="cover" />
       </View>
       <View className="flex-1 justify-center gap-2">
         <Badge label={typeLabel} variant={item.type} />

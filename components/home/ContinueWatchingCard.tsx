@@ -15,7 +15,7 @@ export function ContinueWatchingCard({ item, onPress, className }: ContinueWatch
   return (
     <Pressable accessibilityRole="button" onPress={onPress} className={cn('w-72', className)}>
       <View className="overflow-hidden rounded-xl bg-neutral-200 dark:bg-neutral-800">
-        <Image source={{ uri: item.coverUrl }} className="aspect-video w-full" resizeMode="cover" />
+        <Image source={item.coverUrl?.trim() ? { uri: item.coverUrl } : undefined} className="aspect-video w-full" resizeMode="cover" />
         <View className="absolute inset-x-0 bottom-0 bg-black/60 px-3 py-2">
           <ProgressBar progress={item.progress} className="mb-2 bg-white/30" />
           <Text variant="caption" className="text-white">

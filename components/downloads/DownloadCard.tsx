@@ -64,7 +64,7 @@ export function DownloadCard({
         {/* Cover thumbnail */}
         <View className="h-20 w-14 overflow-hidden rounded-lg bg-neutral-200 dark:bg-neutral-800">
           {item.coverUrl ? (
-            <Image source={{ uri: item.coverUrl }} className="h-full w-full" resizeMode="cover" />
+            <Image source={item.coverUrl?.trim() ? { uri: item.coverUrl } : undefined} className="h-full w-full" resizeMode="cover" />
           ) : null}
         </View>
 
