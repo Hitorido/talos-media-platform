@@ -509,3 +509,5 @@ AnimeParadise: playback resolves behind metadata details; separate playback-sour
 MangaDex/cards: English translation and English chapter-update filters; English alternate titles preferred. Live English aggregate HTTP 200. Counts collapse alternate upload entries. Two card count operations are bounded separately from three search operations, with cache and obsolete queued-work suppression. Unknown counts are not fabricated. Geometry-based page fit, 50%-300% pinch/button zoom and empty-URI guards are implemented; phone verification pending.
 
 All seven discovery sections PASS locally. Backend build and 19-route web export PASS; frontend retains four existing canvas module errors. Render pre-deployment health timed out before HTTP; production remains separate from local verification.
+
+Deployment evidence: code `6c18a7c` pushed to main successfully. All four Render health/registry checks at 2026-09-25T08:34:21Z timed out before HTTP under fifteen-second bounds. New runtime deployment, NovelPing and English subtitle gateway remain production-unverified; local/decoder evidence above is not substituted for phone or production results.
