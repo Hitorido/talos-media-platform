@@ -1,194 +1,137 @@
-# Talos
+# 🌌 Talos Media Platform
 
-> A unified media app for discovering, watching, reading, and managing anime, manga, manhwa, manhua, and web novels.
+<p align="center">
+  <img src="assets/images/icon.png" alt="Talos Logo" width="120" height="120" style="border-radius: 24px;" />
+</p>
 
-Talos is a cross-platform personal media application built around a **provider-based architecture**. It brings different types of media into one application while keeping content providers independent from the core UI and media experience.
+<p align="center">
+  <strong>A unified, provider-agnostic client for discovering, reading, watching, and tracking Anime, Manga, Manhwa, Manhua, and Web Novels.</strong>
+</p>
 
-The project is designed to support multiple sources, offline access, progress tracking, personal libraries, and eventually community-driven features.
+<p align="center">
+  <img src="https://img.shields.io/badge/Expo-v57.0-000020.svg?style=flat-square&logo=expo" alt="Expo SDK 57" />
+  <img src="https://img.shields.io/badge/React%20Native-0.86-61DAFB.svg?style=flat-square&logo=react" alt="React Native" />
+  <img src="https://img.shields.io/badge/TypeScript-5.3+-3178C6.svg?style=flat-square&logo=typescript" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/NativeWind-v4-06B6D4.svg?style=flat-square&logo=tailwindcss" alt="NativeWind" />
+  <img src="https://img.shields.io/badge/Node.js-Express%20%2B%20Prisma-339933.svg?style=flat-square&logo=nodedotjs" alt="Backend" />
+  <img src="https://img.shields.io/badge/Platform-Android%20%7C%20iOS%20%7C%20Web-brightgreen.svg?style=flat-square" alt="Platform" />
+</p>
 
 ---
 
-## ✨ Features
+## 📖 Overview
 
-### 📺 Anime
+**Talos** eliminates the friction of switching between multiple fragmented apps for reading and watching Japanese, Korean, Chinese, and global media. Built with a clean **provider-based decoupling pattern**, the core reading and viewing experience remains rock-solid while content sources can be dynamically plugged in, extended, or configured.
 
-- Anime search and discovery
-- Anime metadata and details
-- Episode listings
-- Provider-based playback architecture
-- Video playback
-- Playback source resolution
-- Support for multiple anime providers
-- Demo playback for development and testing
+Whether you are binge-reading manga chapters, tracking ongoing light novels, streaming anime episodes, or caching content for offline commutes, Talos delivers a fast, fluid, and unified interface.
 
-### 📖 Manga, Manhwa & Manhua
+---
 
-- Search and discovery
-- Manga/manhwa/manhua details
-- Chapter listings
-- Page-based reader
-- Multiple content providers
-- Source switching
-- Language selection where supported
-- Reading progress tracking
-- Offline reading architecture
+## ✨ Key Features
 
-### 📚 Web Novels
+### 📺 Anime Streaming & Discovery
+- **Discovery & Catalog:** Search, filter, and view metadata powered by AniList, Kitsu, and Jikan (MyAnimeList).
+- **Streaming Players:** Built with `expo-video` supporting multi-resolution HLS / MP4 playback, episode selection, and position resume.
+- **Provider Switching:** Decoupled streaming resolvers (including DonghuaStream and optional Consumet proxies) with graceful error handling and fallbacks.
 
-- Novel search and discovery
-- Novel details
-- Chapter listings
-- Chapter text content
-- Provider-independent novel reader
-- Offline chapter support
-- Multiple-source architecture
+### 📖 Manga, Manhwa & Manhua Reader
+- **High-Performance Reader:** Continuous vertical webtoon strip and horizontal paged reader modes powered by `react-native-reanimated` and gesture handlers.
+- **Multi-Source Catalog:** Native integrations for MangaDex, WeebCentral, MangaPill, MangaTown, and scraper adapters.
+- **Reading Progress Tracking:** Instant auto-save of current chapter and scroll percentages locally and via cloud synchronization.
 
-### 📥 Downloads
+### 📚 Web & Light Novel Reader
+- **Distraction-Free Text Engine:** Clean reader interface with customizable font sizes, line heights, themes (AMOLED dark, sepia, light), and reading margins.
+- **Rich Source Support:** Integration with Narou (Shousetsuka ni Narou), Royal Road, NovelCodex, NovelPing, NovelArrow, and external novel microservices.
+- **Offline Text Caching:** Fast chapter-by-chapter local storage for instant offline reading.
 
-- Centralized download manager
-- Download queue
-- Pause and resume
-- Retry failed downloads
-- Cancel downloads
-- Delete downloads
-- Completed-download management
-- Offline media support
+### 📥 Download & Offline Manager
+- **Centralized Queue:** Background download engine with pause, resume, cancel, and auto-retry capabilities.
+- **Storage Management:** Monitor downloaded storage usage, browse downloaded media without an internet connection, and purge cached chapters cleanly.
 
-### 📚 Personal Library
+### 🔄 Cloud Sync & Personal Library
+- **Cross-Device Sync:** Optional sync with the Talos Express backend for favorites, reading history, and playback progress.
+- **Unified Library:** Organize content into custom statuses (*Reading*, *Plan to Read*, *Completed*, *On Hold*, *Dropped*).
+- **Local-First Fallback:** Seamless offline functionality backed by Zustand and encrypted secure storage (`expo-secure-store`).
 
-- Favorites
-- Reading progress
-- Watching progress
-- History
-- Saved media
-- Persistent local data
+---
 
-### 🔌 Multi-Source Provider System
+## 🏛️ System Architecture
 
-Talos separates the application from individual content sources through a provider architecture.
+Talos enforces a strict separation of concerns between UI presentation, domain entities, and data providers:
 
-```text
-Talos UI
-   ↓
-Unified Media Layer
-   ↓
-Provider Registry
-   ↓
-Media Provider
-   ↓
-Source / API
+```
+┌────────────────────────────────────────────────────────┐
+│                   Talos Client (Expo)                  │
+│       Pages (Expo Router) ── Components ── Stores      │
+└───────────────────────────┬────────────────────────────┘
+                            │
+                            ▼
+┌────────────────────────────────────────────────────────┐
+│               Unified Media Domain Layer               │
+│      Media Hooks (useAnimeContent, useMangaContent)    │
+│      Normalized Models (UnifiedMedia, Chapter, Ep)     │
+└───────────────────────────┬────────────────────────────┘
+                            │
+                            ▼
+┌────────────────────────────────────────────────────────┐
+│                   Provider Registry                    │
+│  Validates capabilities, status checks, active toggles  │
+└───────┬───────────────────┬────────────────────┬───────┘
+        │                   │                    │
+        ▼                   ▼                    ▼
+┌───────────────┐   ┌───────────────┐   ┌────────────────┐
+│ Direct Client │   │ Direct Client │   │ Talos Backend  │
+│  (MangaDex,   │   │ (AniList API, │   │ Content Gateway│
+│   Narou, etc) │   │  Kitsu, etc)  │   │  (Express/TS)  │
+└───────────────┘   └───────────────┘   └───────┬────────┘
+                                                │
+                                                ▼
+                                    ┌───────────────────────┐
+                                    │ External Aggregators  │
+                                    │ & Scraper Microservices│
+                                    └───────────────────────┘
 ```
 
-This allows providers to be added, removed, disabled, or replaced without rebuilding the core media experience.
+---
 
-### 🌐 Backend
+## 🔌 Provider Matrix
 
-Talos also includes an Express + TypeScript backend that provides:
-
-- Authentication
-- User profiles
-- Library synchronization contracts
-- Favorites
-- History
-- Reading progress
-- Watching progress
-- Provider management
-- Unified content gateway
-- Provider health checks
-
-The backend currently uses SQLite for local development and is designed to support a hosted database in the future.
+| Provider | Type | Media Supported | Implementation | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| **MangaDex** | Manga / Manhwa | Manga, Manhwa, Manhua | Direct API | 🟢 Working |
+| **WeebCentral** | Manga / Manhwa | Manga, Manhwa, Manhua | Backend Gateway | 🟢 Working |
+| **MangaPill** | Manga | Manga | Backend Gateway | 🟢 Working |
+| **MangaTown** | Manga | Manga | Backend Gateway | 🟢 Working |
+| **GdScans / DemonicScans**| Manga | Manga | Backend Gateway | 🟡 Limited / Host dependent |
+| **AniList** | Anime Catalog | Anime Metadata | Direct GraphQL | 🟢 Working |
+| **Kitsu** | Anime Catalog | Anime Metadata | Direct REST | 🟢 Working |
+| **Jikan (MAL)** | Anime Catalog | Anime Metadata | Direct REST | 🟢 Working |
+| **DonghuaStream** | Anime Streaming| Donghua / Anime | Backend Gateway | 🟢 Working |
+| **Royal Road** | Web Novel | Web Novels | Backend Gateway | 🟢 Working |
+| **NovelCodex** | Web Novel | Light / Web Novels | Backend Gateway | 🟢 Working |
+| **NovelPing** | Web Novel | Web Novels | Backend Gateway | 🟢 Working |
+| **Narou** | Light Novel | Japanese Web Novels | Direct Web Scraper | 🟢 Working |
+| **Consumet Proxies** | Multi-Media | Anime / Manga | Self-Hosted Gateway | ⚪ Configurable URL required |
 
 ---
 
 ## 🛠️ Tech Stack
 
-### Frontend
+### Frontend Application
+- **Framework:** [Expo SDK 57](https://docs.expo.dev/versions/v57.0.0/) with React Native 0.86
+- **Routing:** [Expo Router](https://docs.expo.dev/router/introduction/) (File-system based navigation)
+- **Styling:** [NativeWind v4](https://www.nativewind.dev/) (Tailwind CSS for React Native)
+- **State Management:** [Zustand](https://github.com/pmndrs/zustand)
+- **Video Engine:** [expo-video](https://docs.expo.dev/versions/latest/sdk/video/)
+- **Animations & Gestures:** [Reanimated 4](https://docs.swmansion.com/react-native-reanimated/) & [React Native Gesture Handler](https://docs.swmansion.com/react-native-gesture-handler/)
+- **Storage:** Expo FileSystem, Expo SecureStore
 
-- **Expo**
-- **React Native**
-- **TypeScript**
-- **Expo Router**
-- **NativeWind**
-- **Zustand**
-- **TanStack Query**
-- **React Native Reanimated**
-- **React Native Gesture Handler**
-- **FlashList**
-- **Expo FileSystem**
-- **Expo SecureStore**
-- **React Hook Form**
-- **Zod**
-- **expo-video**
-
-### Backend
-
-- **Node.js**
-- **Express**
-- **TypeScript**
-- **Prisma**
-- **SQLite**
-- **JWT**
-- **bcrypt**
-- **Zod**
-- **Helmet**
-- **CORS**
-
----
-
-## 🏗️ Architecture
-
-Talos is designed around a provider-independent architecture.
-
-### Media Flow
-
-```text
-User
- │
- ▼
-Talos UI
- │
- ▼
-Media Hooks / Services
- │
- ▼
-Unified Media Layer
- │
- ▼
-Provider Registry
- │
- ├── Manga Provider
- │
- ├── Anime Provider
- │
- └── Novel Provider
- │
- ▼
-External Source / API
-```
-
-### Backend Content Gateway
-
-```text
-Expo App
-   │
-   ▼
-Backend API
-   │
-   ▼
-Content Gateway
-   │
-   ▼
-Provider Registry
-   │
-   ├── Consumet Adapter
-   ├── Novel Adapter
-   └── Scraper Adapter
-   │
-   ▼
-Configured Upstream Service
-```
-
-The architecture is intentionally designed so that provider-specific logic does not leak into the application's screens.
+### Backend Service
+- **Runtime:** Node.js (v20+ / v22 LTS) & TypeScript
+- **Server:** Express.js, Helmet, CORS
+- **ORM & Database:** Prisma ORM with SQLite (Development) / MySQL (Cloud-ready: Aiven / PlanetScale)
+- **Authentication:** Stateless JWT & Bcrypt password hashing
+- **Parsing & Scraping:** Cheerio
 
 ---
 
@@ -196,385 +139,139 @@ The architecture is intentionally designed so that provider-specific logic does 
 
 ```text
 talos/
-│
-├── app/
-│   ├── anime/
-│   ├── manga/
-│   ├── novel/
-│   ├── library/
-│   ├── history/
-│   └── settings/
-│
-├── components/
-│
-├── hooks/
-│
-├── providers/
-│   ├── builtin-mock/
-│   ├── mangadex/
-│   ├── novel-backend/
-│   └── catalog/
-│
-├── services/
-│   ├── api/
-│   ├── contentService.ts
-│   └── ...
-│
-├── stores/
-│
-├── types/
-│
-├── backend/
+├── app/                       # Expo Router application screens
+│   ├── (tabs)/                # Main bottom tab routes (Home, Library, History, Settings)
+│   ├── anime/                 # Anime details & video player screens
+│   ├── manga/                 # Manga chapter details & interactive image reader
+│   ├── novel/                 # Novel reader interface & typography controls
+│   └── _layout.tsx            # Root navigation stack & theme providers
+├── backend/                   # Standalone Express + Prisma gateway
+│   ├── prisma/                # Database schema & migrations (SQLite & MySQL)
 │   ├── src/
-│   │   ├── controllers/
-│   │   ├── middleware/
-│   │   ├── providers/
-│   │   ├── routes/
-│   │   └── ...
-│   ├── prisma/
+│   │   ├── controllers/       # Auth, Library, Progress, Content controllers
+│   │   ├── middleware/        # JWT verification, CORS, error handling
+│   │   ├── providers/         # Gateway scraper & aggregator adapters
+│   │   ├── routes/            # REST API route declarations
+│   │   └── server.ts          # Server initialization & graceful shutdown
 │   └── package.json
-│
-├── scripts/
-│
-├── package.json
-└── README.md
+├── components/                # Reusable UI components (Modals, Cards, Players, Controls)
+├── hooks/                     # Custom React hooks (useAnimeContent, useMangaContent, etc.)
+├── providers/                 # Client-side media provider registry and implementations
+├── stores/                    # Zustand stores (authStore, libraryStore, downloadStore)
+├── types/                     # Shared TypeScript interface definitions
+└── package.json
 ```
-
-> The exact structure may change as Talos continues to evolve.
 
 ---
 
 ## 🚀 Getting Started
 
-### Requirements
-
-Make sure you have installed:
-
-- Node.js
-- npm
-- Git
-- Expo CLI / Expo-compatible environment
-- Android Studio for Android development
-- Xcode for iOS development on macOS
+### Prerequisites
+- [Node.js](https://nodejs.org/) (v20.x or v22.x recommended)
+- [npm](https://www.npmjs.com/) or [yarn](https://yarnpkg.com/)
+- [Expo Go](https://expo.dev/go) app on your mobile device OR Android Studio / Xcode
 
 ---
 
-### 1. Clone the repository
+### 1. Repository Setup
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/talos.git
-cd talos
+git clone https://github.com/Hitorido/talos-media-platform.git
+cd talos-media-platform
 ```
+
+### 2. Frontend Configuration & Launch
+
+1. Install project dependencies:
+   ```bash
+   npm install
+   ```
+
+2. Configure environment (optional, defaults to local detection):
+   ```bash
+   # Copy sample client environment
+   cp .env.example .env
+   ```
+   *For physical devices, set `EXPO_PUBLIC_API_URL=http://<YOUR_LOCAL_IP>:5000`.*
+
+3. Start the Expo development server:
+   ```bash
+   npm run start
+   ```
+
+4. Press:
+   - `a` to open in Android Emulator
+   - `i` to open in iOS Simulator
+   - `w` to open in Web Browser
+   - Or scan the terminal QR code with **Expo Go**
 
 ---
 
-### 2. Install frontend dependencies
+### 3. Backend Setup (Optional for cloud sync & gateway scrapers)
 
-```bash
-npm install
-```
+1. Navigate to the backend directory:
+   ```bash
+   cd backend
+   npm install
+   ```
 
----
+2. Initialize backend environment variables:
+   ```bash
+   cp .env.example .env
+   ```
 
-### 3. Start the Expo application
+3. Run database migrations & generate Prisma client:
+   ```bash
+   npx prisma migrate dev
+   npx prisma generate
+   ```
 
-```bash
-npx expo start
-```
-
-You can then run Talos using:
-
-- Android Emulator
-- iOS Simulator
-- Physical Android device
-- Physical iOS device
-- Other supported Expo environments
-
----
-
-## 🖥️ Backend Setup
-
-Navigate to the backend:
-
-```bash
-cd backend
-```
-
-Install dependencies:
-
-```bash
-npm install
-```
-
-Create your environment file:
-
-```bash
-cp .env.example .env
-```
-
-For Windows PowerShell, you can also use:
-
-```powershell
-Copy-Item .env.example .env
-```
-
-Configure the required environment variables in `.env`.
+4. Start the backend development server:
+   ```bash
+   npm run dev
+   ```
+   The backend API will run at `http://localhost:5000`. You can verify health via:
+   ```bash
+   curl http://localhost:5000/health
+   ```
 
 ---
 
-### Database
+## 🧪 Available Scripts
 
-Talos currently uses SQLite for local backend development.
+### Frontend
+- `npm run start` — Launch Expo dev server.
+- `npm run android` — Launch on connected Android device/emulator.
+- `npm run ios` — Launch on iOS simulator.
+- `npm run web` — Run web preview.
+- `npm run lint` — Lint files using Expo ESLint rules.
+- `npm run typecheck` — Perform strict TypeScript validation (`tsc --noEmit`).
+- `npm run format` — Auto-format codebase with Prettier.
 
-Run Prisma migrations:
-
-```bash
-npx prisma migrate dev
-```
-
-Generate the Prisma client:
-
-```bash
-npx prisma generate
-```
-
----
-
-### Start the backend
-
-```bash
-npm run dev
-```
-
-The backend will normally be available at:
-
-```text
-http://localhost:5000
-```
-
-Health check:
-
-```text
-GET /health
-```
+### Backend
+- `npm run dev` — Run server with live reloading via `tsx watch`.
+- `npm run build` — Compile TypeScript to `dist/`.
+- `npm run start` — Run production server.
+- `npm run prisma:migrate` — Apply database schema updates.
 
 ---
 
-## 🔐 Environment Variables
+## ⚖️ Disclaimer & Content Notice
 
-Do not commit your `.env` files or private credentials.
+Talos is an open-source media player and content client developed strictly for educational and personal portfolio purposes. 
 
-Example backend configuration:
-
-```env
-PORT=5000
-NODE_ENV=development
-
-DATABASE_URL="file:./dev.db"
-
-JWT_SECRET="your-development-secret"
-
-CORS_ORIGIN="http://localhost:8081"
-
-NOVEL_GATEWAY_URL=
-CONSUMET_BASE_URL=
-```
-
-Use `.env.example` as the reference for required configuration.
-
----
-
-## 🔌 Providers
-
-Talos uses providers to retrieve media from external sources.
-
-A provider can expose capabilities such as:
-
-```text
-Search
-Details
-Chapters
-Pages
-Episodes
-Text Content
-Streaming
-Downloads
-Images
-Recommendations
-```
-
-Providers can have different capabilities. Talos checks these capabilities before attempting an operation.
-
-### Provider Status
-
-Providers may be marked as:
-
-- `Working`
-- `Limited`
-- `Requires Configuration`
-- `Unavailable`
-- `Planned`
-- `Disabled`
-
-This prevents unavailable sources from being presented as working sources.
-
----
-
-## ⚠️ Content Sources
-
-Talos is designed as a **provider-based media client**.
-
-The application itself does not claim ownership of third-party media.
-
-External providers and sources may have their own:
-
-- Terms of service
-- Copyright policies
-- Geographic restrictions
-- Authentication requirements
-- Rate limits
-- Availability limitations
-
-Only use sources and content that you are legally permitted to access.
-
-Talos does not encourage copyright infringement or unauthorized redistribution of copyrighted material.
-
----
-
-## 🧪 Development Status
-
-Talos is currently under active development.
-
-### Current Architecture
-
-- [x] Expo / React Native application
-- [x] Provider architecture
-- [x] Local persistence foundation
-- [x] Download manager architecture
-- [x] Backend foundation
-- [x] Backend content gateway
-- [x] Comic provider architecture
-- [x] Anime playback provider architecture
-- [x] Novel provider architecture
-- [x] Authentication API
-- [x] Library API
-- [x] Progress API
-- [x] History API
-- [x] Provider health system
-
-### In Progress
-
-- [ ] Additional verified comic sources
-- [ ] Additional verified anime playback sources
-- [ ] Additional verified novel sources
-- [ ] Source management improvements
-- [ ] Full beta media testing
-- [ ] Cloud backend deployment
-- [ ] Production database configuration
-- [ ] End-to-end beta testing
-
-### Future
-
-- [ ] Cloud synchronization
-- [ ] Community feed
-- [ ] User profiles
-- [ ] Posts and blogs
-- [ ] Reviews and recommendations
-- [ ] Messaging
-- [ ] Media sharing
-- [ ] Custom themes
-- [ ] Custom templates
-- [ ] Community-created templates
-- [ ] Short-form vertical media discovery
-- [ ] Movies
-- [ ] TV shows
-
----
-
-## 🗺️ Roadmap
-
-```text
-Phase 1
-Comic Source Hardening
-        │
-        ▼
-Phase 2
-Anime Playback Providers
-        │
-        ▼
-Phase 3
-Novel Provider Architecture
-        │
-        ▼
-Phase 4
-Unified Backend Content Gateway
-        │
-        ▼
-Phase 5
-Source Discovery & Integration
-        │
-        ▼
-Phase 6
-Beta Cloud Deployment
-        │
-        ▼
-Phase 7
-Beta Build & End-to-End Testing
-        │
-        ▼
-Community & Cloud Features
-        │
-        ▼
-Movies / TV / Future Media
-```
-
-The roadmap may change as the project develops.
-
----
-
-## 🎯 Project Goals
-
-The long-term goal of Talos is to create a **single, flexible media platform** where users can manage different types of entertainment from one application.
-
-Instead of building separate applications for anime, manga, manhwa, manhua, and novels, Talos aims to provide one unified experience while keeping each source independent.
-
-The architecture is designed to make future expansion easier without rebuilding the entire application.
-
----
-
-## 🤝 Contributing
-
-Talos is currently a personal portfolio project.
-
-Contribution guidelines may be added in the future as the project becomes more mature.
-
-If contributing in the future, please:
-
-1. Keep provider logic separated from UI code.
-2. Follow the existing TypeScript architecture.
-3. Avoid hardcoding provider-specific behavior into screens.
-4. Preserve normalized media models.
-5. Add appropriate tests for new functionality.
-6. Respect the terms and licenses of external sources.
+- **No Media Hosting:** Talos does not host, upload, or store any video, audio, comic, or novel files on its servers.
+- **Provider Aggregation:** All content is retrieved dynamically from third-party APIs and publicly accessible external sources.
+- **Copyright Compliance:** Users are responsible for complying with copyright laws, licensing, and terms of service of the content providers they access.
 
 ---
 
 ## 📄 License
 
-This project is currently intended as a personal portfolio and development project.
-
-A formal open-source license will be added if and when the project is released for external contributions.
+Distributed under the [MIT License](LICENSE). See `LICENSE` for more information.
 
 ---
 
-## 👨‍💻 Author
-
-**Talos** is developed as a personal software development and portfolio project.
-
-Built with:
-
-**Expo + React Native + TypeScript + Node.js + Prisma**
-
----
-
-> **Talos** — One place for the stories you watch and read.
+<p align="center">
+  Crafted with care by <strong>Talos Contributors</strong>
+</p>
