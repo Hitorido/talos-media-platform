@@ -1,3 +1,4 @@
+import { backendAnimeProvider } from '@/providers/backend-content/anime';
 import { animeParadiseProvider } from '@/providers/animeparadise';
 import { backendComicProvider, backendNovelProvider } from '@/providers/backend-content';
 import { aniListAnimeProvider } from '@/providers/anilist';
@@ -141,11 +142,13 @@ export function initializeProviders(): void {
   providerRegistry.register(aniListAnimeProvider);
   providerRegistry.register(jikanAnimeProvider);
   providerRegistry.register(animeParadiseProvider);
+  providerRegistry.register(backendAnimeProvider('donghuastream', 'DonghuaStream'));
   providerRegistry.register(novelBackendProvider);
   providerRegistry.register(narouProvider);
   providerRegistry.register(backendNovelProvider('novelarrow', 'NovelArrow'));
   providerRegistry.register(backendNovelProvider('novelcodex', 'NovelCodex.org'));
   providerRegistry.register(backendNovelProvider('novelping', 'NovelPing'));
+  providerRegistry.register(backendNovelProvider('royalroad', 'Royal Road'));
 
   for (const provider of consumetMangaProviders) {
     providerRegistry.register(provider);
@@ -168,12 +171,12 @@ export function getDefaultProviderEnabledMap(): Record<string, boolean> {
   for (const provider of providerRegistry.list()) {
     const id = provider.definition.id;
     enabled[id] =
-      id === 'builtin-mock' ||
+      id === 'builtin-mock' || id === 'donghuastream' ||
       id === 'mangadex' ||
       id === 'kitsu-anime' ||
       id === 'anilist-anime' ||
       id === 'jikan-anime' ||
-      id === 'narou' || id === 'novelcodex' || id === 'novelping';
+      id === 'narou' || id === 'novelcodex' || id === 'novelping' || id === 'royalroad';
   }
   return enabled;
 }

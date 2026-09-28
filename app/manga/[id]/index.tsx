@@ -1,5 +1,7 @@
+import { ChapterRangePicker, chapterRange } from '@/components/content/SelectionModal';
+import { MediaBookmarks } from '@/components/content/MediaBookmarks';
 import { SourceWebsiteButton } from '@/components/content/SourceWebsiteButton';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,6 +27,8 @@ export default function MangaDetailsScreen() {
   const latestProgress = useMangaProgressStore((state) =>
     manga ? state.getMangaProgress(manga.id) : undefined,
   );
+  const [range, setRange] = useState(0);
+  const [showBookmarks,setShowBookmarks]=useState(false);
   const [bulkModalOpen, setBulkModalOpen] = useState(false);
   const [selectedLanguageOverride, setSelectedLanguageOverride] = useState<string | null>(null);
 
@@ -119,6 +123,7 @@ export default function MangaDetailsScreen() {
 
   return (
     <Screen scrollable contentContainerClassName="gap-6 pb-8">
+      <Stack.Screen options={{title:manga.title}} />
       <MangaDetailsHeader manga={manga} />
 
       <View className="flex-row flex-wrap items-center gap-2">
@@ -190,8 +195,8 @@ export default function MangaDetailsScreen() {
               />
             ) : null}
 
-            {!isProviderContent ? (
-              <Pressable
+            <ChapterRangePicker count={filteredChapters.length} value={range} onChange={setRange} />
+            <Pressable
                 onPress={() => setBulkModalOpen(true)}
                 className="flex-row items-center gap-1.5 rounded-full bg-primary-50 px-3 py-1.5 dark:bg-primary-950"
               >
@@ -200,30 +205,28 @@ export default function MangaDetailsScreen() {
                   Download All
                 </Text>
               </Pressable>
-            ) : null}
           </View>
         </View>
 
-        <ChapterList
+        <Pressable accessibilityRole="button" onPress={()=>setShowBookmarks(value=>!value)} className="self-start rounded-full bg-primary-100 px-4 py-2 dark:bg-primary-950"><Text tone="primary">{showBookmarks?'Show chapters':'Bookmarks'}</Text></Pressable>
+        {showBookmarks ? <MediaBookmarks mediaId={manga.id} kind="manga" /> : <ChapterList
           mangaId={manga.id}
-          chapters={filteredChapters}
+          chapters={chapterRange(filteredChapters, range)}
           activeChapterId={latestProgress?.chapterId}
           showLanguageBadge={activeLanguage === 'all' || availableLanguages.length > 1}
           getChapterProgress={getChapterProgress}
           onChapterPress={(chapter) => openChapter(chapter.id)}
           onDownloadChapter={
-            isProviderContent ? undefined : (chapter) => downloadMangaChapter(manga, chapter)
+            (chapter) => downloadMangaChapter(manga, chapter)
           }
-        />
+        />}
       </View>
 
-      {!isProviderContent ? (
-        <BulkDownloadModal
+      <BulkDownloadModal
           visible={bulkModalOpen}
           target={manga ? { kind: 'manga', manga, chapters: filteredChapters } : null}
           onClose={() => setBulkModalOpen(false)}
         />
-      ) : null}
     </Screen>
   );
 }

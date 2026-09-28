@@ -2,11 +2,11 @@ import type { NovelLanguage } from '@/utils/novelLanguage';
 import { getApiBaseUrl } from '@/lib/apiConfig';
 import { mapMangaDexToNormalized, type MangaDexManga } from '@/providers/mangadex/client';
 import { encodeMediaRouteId } from '@/types/provider';
-import type { BaseContent } from '@/types/content';
+import type { BaseContent, ComicFormat } from '@/types/content';
 import { settleProviderSearches } from '@/services/providerSearch';
 import { useProviderHealthStore } from '@/stores/providerHealthStore';
 
-export type DiscoveryItem = BaseContent & { providerId: string; sourceId: string; sourceName: string; signal: string; episodeCount?: number; chapterCount?: number };
+export type DiscoveryItem = BaseContent & { providerId: string; sourceId: string; sourceName: string; signal: string; comicFormat?:ComicFormat; status?:string; episodeCount?: number; chapterCount?: number };
 export type DiscoverySection = { id: string; title: string; items: DiscoveryItem[]; unavailable?: boolean };
 const sections = [
  ['recommendations','Recommendations'],['recentManga','Recently Updated Manga'],['recentNovels','Recently Updated Novels'],
@@ -20,10 +20,10 @@ async function request<T>(url:string,init:RequestInit={}):Promise<T>{
 function unique(items:DiscoveryItem[]){return [...new Map(items.map(item=>[item.providerId+':'+item.sourceId,item])).values()].slice(0,12);}
 const cache=new Map<string,{expires:number;value:DiscoverySection[]}>();
 const pending=new Map<string,Promise<DiscoverySection[]>>();
-type Anime={id:number;episodes?:number;isAdult?:boolean;title:{english?:string;romaji?:string};coverImage?:{large?:string}};
-const animeFields='id episodes isAdult title { english romaji } coverImage { large }';
+type Anime={id:number;status?:string;episodes?:number;isAdult?:boolean;title:{english?:string;romaji?:string};coverImage?:{large?:string}};
+const animeFields='id status episodes isAdult title { english romaji } coverImage { large }';
 const animeQuery='query { trending: Page(perPage: 12) { media(type: ANIME, sort: TRENDING_DESC, isAdult: false) { '+animeFields+' } } recent: Page(perPage: 20) { airingSchedules(notYetAired: false, sort: TIME_DESC) { airingAt episode media { '+animeFields+' } } } seed: Media(type: ANIME, sort: TRENDING_DESC, isAdult: false) { title { english romaji } recommendations(perPage: 12, sort: RATING_DESC) { nodes { mediaRecommendation { '+animeFields+' } } } } }';
-function animeItem(media:Anime,signal:string):DiscoveryItem[]{return media&&!media.isAdult?[{id:encodeMediaRouteId('anilist-anime',String(media.id)),sourceId:String(media.id),providerId:'anilist-anime',sourceName:'AniList',title:media.title.english||media.title.romaji||'Untitled',coverUrl:media.coverImage?.large||'',type:'anime',episodeCount:media.episodes,signal}]:[];}
+function animeItem(media:Anime,signal:string):DiscoveryItem[]{return media&&!media.isAdult?[{id:encodeMediaRouteId('anilist-anime',String(media.id)),sourceId:String(media.id),providerId:'anilist-anime',sourceName:'AniList',title:media.title.english||media.title.romaji||'Untitled',coverUrl:media.coverImage?.large||'',type:'anime',status:media.status,episodeCount:media.episodes,signal}]:[];}
 
 /** Bounded selected feed operations; never query every installed source. */
 export function getDiscovery(enabled:Record<string,boolean>, refresh=false, _novelLanguage:NovelLanguage='en'):Promise<DiscoverySection[]>{
@@ -47,7 +47,7 @@ export function getDiscovery(enabled:Record<string,boolean>, refresh=false, _nov
     }
     const data=await request<{data:MangaDexManga[]}>('https://api.mangadex.org/manga?'+params);
     if(orderedIds.length)data.data.sort((a,b)=>orderedIds.indexOf(a.id)-orderedIds.indexOf(b.id));
-    set(section,data.data.map(media=>{const normalized=mapMangaDexToNormalized(media);return {id:encodeMediaRouteId('mangadex',media.id),sourceId:media.id,providerId:'mangadex',sourceName:'MangaDex',title:normalized.title,coverUrl:normalized.coverUrl,type:'manga',signal};}));
+    set(section,data.data.map(media=>{const normalized=mapMangaDexToNormalized(media);return {id:encodeMediaRouteId('mangadex',media.id),sourceId:media.id,providerId:'mangadex',sourceName:'MangaDex',title:normalized.title,coverUrl:normalized.coverUrl,type:'manga',comicFormat:normalized.comicFormat,status:normalized.status,signal};}));
   }});
   for(const novelProvider of ['novelcodex','novelping']) if(enabled[novelProvider])for(const [section,feed] of [['trendingNovels','popular'],['recentNovels','updated']])jobs.push({providerId:novelProvider,sections:[section],run:async()=>{
     const data=await request<{data:{results:{sourceId:string;title:string;coverUrl:string;signal:string}[]}}>(getApiBaseUrl()+'/api/content/discovery/'+novelProvider+'?feed='+feed);

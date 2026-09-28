@@ -1,3 +1,4 @@
+import { isActiveSource } from '@/utils/activeSource';
 import { settleProviderSearches, sameComicTitle, inSearchSlot, searchRequest } from '@/services/providerSearch';
 import { initializeProviders, providerRegistry } from '@/providers';
 import {
@@ -63,7 +64,7 @@ async function withProviderHealth<T>(providerId: string, operation: () => Promis
 function getEnabledProviders() {
   initializeProviders();
   const { enabled } = useProviderStore.getState();
-  return providerRegistry.list().filter((provider) => enabled[provider.definition.id] === true);
+  return providerRegistry.list().filter((provider) => enabled[provider.definition.id] === true && isActiveSource(provider.definition.status));
 }
 
 function preferredProviderIdForFilter(filter: SearchFilter): string | undefined {
@@ -178,7 +179,7 @@ export async function unifiedSearch(query: string, filter: SearchFilter, options
   const novelLanguage: NovelLanguage = 'en';
   const languageMatches = (item: SearchResult) => item.type !== 'novel' || (item.language ?? providerNovelLanguage(item.providerId)) === novelLanguage;
   const providers = orderProvidersForSearch(
-    getEnabledProviders().filter((provider) => provider.definition.id !== 'animeparadise' && providerSupports(provider, 'search', filter === 'all' ? undefined : filter) && (!provider.definition.mediaTypes.every(type => type === 'novel') || !providerNovelLanguage(provider.definition.id) || providerNovelLanguage(provider.definition.id) === novelLanguage)),
+    getEnabledProviders().filter((provider) => !['animeparadise','donghuastream','kitsu-anime','jikan-anime'].includes(provider.definition.id) && providerSupports(provider, 'search', filter === 'all' ? undefined : filter) && (!provider.definition.mediaTypes.every(type => type === 'novel') || !providerNovelLanguage(provider.definition.id) || providerNovelLanguage(provider.definition.id) === novelLanguage)),
     filter,
   );
 

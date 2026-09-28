@@ -1,3 +1,4 @@
+import { useMediaBookmarkStore } from '@/stores/mediaBookmarkStore';
 import { SourceWebsiteButton } from '@/components/content/SourceWebsiteButton';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useVideoPlayer, VideoView, type SubtitleTrack } from 'expo-video';
@@ -17,19 +18,23 @@ import { useAnimeProgressStore } from '@/stores/animeProgressStore';
 export default function AnimePlayerScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { id, episodeId } = useLocalSearchParams<{ id: string; episodeId: string }>();
+  const { id, episodeId, seconds } = useLocalSearchParams<{ id: string; episodeId: string; seconds?:string }>();
+  const toggleBookmark=useMediaBookmarkStore(state=>state.toggle);
   const setEpisodeProgress = useAnimeProgressStore((state) => state.setEpisodeProgress);
   // Snapshot resume once per selected episode, never from live progress writes.
-  const resumeSeconds = useMemo(() => id && episodeId
+  const resumeSeconds = useMemo(() => seconds !== undefined && Number.isFinite(Number(seconds)) ? Math.max(0,Number(seconds)) : id && episodeId
     ? useAnimeProgressStore.getState().getEpisodeProgress(id, episodeId)?.positionSeconds ?? 0 : 0,
-    [id, episodeId]);
+    [id, episodeId, seconds]);
   const videoViewRef = useRef<VideoView>(null);
   const fullscreenSourceRef = useRef('');
   const [subtitleLabel, setSubtitleLabel] = useState('Checking English subtitles...');
   const resumedSourceRef = useRef<string | null>(null);
+  const fallbackPositionRef = useRef<number | null>(null);
+  const fallbackAttemptedRef = useRef(false);
   const lastSavedAtRef = useRef(0);
   const latestTimeRef = useRef(0);
 
+  const [qualityUrl,setQualityUrl]=useState<string|null>(null);
   const [useDirectStream,setUseDirectStream] = useState(false);
   const [playback, setPlayback] = useState<ResolvedAnimePlaybackResult | null>(null);
   const [loading, setLoading] = useState(true);
@@ -49,6 +54,9 @@ export default function AnimePlayerScreen() {
     setError(null);
     setPlayback(null);
     setUseDirectStream(false);
+    setQualityUrl(null);
+    fallbackPositionRef.current=null;
+    fallbackAttemptedRef.current=false;
 
     resolveAnimePlayback(id, episodeId)
       .then((resolved) => {
@@ -86,15 +94,34 @@ export default function AnimePlayerScreen() {
     [id, episodeId, playback, setEpisodeProgress],
   );
 
-  const streamUrl = (useDirectStream ? playback?.source.fallbackUrl : playback?.source.url) ?? '';
+  const streamUrl = (useDirectStream ? playback?.source.fallbackUrl : (qualityUrl ?? playback?.source.url)) ?? '';
 
   const videoSource = useMemo(() => streamUrl ? { uri: streamUrl, contentType: playback?.source.contentType ?? 'auto' as const } : null, [streamUrl, playback?.source.contentType]);
 
   const player = useVideoPlayer(videoSource, (instance) => {
     instance.loop = false;
+    instance.bufferOptions={preferredForwardBufferDuration:45,minBufferForPlayback:2,maxBufferBytes:64*1024*1024,prioritizeTimeOverSizeThreshold:true};
     instance.timeUpdateEventInterval = 1;
 
   });
+
+  const fallbackToVideo = useCallback(() => {
+    if (!playback?.source.fallbackUrl || fallbackAttemptedRef.current) return false;
+    fallbackAttemptedRef.current=true;
+    fallbackPositionRef.current=Math.max(resumeSeconds,latestTimeRef.current,player.currentTime || 0);
+    setError(null);
+    setUseDirectStream(true);
+    return true;
+  }, [playback?.source.fallbackUrl, player, resumeSeconds]);
+
+  // A subtitle gateway outage must not hold the original video indefinitely.
+  useEffect(() => {
+    if (!streamUrl || useDirectStream || !playback?.source.fallbackUrl) return;
+    const timer=setTimeout(() => {
+      if (player.status !== 'readyToPlay') fallbackToVideo();
+    }, 15000);
+    return () => clearTimeout(timer);
+  }, [streamUrl, useDirectStream, playback?.source.fallbackUrl, player, fallbackToVideo]);
 
   const enterFullscreen = useCallback(async () => {
     if (!streamUrl || !videoViewRef.current || fullscreenSourceRef.current === streamUrl) return;
@@ -108,13 +135,13 @@ export default function AnimePlayerScreen() {
     const selectEnglish = (tracks: SubtitleTrack[]) => {
       const english = tracks.find(track => /^en(?:g|[-_].*)?$/i.test(track.language ?? '') || /english/i.test(track.label ?? ''));
       if (english) player.subtitleTrack = english;
-      setSubtitleLabel(english ? 'English subtitles enabled' : 'No English subtitle track supplied by this stream');
+      setSubtitleLabel(english ? 'English subtitles enabled' : useDirectStream ? 'English subtitles unavailable; playing the original video' : 'No English subtitle track supplied by this stream');
     };
     if (player.availableSubtitleTracks?.length) selectEnglish(player.availableSubtitleTracks);
     const tracksSub = player.addListener('availableSubtitleTracksChange', ({availableSubtitleTracks}) => selectEnglish(availableSubtitleTracks));
     const loadSub = player.addListener('sourceLoad', ({availableSubtitleTracks}) => selectEnglish(availableSubtitleTracks));
     return () => {tracksSub.remove();loadSub.remove();};
-  }, [player, streamUrl]);
+  }, [player, streamUrl, useDirectStream]);
 
   useEffect(() => {
     if (!player || !streamUrl) {
@@ -125,14 +152,17 @@ export default function AnimePlayerScreen() {
     const resumeOnce = () => {
       if (resumedSourceRef.current === resumeKey) return;
       resumedSourceRef.current = resumeKey;
-      if (resumeSeconds > 0) player.currentTime = resumeSeconds;
+      const position=fallbackPositionRef.current ?? resumeSeconds;
+      if (position > 0) player.currentTime = position;
+      player.play();
     };
 
     const statusSub = player.addListener('statusChange', ({ status, error: nativeError }) => {
       setPlayerStatus(status);
       if (status === 'error') {
+        if (fallbackToVideo()) return;
         setError('The player could not load this stream. Retry or open the source website.');
-        if (__DEV__) console.warn('[player]', {status, providerId:playback?.source.providerId, error: nativeError ? 'Native playback error' : 'Unknown playback error'});
+        if (__DEV__) console.warn('[player]', {status, providerId:playback?.source.providerId, error: nativeError?.message?.replace(/https?:\/\/\S+/g, '[stream URL]').slice(0,240) || 'Unknown playback error'});
       }
       if (status === 'readyToPlay') resumeOnce();
     });
@@ -156,7 +186,7 @@ export default function AnimePlayerScreen() {
       statusSub.remove();
       timeSub.remove();
     };
-  }, [player, streamUrl, playback?.durationSeconds, resumeSeconds, saveProgress, id, episodeId]);
+  }, [player, streamUrl, playback?.durationSeconds, resumeSeconds, saveProgress, id, episodeId, fallbackToVideo]);
 
   useEffect(() => {
     return () => {
@@ -168,7 +198,7 @@ export default function AnimePlayerScreen() {
   if (loading) {
     return (
       <View className="flex-1 items-center justify-center gap-3 bg-neutral-950 px-6">
-        <Stack.Screen options={{ headerShown: true, title: 'Player' }} />
+        <Stack.Screen options={{ headerShown: true, title: 'Watch episode' }} />
         <ActivityIndicator size="large" color="#fff" />
         <Text className="text-center text-neutral-300">Resolving playback source...</Text>
       </View>
@@ -178,13 +208,13 @@ export default function AnimePlayerScreen() {
   if (error || !playback) {
     return (
       <View className="flex-1 items-center justify-center gap-3 bg-neutral-950 px-6">
-        <Stack.Screen options={{ headerShown: true, title: 'Player' }} />
+        <Stack.Screen options={{ headerShown: true, title: 'Watch episode' }} />
         <Text className="text-center text-white">Unable to play this episode</Text>
         <Text className="text-center text-neutral-400">
           {error ?? 'No playback source was resolved.'}
         </Text>
         <Pressable onPress={() => {resumedSourceRef.current=null;setRetry(value=>value+1);}} className="mt-2"><Text tone="primary">Retry playback</Text></Pressable>
-        {playback?.source.fallbackUrl && !useDirectStream ? <Pressable onPress={() => {setUseDirectStream(true);setError(null);}}><Text tone="primary">Play original stream without external subtitles</Text></Pressable> : null}
+        {playback?.source.fallbackUrl && !useDirectStream ? <Pressable onPress={fallbackToVideo}><Text tone="primary">Play original stream without external subtitles</Text></Pressable> : null}
         <SourceWebsiteButton routeId={id} />
         <Pressable onPress={() => router.back()} className="mt-2">
           <Text tone="primary">Go back</Text>
@@ -215,6 +245,7 @@ export default function AnimePlayerScreen() {
       </View>
 
       {playerStatus === 'loading' ? <Text className="px-4 py-2 text-white">Buffering stream...</Text> : null}
+      {!useDirectStream && playback.source.qualityOptions ? <View className="flex-row gap-3 px-4 py-2">{playback.source.qualityOptions.map(option=><Pressable key={option.url} onPress={()=>{fallbackPositionRef.current=player.currentTime;setQualityUrl(option.url)}}><Text tone="primary">{option.label}</Text></Pressable>)}</View>:null}
       <VideoView
         ref={videoViewRef}
         onFirstFrameRender={() => { void enterFullscreen(); }}
@@ -227,6 +258,7 @@ export default function AnimePlayerScreen() {
       />
 
       <View className="gap-2 px-4 py-4">
+        <Pressable onPress={()=>toggleBookmark({kind:'anime',mediaId:id,unitId:episodeId,unitTitle:playback.episodeTitle,position:player.currentTime})}><Text tone="primary">Bookmark current scene</Text></Pressable>
         <Text variant="caption" className="text-neutral-300">{subtitleLabel}</Text>
         <Pressable onPress={() => { fullscreenSourceRef.current=''; void enterFullscreen(); }}><Text tone="primary">Fullscreen</Text></Pressable>
         <SourceWebsiteButton routeId={playback.source.providerId} />

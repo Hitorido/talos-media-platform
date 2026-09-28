@@ -1,5 +1,7 @@
+import { ChapterRangePicker, chapterRange } from '@/components/content/SelectionModal';
+import { MediaBookmarks } from '@/components/content/MediaBookmarks';
 import { SourceWebsiteButton } from '@/components/content/SourceWebsiteButton';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,6 +21,8 @@ export default function AnimeDetailsScreen() {
   const latestProgress = useAnimeProgressStore((state) =>
     anime ? state.getLatestProgress(anime.id) : undefined,
   );
+  const [range, setRange] = useState(0);
+  const [showBookmarks,setShowBookmarks]=useState(false);
   const [bulkModalOpen, setBulkModalOpen] = useState(false);
 
   if (loading) {
@@ -60,6 +64,7 @@ export default function AnimeDetailsScreen() {
 
   return (
     <Screen scrollable contentContainerClassName="gap-6 pb-8">
+      <Stack.Screen options={{title:anime.title}} />
       <AnimeDetailsHeader anime={anime} />
 
       {isProviderContent ? (
@@ -90,10 +95,10 @@ export default function AnimeDetailsScreen() {
       ) : null}
 
       <View className="gap-3">
-        <View className="flex-row items-center justify-between">
+        <View className="flex-row flex-wrap items-center justify-between gap-2">
           <Text variant="h3">Episodes ({anime.episodes.length})</Text>
-          {!isProviderContent ? (
-            <Pressable
+          <ChapterRangePicker count={anime.episodes.length} value={range} onChange={setRange} />
+          <Pressable
               onPress={() => setBulkModalOpen(true)}
               className="flex-row items-center gap-1.5 rounded-full bg-primary-50 px-3 py-1.5 dark:bg-primary-950"
             >
@@ -102,27 +107,25 @@ export default function AnimeDetailsScreen() {
                 Download All
               </Text>
             </Pressable>
-          ) : null}
         </View>
-        <EpisodeList
+        <Pressable accessibilityRole="button" onPress={()=>setShowBookmarks(value=>!value)} className="self-start rounded-full bg-primary-100 px-4 py-2 dark:bg-primary-950"><Text tone="primary">{showBookmarks?'Show episodes':'Bookmarks'}</Text></Pressable>
+        {showBookmarks ? <MediaBookmarks mediaId={anime.id} kind="anime" /> : <EpisodeList
           animeId={anime.id}
-          episodes={anime.episodes}
+          episodes={chapterRange(anime.episodes, range)}
           activeEpisodeId={latestProgress?.episodeId}
           getEpisodeProgress={getEpisodeProgress}
           onEpisodePress={(episode) => openEpisode(episode.id)}
           onDownloadEpisode={
-            isProviderContent ? undefined : (episode) => downloadAnimeEpisode(anime, episode)
+            (episode) => downloadAnimeEpisode(anime, episode)
           }
-        />
+        />}
       </View>
 
-      {!isProviderContent ? (
-        <BulkDownloadModal
+      <BulkDownloadModal
           visible={bulkModalOpen}
           target={anime ? { kind: 'anime', anime, episodes: anime.episodes } : null}
           onClose={() => setBulkModalOpen(false)}
         />
-      ) : null}
     </Screen>
   );
 }

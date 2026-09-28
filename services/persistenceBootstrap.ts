@@ -7,6 +7,7 @@ import { useLibraryStore } from '@/stores/libraryStore';
 import { useMangaProgressStore } from '@/stores/mangaProgressStore';
 import { useNovelProgressStore } from '@/stores/novelProgressStore';
 import { useProviderStore } from '@/stores/providerStore';
+import { useAuthStore } from '@/stores/authStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import type { DownloadItem } from '@/types/download';
 
@@ -17,6 +18,13 @@ export async function bootstrapPersistence(): Promise<void> {
   initializeProviders();
 
   await Promise.all([
+    useAuthStore
+      .getState()
+      .hydrate()
+      .catch(() => {
+        // Secure storage failure must not prevent offline media restoration.
+        console.warn('[auth] Secure session could not be restored. Please sign in again.');
+      }),
     useLibraryStore.persist.rehydrate(),
     useAnimeProgressStore.persist.rehydrate(),
     useMangaProgressStore.persist.rehydrate(),

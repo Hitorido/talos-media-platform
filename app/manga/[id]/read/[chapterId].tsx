@@ -1,3 +1,4 @@
+import { useMediaBookmarkStore } from '@/stores/mediaBookmarkStore';
 import { SourceWebsiteButton } from '@/components/content/SourceWebsiteButton';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -21,13 +22,14 @@ import { cn } from '@/utils/cn';
 
 export default function MangaReaderScreen() {
   const router = useRouter();
-  const { id, chapterId } = useLocalSearchParams<{ id: string; chapterId: string }>();
+  const { id, chapterId, page } = useLocalSearchParams<{ id: string; chapterId: string; page?:string }>();
+  const toggleBookmark=useMediaBookmarkStore(state=>state.toggle);
 
   const { manga, loading: mangaLoading, error: mangaError } = useMangaContent(id);
   const setChapterProgress = useMangaProgressStore((state) => state.setChapterProgress);
 
   const [initialPage] = useState(
-    () => useMangaProgressStore.getState().getChapterProgress(id, chapterId)?.pageNumber ?? 1,
+    () => page && Number.isFinite(Number(page)) ? Math.max(1,Math.floor(Number(page))) : useMangaProgressStore.getState().getChapterProgress(id, chapterId)?.pageNumber ?? 1,
   );
 
   // Track the currently visible chapter (changes as user scrolls in webtoon mode)
@@ -344,7 +346,7 @@ export default function MangaReaderScreen() {
   if (mangaLoading || pagesLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-black px-6">
-        <Stack.Screen options={{ headerShown: true, title: 'Reader' }} />
+        <Stack.Screen options={{ headerShown: true, title: 'Read chapter' }} />
         <Text className="text-white">Loading chapter...</Text>
       </View>
     );
@@ -353,7 +355,7 @@ export default function MangaReaderScreen() {
   if (pagesError) {
     return (
       <View className="flex-1 items-center justify-center bg-black px-6">
-        <Stack.Screen options={{ headerShown: true, title: 'Reader' }} />
+        <Stack.Screen options={{ headerShown: true, title: 'Read chapter' }} />
         <Text className="text-center text-white">{pagesError}</Text>
         <SourceWebsiteButton routeId={id} chapterId={chapterId} />
         <Pressable onPress={() => router.back()} className="mt-4">
@@ -366,7 +368,7 @@ export default function MangaReaderScreen() {
   if (!manga || !activeChapter || mangaError) {
     return (
       <View className="flex-1 items-center justify-center bg-black px-6">
-        <Stack.Screen options={{ headerShown: true, title: 'Reader' }} />
+        <Stack.Screen options={{ headerShown: true, title: 'Read chapter' }} />
         <Text className="text-white">Unable to load this chapter.</Text>
         <SourceWebsiteButton routeId={id} chapterId={chapterId} />
         <Pressable onPress={() => router.back()} className="mt-4">
@@ -383,6 +385,7 @@ export default function MangaReaderScreen() {
       {/* Top Header */}
       {overlayVisible ? (
         <MangaReaderHeader
+          onBookmark={()=>toggleBookmark({kind:'manga',mediaId:manga.id,unitId:activeChapterId,unitTitle:activeChapter.title,position:currentPage})}
           mangaTitle={manga.title}
           chapterTitle={activeChapter.title}
           onBack={() => router.back()}

@@ -39,7 +39,7 @@ export function setApiAuthTokenProvider(provider: () => string | null | undefine
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const baseUrl = getApiBaseUrl();
-  const token = options.token ?? authTokenProvider?.() ?? null;
+  const token = options.token === undefined ? (authTokenProvider?.() ?? null) : options.token;
   const headers: Record<string, string> = {
     Accept: 'application/json',
   };
@@ -51,22 +51,28 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     headers.Authorization = `Bearer ${token}`;
   }
 
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  options.signal?.addEventListener('abort', abort, { once: true });
+  if (options.signal?.aborted) controller.abort();
+  // Allow a Render cold start without indefinite waits or automatic write retries.
+  const timeout = setTimeout(abort, 90_000);
   let response: Response;
+  let payload: ApiSuccess<T> | ApiFailure | null;
   try {
     response = await fetch(`${baseUrl}${path}`, {
       method: options.method ?? 'GET',
       headers,
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
-      signal: options.signal,
+      signal: controller.signal,
     });
+    payload = await response.json().catch(() => null);
   } catch {
     throw new ApiError('Unable to reach the backend. Check your network and API URL.', 0);
+  } finally {
+    clearTimeout(timeout);
+    options.signal?.removeEventListener('abort', abort);
   }
-
-  const payload = (await response.json().catch(() => null)) as
-    | ApiSuccess<T>
-    | ApiFailure
-    | null;
 
   if (!response.ok || !payload || payload.success === false) {
     const failure = payload && 'error' in payload ? payload : null;

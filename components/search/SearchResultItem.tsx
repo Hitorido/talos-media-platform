@@ -1,3 +1,4 @@
+import { PublicationStatus } from '@/components/content/PublicationStatus';
 import { Image, Pressable, View } from 'react-native';
 
 import { Badge, Text } from '@/components/ui';
@@ -38,14 +39,12 @@ export function SearchResultItem({ item, onPress, className }: SearchResultItemP
         <View className="flex-row flex-wrap gap-2">
           <Badge label={typeLabel} variant={badgeVariant} />
           {item.type === 'novel' ? <Badge label={languageLabel(item.language)} variant="secondary" /> : null}
-          <Badge label={getProviderDisplayName(item.providerId)} variant="secondary" />
+          <Badge label={getProviderDisplayName(item.providerId)} variant="primary" />
         </View>
         <Text variant="label" numberOfLines={2}>
           {item.title}
         </Text>
-        <Text variant="caption" tone="muted" numberOfLines={2}>
-          {item.subtitle}
-        </Text>
+        <PublicationStatus status={item.status} />
         <MediaCount routeId={item.id} type={item.type} episodeCount={item.episodeCount} chapterCount={item.chapterCount} />
       </View>
     </Pressable>

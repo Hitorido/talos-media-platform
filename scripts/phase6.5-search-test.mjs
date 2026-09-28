@@ -14,6 +14,7 @@ const calls=[],failures=[];
 const make=(id,mediaTypes,titles,fail=false)=>({definition:{id,name:id,status:'working',capabilities:['search'],mediaTypes},search:async(q)=>{calls.push([id,q]);if(fail)throw Error('unavailable');return titles.map(title=>({id:id+'__'+title,providerId:id,sourceId:title,title,type:mediaTypes[0],comicFormat:'manga',coverUrl:'',subtitle:id,tags:[]}));}});
 const providers=[make('comic',['manga'],['Solo Leveling','Solo Leveling: Ragnarok']),make('anime',['anime'],['Solo Leveling']),make('failed',['manga'],[],true),make('disabled',['manga'],['Solo Leveling'])];
 const service=loadProviderTs('services/contentService.ts',{
+ '@/utils/activeSource':loadProviderTs('utils/activeSource.ts'),
  '@/utils/novelLanguage':loadProviderTs('utils/novelLanguage.ts'),
  '@/services/providerSearch':helpers,
  '@/lib/apiConfig':{getApiBaseUrl:()=> 'https://test.invalid'},

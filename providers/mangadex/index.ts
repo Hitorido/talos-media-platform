@@ -46,6 +46,7 @@ export const mangaDexProvider: MediaProvider = {
         title: mapped.title,
         coverUrl: mapped.coverUrl,
         type: 'manga',
+        status: mapped.status,
         comicFormat: mapped.comicFormat,
         subtitle: `MangaDex · ${comicFormatLabel(mapped.comicFormat)}`,
         tags: ['MangaDex', comicFormatLabel(mapped.comicFormat), ...mapped.genres.slice(0, 2)],

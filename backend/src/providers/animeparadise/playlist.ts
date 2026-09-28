@@ -19,9 +19,9 @@ function subtitleUrl(ep:Episode){
 /** Only source-owned episode metadata chooses URLs. No caller-provided URL or arbitrary relay. */
 export async function animeParadisePlaylist(title:string,episodeId:string,kind:string):Promise<{type:string;body:string}>{
  id(title);id(episodeId);
- if(!['master.m3u8','english.m3u8','english.vtt'].includes(kind))throw new ProviderGatewayError('Unknown playlist resource.',404);
+ if(!['master.m3u8','auto.m3u8','low.m3u8','english.m3u8','english.vtt'].includes(kind))throw new ProviderGatewayError('Unknown playlist resource.',404);
  const ep=await episode(title,episodeId),sub=subtitleUrl(ep);
- if(kind!=='master.m3u8'){
+ if(kind==='english.m3u8'||kind==='english.vtt'){
   const vtt=await sourceText(stream,sub.pathname+sub.search);
   if(!vtt.trimStart().startsWith('WEBVTT'))throw new ProviderGatewayError('Subtitle file unavailable.',502);
   if(kind==='english.vtt')return {type:'text/vtt',body:vtt};
@@ -35,7 +35,19 @@ export async function animeParadisePlaylist(title:string,episodeId:string,kind:s
  const master=await sourceText(stream,path);
  if(!master.startsWith('#EXTM3U')||!master.includes('#EXT-X-STREAM-INF:'))throw new ProviderGatewayError('Unsupported stream playlist.',502);
  const absolute=(raw:string)=>{const url=new URL(raw,base);if(url.origin!==stream||url.username||url.password)throw new ProviderGatewayError('Unsupported stream origin.',502);return url.href;};
- const lines=master.split(/\r?\n/).filter(Boolean).map(line=>{
+ const limit=kind==='auto.m3u8'?Infinity:kind==='low.m3u8'?480:720;
+ const rawLines=master.split(/\r?\n/).filter(Boolean);
+ const filtered:string[]=[];
+ for(let i=0;i<rawLines.length;i++){
+  const line=rawLines[i];
+  if(line.startsWith('#EXT-X-STREAM-INF:')){
+   const resolution=Number(line.match(/RESOLUTION=\d+x(\d+)/)?.[1]||0);
+   if(resolution>limit){i++;continue;}
+  }
+  filtered.push(line);
+ }
+ if(!filtered.some(line=>line.startsWith('#EXT-X-STREAM-INF:')))throw new ProviderGatewayError('Requested stream quality unavailable.',404);
+ const lines=filtered.join('\n').split(/\r?\n/).filter(Boolean).map(line=>{
   if(line.startsWith('#EXT-X-STREAM-INF:'))return line.replace(/,SUBTITLES="[^"]*"/g,'')+',SUBTITLES="english"';
   if(line.startsWith('#'))return line.replace(/URI="([^"]+)"/g,(_,uri)=>'URI="'+absolute(uri)+'"');
   return absolute(line);

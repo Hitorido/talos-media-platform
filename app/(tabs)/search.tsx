@@ -1,3 +1,4 @@
+import { SearchSuggestions } from '@/components/search/SearchSuggestions';
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
@@ -47,6 +48,7 @@ export default function SearchScreen() {
         <View className="gap-3 border-b border-neutral-200 px-4 py-3 dark:border-neutral-800">
           <SearchBar value={query} onChangeText={setQuery} onClear={clearQuery} onSubmit={retry} />
           <SearchFilterTabs value={filter} onChange={setFilter} />
+          <SearchSuggestions filter={filter} query={query} results={results} />
         </View>
 
         <View className="flex-1">

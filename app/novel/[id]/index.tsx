@@ -1,5 +1,7 @@
+import { ChapterRangePicker, chapterRange } from '@/components/content/SelectionModal';
+import { MediaBookmarks } from '@/components/content/MediaBookmarks';
 import { SourceWebsiteButton } from '@/components/content/SourceWebsiteButton';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,6 +21,8 @@ export default function NovelDetailsScreen() {
   const latestProgress = useNovelProgressStore((state) =>
     novel ? state.getNovelProgress(novel.id) : undefined,
   );
+  const [range, setRange] = useState(0);
+  const [showBookmarks,setShowBookmarks]=useState(false);
   const [bulkModalOpen, setBulkModalOpen] = useState(false);
 
   if (loading) {
@@ -57,6 +61,7 @@ export default function NovelDetailsScreen() {
 
   return (
     <Screen scrollable contentContainerClassName="gap-6 pb-8">
+      <Stack.Screen options={{title:novel.title}} />
       <NovelDetailsHeader novel={novel} />
 
       {isProviderContent ? (
@@ -87,8 +92,9 @@ export default function NovelDetailsScreen() {
       ) : null}
 
       <View className="gap-3">
-        <View className="flex-row items-center justify-between">
+        <View className="flex-row flex-wrap items-center justify-between gap-2">
           <Text variant="h3">Chapters ({novel.chapters.length})</Text>
+          <ChapterRangePicker count={novel.chapters.length} value={range} onChange={setRange} />
           {!isProviderContent ? (
             <Pressable
               onPress={() => setBulkModalOpen(true)}
@@ -101,16 +107,17 @@ export default function NovelDetailsScreen() {
             </Pressable>
           ) : null}
         </View>
-        <NovelChapterList
+        <Pressable accessibilityRole="button" onPress={()=>setShowBookmarks(value=>!value)} className="self-start rounded-full bg-primary-100 px-4 py-2 dark:bg-primary-950"><Text tone="primary">{showBookmarks?'Show chapters':'Bookmarks'}</Text></Pressable>
+        {showBookmarks ? <MediaBookmarks mediaId={novel.id} kind="novel" /> : <NovelChapterList
           novelId={novel.id}
-          chapters={novel.chapters}
+          chapters={chapterRange(novel.chapters, range)}
           activeChapterId={latestProgress?.chapterId}
           getChapterProgress={getChapterProgress}
           onChapterPress={(chapter) => openChapter(chapter.id)}
           onDownloadChapter={
             isProviderContent ? undefined : (chapter) => downloadNovelChapter(novel, chapter)
           }
-        />
+        />}
       </View>
 
       {!isProviderContent ? (

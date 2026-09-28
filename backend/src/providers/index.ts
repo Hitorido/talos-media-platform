@@ -1,3 +1,5 @@
+import { royalRoadAdapter } from './royalroad/adapter.js';
+import { donghuaStreamAdapter } from './donghuastream/adapter.js';
 import { novelPingAdapter } from './novelping/adapter.js';
 import { mangaTownAdapter } from './mangatown/adapter.js';
 import { demonicScansAdapter } from './demonicscans/adapter.js';
@@ -31,6 +33,8 @@ export function initializeBackendProviders(): void {
   registerProvider(novelArrowAdapter);
   registerProvider(novelCodexAdapter);
   registerProvider(novelPingAdapter);
+  registerProvider(royalRoadAdapter);
+  registerProvider(donghuaStreamAdapter);
   registerProvider(kaliScanAdapter);
   registerProvider(mangaJinxAdapter);
   registerProvider(novelProviderAdapter);

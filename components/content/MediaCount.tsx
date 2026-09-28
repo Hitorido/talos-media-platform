@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from 'react';
-import { Text } from '@/components/ui';
+import { Badge } from '@/components/ui';
 import { getEnglishChapterCount } from '@/services/englishChapterCount';
 import type { ContentType } from '@/types/content';
 
@@ -16,7 +16,7 @@ export function MediaCount({routeId,type,episodeCount,chapterCount}:{routeId:str
     }, 250);
     return () => {current=false;controller.abort();clearTimeout(timer);};
   },[routeId,type,chapterCount]);
-  if(type==='anime') return <Text variant="caption" tone="muted">{episodeCount ? episodeCount+' Episodes' : 'Episode count unavailable'}</Text>;
+  if(type==='anime') return <Badge variant="primary" label={episodeCount ? episodeCount+' episodes' : 'Episodes unknown'} />;
   const count=type==='novel'&&chapterCount!==undefined?chapterCount:result.id===routeId?result.count:undefined;
-  return <Text variant="caption" tone="muted">{count!==undefined?count+' English chapters'+(type==='novel'&&chapterCount!==undefined?' in catalog':''):result.id===routeId&&result.failed?'English chapter count unavailable':'Counting English chapters...'}</Text>;
+  return <Badge variant="primary" label={count!==undefined?count+' EN ch.'+(type==='novel'&&chapterCount!==undefined?' (catalog)':''):result.id===routeId&&result.failed?'Count unavailable':'Counting EN chapters?'} />;
 }

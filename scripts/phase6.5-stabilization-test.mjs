@@ -18,6 +18,14 @@ library.getState().rememberMedia(media);library.getState().addToLibrary(media.id
 const restored=loadProviderTs('stores/libraryStore.ts',deps).useLibraryStore;
 assert.equal(restored.getState().media[media.id].title,'Shadow Slave');
 assert.ok(restored.getState().isFavorite(media.id,'novel'));assert.deepEqual(restored.getState().entries.find(e=>e.mediaId===media.id).tags,['Reading now']);
+const bookmarkStore=loadProviderTs('stores/mediaBookmarkStore.ts',deps).useMediaBookmarkStore;
+bookmarkStore.getState().toggle({kind:'manga',mediaId:'mangapill__2/one-piece',unitId:'1/chapter',unitTitle:'Chapter 1',position:12});
+bookmarkStore.getState().toggle({kind:'anime',mediaId:'anilist-anime__20',unitId:'1',unitTitle:'Episode 1',position:93.7});
+const restoredBookmarks=loadProviderTs('stores/mediaBookmarkStore.ts',deps).useMediaBookmarkStore;await restoredBookmarks.persist.rehydrate();
+assert.equal(restoredBookmarks.getState().bookmarks.length,2);assert.equal(restoredBookmarks.getState().bookmarks[0].position,93);
+assert.equal(routes.mangaReadHref('mangapill__2/one-piece','1/chapter',12),'/manga/mangapill__2%2Fone-piece/read/1%2Fchapter?page=12');
+assert.equal(routes.animeWatchHref('anilist-anime__20','1',93),'/anime/anilist-anime__20/watch/1?seconds=93');
+console.log('PASS page/scene bookmarks persist across store recreation with encoded location routes');
 console.log('PASS encoded source/chapter routes, fixed-origin website fallback, real-source metadata/favorites/tags survive store recreation');
 
 // Execute the actual player component and effects against a deterministic Expo player.
@@ -25,12 +33,12 @@ function loadComponent(path,dependencies){const module={exports:{}};const code=t
 const slots=[];let cursor=0,effects=[];const same=(a,b)=>a&&b&&a.length===b.length&&a.every((v,i)=>v===b[i]);
 const React={useState(initial){const i=cursor++;if(!(i in slots))slots[i]=initial;return[slots[i],v=>{slots[i]=typeof v==='function'?v(slots[i]):v}]},useRef(initial){const i=cursor++;return slots[i]??(slots[i]={current:initial})},useMemo(fn,deps){const i=cursor++;if(!same(slots[i]?.deps,deps))slots[i]={deps,value:fn()};return slots[i].value},useCallback(fn,deps){return this.useMemo(()=>fn,deps)},useEffect(fn,deps){const i=cursor++;if(!same(slots[i]?.deps,deps)){const old=slots[i];slots[i]={deps,cleanup:old?.cleanup};effects.push(()=>{old?.cleanup?.();slots[i].cleanup=fn()})}}};
 React.useCallback=(fn,deps)=>React.useMemo(()=>fn,deps);
-const listeners={};const seeks=[];let position=42,saved=42;
-const player={status:'readyToPlay',duration:1400,set currentTime(v){seeks.push(v);position=v},get currentTime(){return position},addListener(name,fn){(listeners[name]??=new Set()).add(fn);return{remove:()=>listeners[name].delete(fn)}}};
+let currentSource;const listeners={};const seeks=[];let position=42,saved=42;
+const player={play(){},status:'readyToPlay',duration:1400,set currentTime(v){seeks.push(v);position=v},get currentTime(){return position},addListener(name,fn){(listeners[name]??=new Set()).add(fn);return{remove:()=>listeners[name].delete(fn)}}};
 const state={getEpisodeProgress:()=>({positionSeconds:saved}),setEpisodeProgress:p=>{saved=p.positionSeconds}};
 const useStore=selector=>selector(state);useStore.getState=()=>state;
 const jsx=(type,props)=>({type,props});
-const Player=loadComponent('app/anime/[id]/watch/[episodeId].tsx',{'react':React,'react/jsx-runtime':{jsx,jsxs:jsx},'expo-router':{Stack:{Screen:'Screen'},useRouter:()=>({back(){}}),useLocalSearchParams:()=>({id:'animeparadise__naruto',episodeId:'1'})},'expo-video':{useVideoPlayer:()=>player,VideoView:'VideoView'},'react-native':{ActivityIndicator:'Spinner',Pressable:'Button',View:'View'},'react-native-safe-area-context':{useSafeAreaInsets:()=>({top:0})},'@/components/ui':{Badge:'Badge',Text:'Text'},'@/components/content/SourceWebsiteButton':{SourceWebsiteButton:'Website'},'@/stores/animeProgressStore':{useAnimeProgressStore:useStore},'@/services/contentService':{getProviderDisplayName:()=> 'AnimeParadise',resolveAnimePlayback:async()=>({source:{url:'https://test.invalid/stream',providerId:'animeparadise',contentType:'hls'},episodeNumber:1,episodeTitle:'Episode 1',durationSeconds:1400})}});
+const Player=loadComponent('app/anime/[id]/watch/[episodeId].tsx',{'react':React,'react/jsx-runtime':{jsx,jsxs:jsx},'expo-router':{Stack:{Screen:'Screen'},useRouter:()=>({back(){}}),useLocalSearchParams:()=>({id:'animeparadise__naruto',episodeId:'1'})},'expo-video':{useVideoPlayer:source=>{currentSource=source;return player},VideoView:'VideoView'},'react-native':{ActivityIndicator:'Spinner',Pressable:'Button',View:'View'},'react-native-safe-area-context':{useSafeAreaInsets:()=>({top:0})},'@/components/ui':{Badge:'Badge',Text:'Text'},'@/components/content/SourceWebsiteButton':{SourceWebsiteButton:'Website'},'@/stores/mediaBookmarkStore':{useMediaBookmarkStore:fn=>fn({toggle(){}})},'@/stores/animeProgressStore':{useAnimeProgressStore:useStore},'@/services/contentService':{getProviderDisplayName:()=> 'AnimeParadise',resolveAnimePlayback:async()=>({source:{url:'https://test.invalid/stream',fallbackUrl:'https://test.invalid/original',providerId:'animeparadise',contentType:'hls'},episodeNumber:1,episodeTitle:'Episode 1',durationSeconds:1400})}});
 let playerTree;function render(){cursor=0;playerTree=Player();const pending=effects;effects=[];pending.forEach(fn=>fn())}
 render();await Promise.resolve();render();assert.deepEqual(seeks,[42]);
 for(const t of [43,44,45]){for(const fn of listeners.timeUpdate??[])fn({currentTime:t});render();for(const fn of listeners.statusChange??[])fn({status:'readyToPlay'});render();}
@@ -42,6 +50,12 @@ render();const video=find(playerTree,'VideoView');let fullscreenCalls=0;video.pr
 video.props.onFirstFrameRender();video.props.onFirstFrameRender();await Promise.resolve();assert.equal(fullscreenCalls,1);assert.equal(video.props.fullscreenOptions.orientation,'landscape');
 position=90;video.props.onFullscreenExit();assert.equal(saved,90,'native fullscreen exit saves actual player time');
 console.log('PASS native English track selection and one automatic fullscreen request per stream');
+for(const fn of listeners.statusChange??[])fn({status:'error',error:{message:'Subtitle gateway unavailable'}});render();
+assert.equal(currentSource.uri,'https://test.invalid/original','gateway failure automatically uses the same episode original video');
+assert.equal(seeks.at(-1),90,'fallback preserves current position');
+for(const fn of listeners.statusChange??[])fn({status:'error',error:{message:'Original video failed'}});render();
+assert.equal(find(playerTree,'VideoView'),undefined,'original failure is shown, not an endless retry loop');
+console.log('PASS actual player subtitle failure falls back once without rewinding; direct failure remains explicit');
 slots.forEach(slot=>slot?.cleanup?.());assert.equal(saved,90,'unmount saves final observed position');
 console.log('PASS actual player effects: one resume seek, progress writes do not replay seconds, final progress saved');
 // Execute the real novel screen: continuous loads ahead, normal remains selected-only.

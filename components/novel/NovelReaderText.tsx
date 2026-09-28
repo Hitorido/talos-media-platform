@@ -189,6 +189,8 @@ export const NovelReaderText = forwardRef<NovelReaderTextRef, NovelReaderTextPro
         ref={scrollViewRef}
         onLayout={event => { viewportRef.current = event.nativeEvent.layout.height; tryRestoreScrollPosition(); }}
         onScroll={handleScroll}
+        onMomentumScrollEnd={handleScroll}
+        onScrollEndDrag={handleScroll}
         onTouchStart={event => { tapStart.current = {x:event.nativeEvent.pageX,y:event.nativeEvent.pageY,at:Date.now()}; }}
         onScrollBeginDrag={() => { tapStart.current = null; }}
         onTouchEnd={event => {

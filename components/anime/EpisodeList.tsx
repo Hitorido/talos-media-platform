@@ -75,8 +75,11 @@ export function EpisodeListItem({
                 onDownloadPress();
               }}
               className="p-1.5"
+              accessibilityRole="button"
+              accessibilityLabel="Download for offline reading or watching"
               hitSlop={8}
             >
+              <Text variant="caption" tone="primary">{isDownloaded?'Saved':isDownloading?'Queued':'Download'}</Text>
               {isDownloaded ? (
                 <Ionicons name="checkmark-circle" size={22} color="#10B981" />
               ) : isDownloading ? (

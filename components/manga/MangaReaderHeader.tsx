@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/ui';
 
 type MangaReaderHeaderProps = {
+  onBookmark?:()=>void;
   mangaTitle: string;
   chapterTitle: string;
   onBack: () => void;
@@ -12,6 +13,7 @@ type MangaReaderHeaderProps = {
 };
 
 export function MangaReaderHeader({
+  onBookmark,
   mangaTitle,
   chapterTitle,
   onBack,
@@ -42,6 +44,7 @@ export function MangaReaderHeader({
           </Text>
         </Pressable>
 
+        <Pressable onPress={onBookmark} accessibilityLabel="Bookmark this page" className="mr-2 rounded-full bg-neutral-800 px-3 py-2"><Text className="text-white">Bookmark</Text></Pressable>
         <Pressable
           onPress={onToggleControls}
           className="rounded-full bg-neutral-800 px-3 py-1.5 active:bg-neutral-700"

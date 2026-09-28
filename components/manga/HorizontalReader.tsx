@@ -1,5 +1,5 @@
 import { ZoomablePage } from './ZoomablePage';
-import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useState, useRef } from 'react';
 import { FlatList, useWindowDimensions } from 'react-native';
 
 import type { MangaPage, ReadingDirection } from '@/types/manga';
@@ -22,6 +22,7 @@ type HorizontalReaderProps = {
 export const HorizontalReader = forwardRef<HorizontalReaderRef, HorizontalReaderProps>(
   ({ pages, activeChapterId, direction, initialPage = 1, onPageChange, onTapScreen }, ref) => {
     const { width: SCREEN_WIDTH } = useWindowDimensions();
+    const [pinching,setPinching]=useState(false);
     const flatListRef = useRef<FlatList<MangaPage>>(null);
     const isInitializedRef = useRef(false);
     const lastPageRef = useRef<{ chapterId: string; pageNumber: number } | null>(null);
@@ -105,6 +106,7 @@ export const HorizontalReader = forwardRef<HorizontalReaderRef, HorizontalReader
 
     return (
       <FlatList
+        scrollEnabled={!pinching}
         ref={flatListRef}
         horizontal
         pagingEnabled
@@ -133,7 +135,7 @@ export const HorizontalReader = forwardRef<HorizontalReaderRef, HorizontalReader
           offset: SCREEN_WIDTH * index,
           index,
         })}
-        renderItem={({item})=><ZoomablePage page={item} onTapScreen={onTapScreen} paged />}
+        renderItem={({item})=><ZoomablePage onGestureActive={setPinching} page={item} onTapScreen={onTapScreen} paged />}
       />
     );
   },

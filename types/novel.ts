@@ -39,6 +39,7 @@ export type NovelReadingProgress = {
 };
 
 export type NovelBookmark = {
+  scrollPercentage?: number;
   id: string;
   novelId: string;
   chapterId: string;

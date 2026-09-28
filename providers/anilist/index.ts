@@ -51,6 +51,7 @@ export const aniListAnimeProvider: MediaProvider = {
         title,
         coverUrl,
         type: 'anime',
+        status: item.status,
         episodeCount: Number.isSafeInteger(item.episodes) && (item.episodes ?? 0) > 0 ? item.episodes : undefined,
         subtitle,
         tags: ['Anime', ...(item.genres ?? []).slice(0, 2)],

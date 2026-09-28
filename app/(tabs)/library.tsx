@@ -1,3 +1,4 @@
+import { SelectionModal } from '@/components/content/SelectionModal';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
@@ -74,6 +75,7 @@ export default function LibraryScreen() {
   const removeNovelProgress = useNovelProgressStore((state) => state.removeNovelProgress);
   const downloadItems = useDownloadStore((state) => state.items);
 
+  const [statusTarget, setStatusTarget] = useState<LibraryEntry | null>(null);
   const [view, setView] = useState<ExtendedView>('library');
   const [mediaFilter, setMediaFilter] = useState<'all' | LibraryMediaType>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | LibraryStatus>('all');
@@ -243,17 +245,11 @@ export default function LibraryScreen() {
     view,
   ]);
 
-  const cycleStatus = (entry: LibraryEntry) => {
-    const statuses: LibraryStatus[] =
-      entry.mediaType === 'anime'
-        ? ['watching', 'completed', 'dropped', 'plan-to-watch']
-        : ['reading', 'completed', 'dropped', 'plan-to-read'];
-    setStatus(
-      entry.mediaId,
-      entry.mediaType,
-      statuses[(statuses.indexOf(entry.status) + 1) % statuses.length],
-    );
-  };
+  const statusOptions = (statusTarget?.mediaType === 'anime'
+    ? ['watching', 'completed', 'dropped', 'plan-to-watch']
+    : ['reading', 'completed', 'dropped', 'plan-to-read']).map(value => ({
+      value, label: statusFilters.find(filter => filter.id === value)?.label ?? value,
+    }));
 
   const handleDismiss = (entry: LibraryEntry) => {
     if (view === 'history') {
@@ -405,7 +401,7 @@ export default function LibraryScreen() {
                 progress={progress}
                 onPress={() => router.push(route)}
                 onToggleFavorite={() => toggleFavorite(entry.mediaId, entry.mediaType)}
-                onChangeStatus={() => cycleStatus(entry)}
+                onChangeStatus={() => setStatusTarget(entry)}
               />
             </SwipeableRow>
           ) : (
@@ -418,7 +414,7 @@ export default function LibraryScreen() {
               progress={progress}
               onPress={() => router.push(route)}
               onToggleFavorite={() => toggleFavorite(entry.mediaId, entry.mediaType)}
-              onChangeStatus={() => cycleStatus(entry)}
+              onChangeStatus={() => setStatusTarget(entry)}
             />
           ),
         )
@@ -439,6 +435,9 @@ export default function LibraryScreen() {
           </Text>
         </View>
       )}
+      <SelectionModal visible={statusTarget !== null} title="Library status" options={statusOptions}
+        value={statusTarget?.status} onClose={() => setStatusTarget(null)}
+        onSelect={status => { if (statusTarget) setStatus(statusTarget.mediaId, statusTarget.mediaType, status as LibraryStatus); }} />
     </Screen>
   );
 }

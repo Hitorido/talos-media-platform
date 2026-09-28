@@ -1,3 +1,4 @@
+import { PublicationStatus } from '@/components/content/PublicationStatus';
 import { MediaCount } from '@/components/content/MediaCount';
 import { Image, Pressable, View } from 'react-native';
 
@@ -7,6 +8,8 @@ import { cn } from '@/utils/cn';
 
 type ContentPosterCardProps = {
   routeId?: string;
+  sourceName?: string;
+  status?: string;
   episodeCount?: number;
   chapterCount?: number;
   title: string;
@@ -31,7 +34,7 @@ const badgeLabelMap: Record<ContentType, string> = {
 };
 
 export function ContentPosterCard({
-  routeId, episodeCount, chapterCount,
+  routeId, episodeCount, chapterCount, sourceName, status,
   title,
   coverUrl,
   type,
@@ -60,7 +63,8 @@ export function ContentPosterCard({
       <Text variant="label" numberOfLines={2} className="mt-2">
         {title}
       </Text>
-      {subtitle ? (
+      {sourceName ? <View className="mt-1 gap-1"><Badge label={sourceName} variant="primary" /><PublicationStatus status={status} /></View> : null}
+      {subtitle && !sourceName ? (
         <Text variant="caption" tone="muted" numberOfLines={1} className="mt-0.5">
           {subtitle}
         </Text>

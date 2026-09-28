@@ -154,7 +154,7 @@ export default function HomeScreen() {
           {section.items.filter(item => enabled[item.providerId]).map(item => (
             <ContentPosterCard key={item.id} title={item.title} coverUrl={item.coverUrl} type={item.type}
               routeId={item.id} episodeCount={item.episodeCount} chapterCount={item.chapterCount}
-              subtitle={item.sourceName + ' - ' + item.signal}
+              sourceName={item.sourceName} status={item.status}
               onPress={() => {
                 if (item.type === 'anime') router.push(animeDetailsHref(item.id));
                 else if (item.type === 'novel') router.push(novelDetailsHref(item.id));

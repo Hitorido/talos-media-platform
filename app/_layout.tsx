@@ -1,3 +1,5 @@
+import { useMediaBookmarkStore } from '@/stores/mediaBookmarkStore';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import '../global.css';
 
 import { useFonts } from 'expo-font';
@@ -37,7 +39,7 @@ export default function RootLayout() {
   useEffect(() => {
     let cancelled = false;
 
-    bootstrapPersistence()
+    Promise.all([bootstrapPersistence(), useMediaBookmarkStore.persist.rehydrate()])
       .catch((bootstrapError) => {
         console.warn('[persistence] Failed to restore application state:', bootstrapError);
       })
@@ -59,9 +61,9 @@ export default function RootLayout() {
   }, [loaded, hydrated]);
 
   return (
-    <AppThemeProvider>
+    <GestureHandlerRootView style={{flex:1}}><AppThemeProvider>
       <RootLayoutNav />
-    </AppThemeProvider>
+    </AppThemeProvider></GestureHandlerRootView>
   );
 }
 
@@ -100,6 +102,8 @@ function RootLayoutNav() {
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="anime" options={{ headerShown: false }} />
+        <Stack.Screen name="manga" options={{ headerShown: false }} />
+        <Stack.Screen name="novel" options={{ headerShown: false }} />
         <Stack.Screen name="sources" options={{ title: 'Sources' }} />
       </Stack>
     </ThemeProvider>

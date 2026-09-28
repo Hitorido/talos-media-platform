@@ -54,6 +54,12 @@ export async function checkFileExists(fileUri: string | null): Promise<boolean> 
   }
 }
 
+export async function saveTextFile(fileUri:string,content:string):Promise<void> {
+ if(isWeb||!FileSystem.documentDirectory)throw new Error('Offline video downloads require Android or iOS.');
+ await ensureDirectory(fileUri.slice(0,fileUri.lastIndexOf('/')+1));
+ await FileSystem.writeAsStringAsync(fileUri,content);
+}
+
 export async function saveJsonFile(fileUri: string, data: unknown): Promise<void> {
   const content = JSON.stringify(data);
   if (isWeb || !FileSystem.documentDirectory) {
@@ -120,16 +126,7 @@ export async function downloadFile(
   onProgress?: DownloadProgressCallback,
 ): Promise<{ uri: string; size: number }> {
   if (isWeb || !FileSystem.documentDirectory) {
-    // For Web environment, simulate progressive download
-    memoryStorage.set(destinationUri, remoteUrl);
-    if (onProgress) {
-      onProgress({
-        totalBytesWritten: 1024 * 1024,
-        totalBytesExpectedToWrite: 1024 * 1024,
-        progress: 1,
-      });
-    }
-    return { uri: remoteUrl, size: 1024 * 1024 };
+    throw new Error('Offline media downloads require the Android or iOS app.');
   }
 
   const dir = destinationUri.substring(0, destinationUri.lastIndexOf('/') + 1);
@@ -154,7 +151,7 @@ export async function downloadFile(
   );
 
   const result = await downloadResumable.downloadAsync();
-  if (!result || !result.uri) {
+  if (!result || !result.uri || result.status < 200 || result.status >= 300) {
     throw new Error('Download failed to return a valid local file URI');
   }
 

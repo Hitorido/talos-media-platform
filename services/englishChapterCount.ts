@@ -15,7 +15,7 @@ async function slot<T>(run: () => Promise<T>): Promise<T> {
   try { return await run(); } finally { active--; queue.shift()?.(); }
 }
 // These adapters expose English catalogs. Unknown-language adapters are not assumed English.
-const englishCatalogs = new Set(['mangapill','weebcentral','gdscans','demonicscans','mangatown','kaliscan','mangajinx','novelcodex','novelarrow','novelping']);
+const englishCatalogs = new Set(['mangapill','weebcentral','gdscans','demonicscans','mangatown','kaliscan','mangajinx','novelcodex','novelarrow','novelping','royalroad']);
 export async function getEnglishChapterCount(routeId: string, signal?: AbortSignal): Promise<number> {
   const ref = decodeMediaRouteId(routeId);
   if (!ref || !useProviderStore.getState().enabled[ref.providerId]) throw new Error('Source disabled');

@@ -1,3 +1,4 @@
+import { downloadHls } from '@/services/hlsDownload';
 import {
   deleteStoragePath,
   downloadFile,
@@ -86,7 +87,16 @@ async function processAnimeDownload(
   signal: { isAborted: boolean },
 ): Promise<void> {
   const store = useDownloadStore.getState();
-  const videoUrl = item.payload.videoUrl;
+  let videoUrl = item.payload.videoUrl;
+  let hls=Boolean(videoUrl?.includes('.m3u8'));
+  if(!videoUrl){const {resolveAnimePlayback}=await import('@/services/contentService');const playback=await resolveAnimePlayback(item.mediaId,item.unitId);videoUrl=playback.source.url;hls=playback.source.contentType==='hls';}
+  if(signal.isAborted)return;
+  if(hls){
+   const directory=getAnimeStoragePath(item.mediaId,item.unitId).replace(/video\.mp4$/,'');
+   const result=await downloadHls(videoUrl!,directory,signal,(done,total,bytes)=>store.updateProgress(item.id,{progress:done/total,bytesDownloaded:bytes,totalBytes:Math.round(bytes*total/done)}));
+   if(!signal.isAborted)store.setStatus(item.id,'completed',{localPath:result.localPath,progress:1,bytesDownloaded:result.bytes,totalBytes:result.bytes});
+   return;
+  }
   if (!videoUrl) {
     throw new Error('No stream URL provided for anime episode');
   }
@@ -117,7 +127,9 @@ async function processMangaDownload(
   signal: { isAborted: boolean },
 ): Promise<void> {
   const store = useDownloadStore.getState();
-  const pageUrls = item.payload.pageUrls ?? [];
+  let pageUrls = item.payload.pageUrls ?? [];
+  if(!pageUrls.length){const {getMangaChapterPages}=await import('@/services/contentService');pageUrls=(await getMangaChapterPages(item.mediaId,item.unitId)).map(page=>page.imageUrl);}
+  if(signal.isAborted)return;
   if (pageUrls.length === 0) {
     throw new Error('No page URLs available for this manga chapter');
   }
@@ -306,7 +318,7 @@ export async function deleteDownload(id: string): Promise<void> {
   if (item) {
     cancelDownload(id);
     if (item.mediaType === 'anime') {
-      await deleteStoragePath(getAnimeStoragePath(item.mediaId, item.unitId));
+      await deleteStoragePath(getAnimeStoragePath(item.mediaId, item.unitId).replace(/video\.mp4$/,''));
     } else if (
       item.mediaType === 'manga' ||
       item.mediaType === 'manhwa' ||

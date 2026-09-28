@@ -7,10 +7,10 @@ export default function MangaLayout() {
         headerBackTitle: 'Back',
       }}
     >
-      <Stack.Screen name="[id]/index" options={{ title: 'Manga Details' }} />
+      <Stack.Screen name="[id]/index" options={{ title: '' }} />
       <Stack.Screen
         name="[id]/read/[chapterId]"
-        options={{ title: 'Reader', headerShown: false }}
+        options={{ title: 'Read chapter', headerShown: false }}
       />
     </Stack>
   );

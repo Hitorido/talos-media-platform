@@ -130,6 +130,7 @@ export type BackendNormalizedNovelContent = {
 };
 
 export type BackendNormalizedPlaybackSource = {
+  contentType?: 'hls' | 'dash' | 'progressive';
   providerId: string;
   sourceId: string;
   mediaId: string;

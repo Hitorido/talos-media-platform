@@ -58,6 +58,6 @@ export const animeParadiseProvider: MediaProvider = {
     const directUrl=`https://stream.animeparadise.moe/m3u8?url=${encodeURIComponent(ep.streamLink)}`;
     const english=ep.subData?.find(track=>track.type==='vtt'&&/^english$/i.test(track.label));
     const url=english?getApiBaseUrl()+'/api/content/animeparadise/'+identifier(ref.sourceId)+'/'+identifier(episodeId)+'/master.m3u8':directUrl;
-    return {providerId,sourceId:ref.sourceId,mediaId:ref.sourceId,episodeId,url,fallbackUrl:english?directUrl:undefined,subtitles:english?[{language:'en',url:english.src}]:undefined,contentType:'hls',isDirectStream:true,isDemo:false,availability:'available',note:'AnimeParadise HLS. English subtitles are selected when supplied in the stream.'};
+    return {providerId,sourceId:ref.sourceId,mediaId:ref.sourceId,episodeId,url,quality:english?'Auto up to 720p':'Auto',qualityOptions:english?[{label:'Auto ?720p',url},{label:'480p',url:url.replace('master.m3u8','low.m3u8')},{label:'Full quality',url:url.replace('master.m3u8','auto.m3u8')}]:undefined,fallbackUrl:english?directUrl:undefined,subtitles:english?[{language:'en',url:english.src}]:undefined,contentType:'hls',isDirectStream:true,isDemo:false,availability:'available',note:'AnimeParadise HLS. English subtitles are selected when supplied in the stream.'};
   },
 };

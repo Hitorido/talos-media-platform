@@ -1,3 +1,5 @@
+import { isActiveSource } from '@/utils/activeSource';
+import { getApiBaseUrl } from '@/lib/apiConfig';
 import { SourceWebsiteButton } from '@/components/content/SourceWebsiteButton';
 import { sourceWebsite } from '@/services/sourceWebsite';
 import { useState } from 'react';
@@ -77,7 +79,7 @@ function formatHealthTimestamp(timestamp?: number): string | null {
 
 export function SourcesContent() {
   initializeProviders();
-  const providers = providerRegistry.list();
+  const providers = providerRegistry.list().filter(provider => isActiveSource(provider.definition.status));
   const enabledMap = useProviderStore((state) => state.enabled);
   const setProviderEnabled = useProviderStore((state) => state.setProviderEnabled);
   const setPreferredProvider = useProviderStore((state) => state.setPreferredProvider);
@@ -119,7 +121,9 @@ export function SourcesContent() {
   return (
     <View className="gap-6">
       <View className="gap-3 rounded-2xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
-        <Text variant="label">Backend Endpoints</Text>
+        <Text variant="label">Talos backend</Text>
+        <Text selectable variant="caption">API URL: {getApiBaseUrl()}</Text>
+        <Text variant="caption" tone="muted">Novel feeds, gateway readers and external subtitles require this server. In Expo Go, keep the computer backend running on the same Wi-Fi.</Text>
         <Text variant="caption" tone="muted">
           Configure optional self-hosted backends. Novel Backend Gateway uses the Novel URL when set;
           otherwise it calls this app&apos;s Express /api/novels proxy (requires NOVEL_GATEWAY_URL).

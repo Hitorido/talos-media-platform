@@ -1,6 +1,9 @@
-import { ZoomablePage } from './ZoomablePage';
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from 'react';
-import { FlatList, View, ViewToken } from 'react-native';
+import { FittedPage } from './ZoomablePage';
+import { useReaderZoom } from './useReaderZoom';
+import { GestureDetector } from 'react-native-gesture-handler';
+import Animated from 'react-native-reanimated';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useState, useRef } from 'react';
+import { FlatList, View, ViewToken, useWindowDimensions } from 'react-native';
 
 import type { MangaChapter, MangaPage } from '@/types/manga';
 
@@ -62,7 +65,10 @@ export const VerticalReader = forwardRef<VerticalReaderRef, VerticalReaderProps>
     { chapters, activeChapterId, initialPage = 1, onPageChange, onChapterChange, onTapScreen },
     ref,
   ) => {
-    const flatListRef = useRef<FlatList<FlatItem>>(null);
+    const [pinching,setPinching]=useState(false);
+    const {width,height}=useWindowDimensions();
+    const zoom=useReaderZoom(width,height-100,onTapScreen,setPinching);
+    const flatListRef = zoom.scrollRef;
     const scrollRetryRef = useRef({index:-1,attempts:0});
     const isReadyRef = useRef(false);
     const currentChapterRef = useRef(activeChapterId);
@@ -166,12 +172,12 @@ export const VerticalReader = forwardRef<VerticalReaderRef, VerticalReaderProps>
     const renderItem = useCallback(
       ({ item }: { item: FlatItem }) => {
         if (item.type === 'separator') {
-          return <View className="h-2 bg-neutral-950" />;
+          return <View style={{height:0}} />;
         }
 
-        return <ZoomablePage page={item.page} onTapScreen={onTapScreen} />;
+        return <FittedPage page={item.page} width={width} height={height-100} scale={zoom.scale} x={zoom.x} />;
       },
-      [onTapScreen],
+      [width,height,zoom.scale,zoom.x],
     );
 
     const keyExtractor = useCallback((item: FlatItem) => {
@@ -180,7 +186,10 @@ export const VerticalReader = forwardRef<VerticalReaderRef, VerticalReaderProps>
     }, []);
 
     return (
-      <FlatList
+      <GestureDetector gesture={zoom.gesture}><Animated.FlatList
+        onScroll={zoom.scrollHandler}
+        scrollEventThrottle={16}
+        scrollEnabled={!pinching}
         ref={flatListRef}
         data={flatItems}
         keyExtractor={keyExtractor}
@@ -202,7 +211,7 @@ export const VerticalReader = forwardRef<VerticalReaderRef, VerticalReaderProps>
             isReadyRef.current = true;
           }, 150);
         }}
-      />
+      /></GestureDetector>
     );
   },
 );

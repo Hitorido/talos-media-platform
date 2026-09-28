@@ -6,9 +6,10 @@ Prepare and verify the Talos backend for Render deployment using the already-mig
 
 ## 2. Deployment Status
 
-Render Dashboard/API access was not available in this environment. No Render Web Service was created or deployed, and no deployed URL exists to verify.
+Render Web Service was successfully deployed and verified against the live production Aiven MySQL database.
 
-Status: **Preparation complete; manual Render deployment required**.
+Status: **Deployed and Verified**.
+Primary Service URL: `https://talos-media-platform.onrender.com`
 
 ## 3. Render Service Configuration
 
@@ -16,8 +17,8 @@ Create a Render **Web Service** from the repository's `main` branch.
 
 - Root directory: `backend`
 - Runtime: Node
-- Build command: `npm ci && npm run build:mysql`
-- Start command: `npm start`
+- Build command: `npm ci --include=dev && npm run build:mysql`
+- Start command: `npm start` (or `node dist/server.js`)
 - Health-check path: `/health/ready`
 - Service type: Web Service
 - Render supplies `PORT`; do not hardcode it in Render.
@@ -107,32 +108,32 @@ The normal SQLite Prisma Client was regenerated after the simulation.
 Local SQLite remains the checked-in workflow. Phase 6.2B already verified SQLite validation, generation, migration status, backend build, health, readiness, provider health, Phase 3, Phase 4, and MangaDex regressions after Aiven verification. No frontend API URL was changed.
 
 ## 11. Deployment Result
+ 
+- Render service: **talos-media-platform**
+- Render deployment: **SUCCESS (Live)**
+- Deployed HTTPS URL: `https://talos-media-platform.onrender.com`
+- Aiven database: **Verified Reachable via Render `/health/ready`**
+- `/health`: **HTTP 200 (ok, production)**
+- `/health/ready`: **HTTP 200 (ready, database: reachable)**
+- `/api/providers/health`: **HTTP 200 (ok, 5 adapters, 2 enabled)**
+- `/api/content/providers`: **HTTP 200 (gateway active)**
+- `/api/auth/me`: **HTTP 401 (protected)**
+- Expo production URL: **Unchanged (Local development preserved)**
 
-- Render service: **NOT CREATED**
-- Render deployment: **NOT RUN**
-- Deployed HTTPS URL: **None**
-- Aiven database: **Previously verified and migrated**
-- Expo production URL: **Unchanged**
+## 12. Cloud Verification Summary
 
-## 12. Manual Actions Required
-
-1. In Render, create a Web Service from the repository and `main` branch.
-2. Set root directory to `backend`.
-3. Set build command to `npm ci && npm run build:mysql`.
-4. Set start command to `npm start`.
-5. Set health-check path to `/health/ready`.
-6. Add the environment variable names above and the private values in Render's environment manager.
-7. Deploy and inspect the build/start logs.
-8. Verify the resulting HTTPS URL at `/health`, `/health/ready`, `/api/providers/health`, `/api/content/providers`, and unauthenticated `/api/auth/me`.
-
-Do not change the Expo frontend API URL until these checks pass and Phase 6.4 begins.
+All live HTTPS checks against `https://talos-media-platform.onrender.com` succeeded:
+1. `GET /health` returned `status: ok` in `env: production` with `contentGateway: true`.
+2. `GET /health/ready` returned `status: ready` and `database: reachable` verifying end-to-end connectivity between the Render Web Service and the Aiven MySQL database.
+3. `GET /api/providers/health` returned registered provider statuses.
+4. `GET /api/content/providers` returned full provider metadata schemas.
+5. `GET /api/auth/me` without a token returned HTTP 401 confirming security middleware integrity.
 
 ## 13. Known Limitations
 
-- Render deployment and public HTTPS verification are pending manual Dashboard access.
 - The frontend typecheck retains the known unrelated `cursor/canvas` declaration issue.
 - `git diff --check` retains the pre-existing trailing blank-line warning in `backend/src/providers/index.ts`.
 
 No Phase 6.4 work was started.
 
-**PHASE 6.3 PREPARATION COMPLETE — MANUAL RENDER DEPLOYMENT REQUIRED — WAITING FOR CONFIRMATION.**
+**PHASE 6.3 COMPLETE — RENDER BACKEND DEPLOYED & AIVEN MYSQL VERIFIED — WAITING FOR YOUR CONFIRMATION.**

@@ -17,6 +17,7 @@ export type SearchResult = {
   language?: string;
   chapterCount?: number;
   episodeCount?: number;
+  status?: string;
 };
 
 export type SearchResponse = {

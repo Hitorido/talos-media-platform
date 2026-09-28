@@ -21,7 +21,7 @@ import { cn } from '@/utils/cn';
 
 export default function NovelReaderScreen() {
   const router = useRouter();
-  const { id, chapterId } = useLocalSearchParams<{ id: string; chapterId: string }>();
+  const { id, chapterId, progress } = useLocalSearchParams<{ id: string; chapterId: string; progress?:string }>();
   const { novel, loading: novelLoading, error: novelError } = useNovelContent(id);
   const progressNovelId = novel?.id ?? id;
 
@@ -31,21 +31,21 @@ export default function NovelReaderScreen() {
   const addBookmark = useNovelProgressStore((state) => state.addBookmark);
   const removeBookmark = useNovelProgressStore((state) => state.removeBookmark);
 
+  const [activeChapterId, setActiveChapterId] = useState(chapterId);
   const isCurrentBookmarked = useNovelProgressStore((state) =>
     Boolean(
       progressNovelId &&
-        chapterId &&
+        activeChapterId &&
         state.bookmarks.some(
-          (bm) => bm.novelId === progressNovelId && bm.chapterId === chapterId,
+          (bm) => bm.novelId === progressNovelId && bm.chapterId === activeChapterId && bm.paragraphIndex === (state.getChapterProgress(progressNovelId,activeChapterId)?.paragraphIndex ?? 0),
         ),
     ),
   );
 
   const chapterScrollProgress = useMemo(() =>
-    useNovelProgressStore.getState().getChapterProgress(progressNovelId, chapterId)?.scrollPercentage ?? 0,
-    [progressNovelId, chapterId]);
+    progress !== undefined && Number.isFinite(Number(progress)) ? Math.max(0,Math.min(1,Number(progress))) : useNovelProgressStore.getState().getChapterProgress(progressNovelId, chapterId)?.scrollPercentage ?? 0,
+    [progressNovelId, chapterId, progress]);
 
-  const [activeChapterId, setActiveChapterId] = useState(chapterId);
   const [overlayVisible, setOverlayVisible] = useState<boolean>(true);
   const [readingProgress, setReadingProgress] = useState(chapterScrollProgress);
   const [showSettingsSheet, setShowSettingsSheet] = useState<boolean>(false);
@@ -164,6 +164,14 @@ export default function NovelReaderScreen() {
       if (!novel) return;
       const ch = novel.chapters.find((c) => c.id === chId);
       if (!ch) return;
+      // Navigation must react even when persistence skips a small progress change.
+      if (settings.scrollMode !== 'continuous') {
+        if (scrollPercentage > 0.94) {
+          setShowChapterNavPrompt(true);
+        } else if (scrollPercentage < 0.85) {
+          setShowChapterNavPrompt(false);
+        }
+      }
       if (
         lastSavedRef.current.chapterId === chId &&
         Math.abs(lastSavedRef.current.ratio - scrollPercentage) < 0.05
@@ -182,13 +190,7 @@ export default function NovelReaderScreen() {
         updatedAt: Date.now(),
       });
 
-      if (settings.scrollMode !== 'continuous') {
-        if (scrollPercentage > 0.94) {
-          setShowChapterNavPrompt(true);
-        } else if (scrollPercentage < 0.85) {
-          setShowChapterNavPrompt(false);
-        }
-      }
+
     },
     [novel, progressNovelId, settings.scrollMode, setChapterProgress],
   );
@@ -269,19 +271,21 @@ export default function NovelReaderScreen() {
       const existing = useNovelProgressStore
         .getState()
         .bookmarks.find(
-          (bm) => bm.novelId === progressNovelId && bm.chapterId === activeChapter.id,
+          (bm) => bm.novelId === progressNovelId && bm.chapterId === activeChapter.id && bm.paragraphIndex === (useNovelProgressStore.getState().getChapterProgress(progressNovelId,activeChapter.id)?.paragraphIndex ?? 0),
         );
       if (existing) removeBookmark(existing.id);
     } else {
+      const paragraphIndex=useNovelProgressStore.getState().getChapterProgress(progressNovelId,activeChapter.id)?.paragraphIndex ?? 0;
       const snippetSource =
-        chaptersWithContent[activeChapter.id]?.paragraphs[0] ??
-        activeChapter.paragraphs[0] ??
+        chaptersWithContent[activeChapter.id]?.paragraphs[paragraphIndex] ??
+        activeChapter.paragraphs[paragraphIndex] ??
         activeChapter.title;
       addBookmark({
         novelId: progressNovelId,
         chapterId: activeChapter.id,
         chapterTitle: activeChapter.title,
-        paragraphIndex: 0,
+        paragraphIndex,
+        scrollPercentage: readingProgress,
         snippet: snippetSource.substring(0, 80),
       });
     }
@@ -315,7 +319,7 @@ export default function NovelReaderScreen() {
   if (novelLoading || (contentLoading && !chaptersToLoad.length)) {
     return (
       <View className="flex-1 items-center justify-center gap-3 bg-black px-6">
-        <Stack.Screen options={{ headerShown: true, title: 'Reader' }} />
+        <Stack.Screen options={{ headerShown: true, title: 'Read chapter' }} />
         <ActivityIndicator size="large" color="#fff" />
         <Text className="text-center text-neutral-300">Loading novel chapter...</Text>
       </View>
@@ -325,7 +329,7 @@ export default function NovelReaderScreen() {
   if (novelError || !novel || contentError || !activeChapter || chaptersToLoad.length === 0) {
     return (
       <View className="flex-1 items-center justify-center gap-3 bg-black px-6">
-        <Stack.Screen options={{ headerShown: true, title: 'Reader' }} />
+        <Stack.Screen options={{ headerShown: true, title: 'Read chapter' }} />
         <Text className="text-center text-white">Unable to load this novel chapter.</Text>
         <Text className="text-center text-neutral-400">
           {contentError ?? novelError ?? 'No chapter text was resolved from the provider.'}

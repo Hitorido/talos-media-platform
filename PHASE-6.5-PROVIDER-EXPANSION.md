@@ -286,3 +286,43 @@ The first gateway test failed because its test transport did not unwrap the API 
 Production/phone: pre-deployment Render /health timed out before HTTP under a fifteen-second bound. Latest deployment status will be recorded after the checkpoint attempt. NovelPing/discovery/subtitle endpoints need the updated backend, and UI changes need the updated app bundle. No phone success is claimed for zoom, fullscreen/subtitle timing, or buffering. Retest tall manhwa pinch/reset and ordinary page swipes; card counts; NovelPing text; and Naruto via metadata details for fullscreen, English captions, seek/pause/resume and several minutes without repeated seconds.
 
 Deployment checkpoint: pushed code commit `6c18a7c` to existing origin/main, including prior stabilization commit `d5c493e`. At 2026-09-25T08:34:21Z, all four post-push endpoints (/health, /health/ready, /api/providers/health, /api/content/providers) timed out before HTTP under fifteen-second abort bounds. Git push success is confirmed; Render runtime rollout and new routes are not production-verified. No code was changed or redeployed as a workaround for the transport timeout. The final fullscreen-exit regression also verifies saving the native player's current position. Unrelated Phase 6.4 work remains unstaged.
+
+## Native gestures, bookmarks and playback follow-up - 2026-09-27
+
+Local checkpoint; Phase 6.5 remains open. These changes have not been committed or deployed. Existing Phase 6.4 work remains separate.
+
+- Removed manga zoom buttons. Replaced JS PanResponder handling with native Gesture Handler pinch and a root gesture container. Manga paging and webtoon mode share decoded-dimension fitting and 50%-300% zoom. Pinch is simultaneous with the page's nested scroll handlers; parent scrolling pauses during pinch. Physical Android arbitration still needs verification.
+- Added native exclusive double/single taps. Double tap fitted size -> 2x -> fitted size. Any manual zoom level first returns to fitted size, including a zoomed-out page. Single tap toggles controls only after the double-tap interval. No panel cropping is claimed.
+- Details now toggle chapters/episodes and Bookmarks. Comic pages and anime scene timestamps persist locally and open encoded routes at the saved position. Novel bookmarks retain passage/progress information and can distinguish passages within a chapter. Old novel bookmarks remain compatible. No cloud sync was added.
+- Search/home source and count labels are colored badges. Supplied publication statuses become Completed/Ongoing/Hiatus/etc.; absent source status remains explicitly unknown. Latest chapter numbers are not fabricated as totals. AniList is the single global-search anime metadata catalog; Kitsu/Jikan registrations and old detail/library routes remain available. AnimeParadise remains an internal playback source rather than another search card.
+- Removed duplicate outer manga/novel headers. Detail headers use the real title; loading/error reader/player headers use Read chapter/Watch episode.
+- Subtitle-gateway native errors automatically fall back once to the same episode's original stream, preserving position. Initial gateway loading has a five-second fallback bound. Playback starts when ready; supplied native English tracks remain selected. Original-stream failure is still shown honestly, and missing captions are disclosed. This does not guarantee captions where no supported English track exists or prove a physical buffering improvement.
+
+Verification: backend build PASS. Actual gesture-component checks cover decoded dimensions, both mode paths, native pinch callbacks, double-tap fit/2x cycle, and absence of zoom buttons/empty URIs. Actual player effects verify one resume, fullscreen once, English track selection, automatic fallback without rewind, and no infinite fallback loop. Bookmark store recreation and saved-location routes PASS. Novel continuous/normal behavior and existing search service/performance/hook tests PASS. A mistakenly invoked standalone phase6.5-search-hook-test filename does not exist; the actual hook harness is included in the passing performance test. Frontend typecheck retains only the four pre-existing cursor/canvas TS2307 errors. Web export to .expo/phase65-gestures-bookmarks-web-check PASS, 19 routes, exit 0 (existing forced-exit notice). Subsequent scroll-handler coordination and passage/header refinements passed component tests and typecheck baseline.
+
+Live novel verification: actual frontend bridge/local gateway search/details/archive/public first-chapter text PASS for Shadow Slave (3,197 unique English chapters, 91 paragraphs) and The Nameless Extra: I Proofread This World (347 chapters, 189 paragraphs). The earlier September 26 archive was 3,196 for Shadow Slave; counts are source data, not constants. NovelPing popular/updated feeds each return 12 items. Existing novel providers were preserved. NovelFull ordinary homepage access returned HTTP 403 challenge; no bypass or unverified reader adapter was added.
+
+Soul Land 2 investigation: user reports Chinese/Korean animation fails while tested Japanese titles play. AnimeParadise public searches for Soul Land and Douluo returned empty. Anikoto search and public series 6539 match Soul Land 2: The Peerless Tang Clan, with episode membership and English-caption metadata. Its MegaPlay Episode 1 response contains an encrypted browser-player payload rather than the direct media file expected by the researched SDK; native playback is not verified and it was not registered as working. MegaPlay's AniList mapping probes returned file-not-found HTML despite HTTP 200. Anineko normal search timed out. AllManga GraphQL returned a challenge 403. Anime4i's sampled Episode 173 link resolved to a 37-second Dailymotion trailer, not a full episode, and was rejected as playback evidence. No new anime playback adapter passed a complete English-subtitled media flow this checkpoint.
+
+Primary research: https://github.com/hexxt-git/anime-sdk ; https://github.com/lncrawl/lightnovel-crawler ; source-owned Anikoto API and MegaPlay public embed responses; https://novelfull.com/ ; https://novelping.com/ . No third-party parser implementation was copied or executed. Expo 57 and official Gesture Handler pinch/tap documentation were read before implementation.
+
+Remaining: physical pinch/double-tap/panning and saved-location checks; native subtitle timing and fallback playback; a verified additional English-subtitled donghua/Korean source; production backend reachability and latest rollout. No Phase 6.6 work. Retest Soul Land 2 only after a full playable source is verified; do not substitute a trailer, another season, or demo footage.
+
+September 27 production recheck: all four Render health/provider endpoints timed out before HTTP under 15-second bounds. No deployment was attempted in this checkpoint; local novel success is not production success.
+
+
+## Active follow-up checklist ? 2026-09-28
+
+This checklist includes the latest user requests; unchecked items are not completion claims. Historical reports are retained as development evidence.
+
+- [ ] Pinch follows its focal point; below fitted size recenters normally. Smooth double tap follows the touched point. Webtoon pages share one zoom state.
+- [ ] Fix fast-scroll novel end navigation; add 100-entry chapter/episode ranges.
+- [ ] Explicit library-status selection popup instead of cycling.
+- [ ] Search recommendations by category and query; descending known chapter/episode totals, unknown totals last.
+- [ ] Verify restored manga/anime downloads and subtitle-preserving playback quality options.
+- [ ] Restore reachable backend for Expo Go and verify English novel feeds. APK builds require a reachable public backend.
+- [ ] Research Webnovel, Wuxiaworld, Royal Road and public translator feeds; keep locked content unavailable. Treat supplied mirror/domain relationships as unverified.
+- [ ] Prioritize a full English-subtitled Soul Land 2 playback flow and additional Chinese/Korean animation coverage. Hosts/embeds alone are not native-playback evidence.
+- [ ] Remove unavailable sources from the active user catalog based on current tests while preserving saved-title compatibility.
+- [ ] Refactor touched code into named reusable helpers; remove redundant comments/debug code. Organize historical reports for GitHub documentation.
+- [ ] Backend build, focused regressions, web export, and physical Android verification.

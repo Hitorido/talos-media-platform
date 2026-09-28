@@ -8,6 +8,7 @@ const enabled={fast:true,slow:true,broken:true};
 const providers=[['fast',5],['slow',90],['broken',10]].map(([id,delay])=>({definition:{id,name:id,status:'working',mediaTypes:['anime'],capabilities:['search']},async search(q,{signal}){calls++;active++;peak=Math.max(peak,active);try{await new Promise((resolve,reject)=>{const timer=setTimeout(resolve,delay);signal.addEventListener('abort',()=>{clearTimeout(timer);reject(new DOMException('Cancelled','AbortError'));},{once:true});});if(id==='broken')throw Error('unavailable');return Array.from({length:30},(_,n)=>item(id,q+n));}finally{active--;}}}));
 const failures=[];
 const service=loadProviderTs('services/contentService.ts',{
+ '@/utils/activeSource':loadProviderTs('utils/activeSource.ts'),
  '@/utils/novelLanguage':loadProviderTs('utils/novelLanguage.ts'),
  '@/services/providerSearch':helpers,'@/lib/apiConfig':{getApiBaseUrl:()=>base},
  '@/stores/backendConfigStore':{useBackendConfigStore:{getState:()=>({backendUrls:{}})}},
