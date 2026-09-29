@@ -51,10 +51,7 @@ export function EpisodeListItem({
             <Text variant="label">
               Episode {episode.number} · {formatDuration(episode.durationSeconds)}
             </Text>
-            {isDownloaded ? (
-              <Badge label="Offline" variant="secondary" />
-            ) : null}
-
+            {isDownloaded ? <Badge label="Offline" variant="secondary" /> : null}
           </View>
           <Text variant="bodySmall" tone="muted" numberOfLines={2}>
             {episode.title}
@@ -76,10 +73,15 @@ export function EpisodeListItem({
               }}
               className="p-1.5"
               accessibilityRole="button"
-              accessibilityLabel="Download for offline reading or watching"
+              accessibilityLabel={
+                isDownloaded
+                  ? 'Downloaded'
+                  : isDownloading
+                    ? 'Download queued'
+                    : 'Download for offline use'
+              }
               hitSlop={8}
             >
-              <Text variant="caption" tone="primary">{isDownloaded?'Saved':isDownloading?'Queued':'Download'}</Text>
               {isDownloaded ? (
                 <Ionicons name="checkmark-circle" size={22} color="#10B981" />
               ) : isDownloading ? (

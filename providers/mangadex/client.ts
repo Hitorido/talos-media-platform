@@ -58,7 +58,10 @@ export type MangaDexChapter = {
 
 const CONTENT_RATINGS = ['safe', 'suggestive', 'erotica', 'pornographic'] as const;
 
-function prefersSameLanguageChapter(candidate: MangaDexChapter, existing: MangaDexChapter): boolean {
+function prefersSameLanguageChapter(
+  candidate: MangaDexChapter,
+  existing: MangaDexChapter,
+): boolean {
   const candidateReadable = (candidate.attributes.pages ?? 0) > 0;
   const existingReadable = (existing.attributes.pages ?? 0) > 0;
   if (candidateReadable !== existingReadable) return candidateReadable;
@@ -83,13 +86,34 @@ type MangaDexAtHomeResponse = {
   };
 };
 
+/** Bound headers and body reads; retry one transient native connection failure outside search. */
 async function mangadexFetch<T>(url: string, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(url, { headers: MANGADEX_HEADERS, signal });
-  if (!response.ok) {
-    throw new Error(`MangaDex request failed (${response.status})`);
+  const attempts = signal ? 1 : 2;
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    if (signal?.aborted) controller.abort();
+    signal?.addEventListener('abort', abort, { once: true });
+    const timer = setTimeout(abort, 15000);
+    try {
+      const response = await fetch(url, { headers: MANGADEX_HEADERS, signal: controller.signal });
+      if (!response.ok) throw new Error('MangaDex request failed (' + response.status + ')');
+      return (await response.json()) as T;
+    } catch (error) {
+      const transient =
+        error instanceof TypeError ||
+        /preface|SETTINGS|network request failed|connection reset/i.test(String(error));
+      if (!transient || controller.signal.aborted || attempt + 1 === attempts) throw error;
+    } finally {
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', abort);
+    }
   }
-  return (await response.json()) as T;
+  throw new Error('MangaDex connection unavailable.');
 }
+
+const chapterCache = new Map<string, { expires: number; chapters: MangaDexChapter[] }>();
+const chapterRequests = new Map<string, Promise<MangaDexChapter[]>>();
 
 function pickLocalized(value?: MangaDexLocalizedString): string {
   if (!value) return '';
@@ -104,13 +128,17 @@ function buildCoverUrl(manga: MangaDexManga): string {
   return `https://uploads.mangadex.org/covers/${manga.id}/${coverRel.attributes.fileName}.256.jpg`;
 }
 
-export async function searchMangaDex(query: string, limit = 12, signal?: AbortSignal): Promise<MangaDexManga[]> {
+export async function searchMangaDex(
+  query: string,
+  limit = 12,
+  signal?: AbortSignal,
+): Promise<MangaDexManga[]> {
   const params = new URLSearchParams();
   params.set('title', query);
   params.set('limit', String(limit));
   params.append('includes[]', 'cover_art');
   params.set('order[relevance]', 'desc');
-  params.append('availableTranslatedLanguage[]','en');
+  params.append('availableTranslatedLanguage[]', 'en');
 
   const payload = await mangadexFetch<MangaDexResponse<MangaDexManga[]>>(
     `${MANGADEX_API}/manga?${params.toString()}`,
@@ -129,6 +157,22 @@ export async function getMangaDexManga(mangaId: string): Promise<MangaDexManga> 
 }
 
 export async function getMangaDexChapters(mangaId: string): Promise<MangaDexChapter[]> {
+  const cached = chapterCache.get(mangaId);
+  if (cached && cached.expires > Date.now()) return cached.chapters;
+  const active = chapterRequests.get(mangaId);
+  if (active) return active;
+  const request = fetchMangaDexChapters(mangaId)
+    .then((chapters) => {
+      chapterCache.set(mangaId, { chapters, expires: Date.now() + 5 * 60_000 });
+      if (chapterCache.size > 50) chapterCache.delete(chapterCache.keys().next().value!);
+      return chapters;
+    })
+    .finally(() => chapterRequests.delete(mangaId));
+  chapterRequests.set(mangaId, request);
+  return request;
+}
+
+async function fetchMangaDexChapters(mangaId: string): Promise<MangaDexChapter[]> {
   const allChapters: MangaDexChapter[] = [];
   let offset = 0;
   // MangaDex collection endpoints typically cap limit at 100.
@@ -142,6 +186,7 @@ export async function getMangaDexChapters(mangaId: string): Promise<MangaDexChap
     for (const rating of CONTENT_RATINGS) {
       params.append('contentRating[]', rating);
     }
+    params.append('translatedLanguage[]', 'en');
     params.set('includeEmptyPages', '0');
     params.set('includeFuturePublishAt', '0');
     params.set('includeExternalUrl', '0');
@@ -210,7 +255,9 @@ export async function getMangaDexChapterPages(chapterId: string): Promise<string
 }
 
 export function mapMangaDexToNormalized(manga: MangaDexManga) {
-  const genres = manga.attributes.tags.map((tag) => pickLocalized(tag.attributes.name)).filter(Boolean);
+  const genres = manga.attributes.tags
+    .map((tag) => pickLocalized(tag.attributes.name))
+    .filter(Boolean);
   const originalLanguage = (manga.attributes.originalLanguage || '').toLowerCase();
   let comicFormat: 'manga' | 'manhwa' | 'manhua' = 'manga';
   if (genres.some((genre) => genre.toLowerCase().includes('manhwa')) || originalLanguage === 'ko') {
@@ -224,7 +271,9 @@ export function mapMangaDexToNormalized(manga: MangaDexManga) {
   }
 
   return {
-    title: manga.attributes.altTitles?.map(title=>title.en).find(title=>title?.trim()) || pickLocalized(manga.attributes.title),
+    title:
+      manga.attributes.altTitles?.map((title) => title.en).find((title) => title?.trim()) ||
+      pickLocalized(manga.attributes.title),
     description: pickLocalized(manga.attributes.description),
     coverUrl: buildCoverUrl(manga),
     genres,

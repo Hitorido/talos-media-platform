@@ -1,11 +1,13 @@
-import { ZoomablePage } from './ZoomablePage';
-import { forwardRef, useEffect, useImperativeHandle, useState, useRef } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { FlatList, useWindowDimensions } from 'react-native';
+import { ZoomablePage } from './ZoomablePage';
 
 import type { MangaPage, ReadingDirection } from '@/types/manga';
 
-
 export type HorizontalReaderRef = {
+  getLocation: () =>
+    | { chapterId: string; pageNumber: number; fraction: number; scale: number; pan: number }
+    | undefined;
   scrollToPage: (pageNumber: number, animated?: boolean) => void;
   scrollToChapterPage: (chapterId: string, pageNumber: number) => void;
 };
@@ -15,14 +17,22 @@ type HorizontalReaderProps = {
   activeChapterId: string;
   direction: ReadingDirection;
   initialPage?: number;
+  initialView?: { fraction: number; scale: number; pan: number };
   onPageChange: (chapterId: string, pageNumber: number) => void;
   onTapScreen: () => void;
 };
 
 export const HorizontalReader = forwardRef<HorizontalReaderRef, HorizontalReaderProps>(
-  ({ pages, activeChapterId, direction, initialPage = 1, onPageChange, onTapScreen }, ref) => {
+  (
+    { pages, activeChapterId, direction, initialPage = 1, initialView, onPageChange, onTapScreen },
+    ref,
+  ) => {
     const { width: SCREEN_WIDTH } = useWindowDimensions();
-    const [pinching,setPinching]=useState(false);
+    const [viewportHeight, setViewportHeight] = useState<number>();
+    const locations = useRef(
+      new Map<string, () => { fraction: number; scale: number; pan: number }>(),
+    );
+    const [pinching, setPinching] = useState(false);
     const flatListRef = useRef<FlatList<MangaPage>>(null);
     const isInitializedRef = useRef(false);
     const lastPageRef = useRef<{ chapterId: string; pageNumber: number } | null>(null);
@@ -41,6 +51,7 @@ export const HorizontalReader = forwardRef<HorizontalReaderRef, HorizontalReader
 
     const initialIndex = Math.max(0, getPageIndex(activeChapterId, initialPage));
     const initialIndexRef = useRef(initialIndex);
+    const initialViewTarget = useRef({ chapterId: activeChapterId, pageNumber: initialPage });
     const initialPageRef = useRef(initialPage);
     const previousDirectionRef = useRef(direction);
     const activeChapterIdRef = useRef(activeChapterId);
@@ -61,6 +72,14 @@ export const HorizontalReader = forwardRef<HorizontalReaderRef, HorizontalReader
     }, []);
 
     useImperativeHandle(ref, () => ({
+      getLocation: () => {
+        const current = lastPageRef.current ?? {
+          chapterId: activeChapterId,
+          pageNumber: initialPage,
+        };
+        const location = locations.current.get(current.chapterId + ':' + current.pageNumber)?.();
+        return location ? { ...current, ...location } : undefined;
+      },
       scrollToPage: (pageNumber: number, animated = true) => {
         const index = getPageIndex(activeChapterId, pageNumber);
         if (index >= 0 && index < displayPages.length) {
@@ -106,6 +125,7 @@ export const HorizontalReader = forwardRef<HorizontalReaderRef, HorizontalReader
 
     return (
       <FlatList
+        onLayout={(event) => setViewportHeight(event.nativeEvent.layout.height)}
         scrollEnabled={!pinching}
         ref={flatListRef}
         horizontal
@@ -135,7 +155,27 @@ export const HorizontalReader = forwardRef<HorizontalReaderRef, HorizontalReader
           offset: SCREEN_WIDTH * index,
           index,
         })}
-        renderItem={({item})=><ZoomablePage onGestureActive={setPinching} page={item} onTapScreen={onTapScreen} paged />}
+        renderItem={({ item }) => (
+          <ZoomablePage
+            viewportHeight={viewportHeight}
+            initialView={
+              item.chapterId === initialViewTarget.current.chapterId &&
+              item.pageNumber === initialViewTarget.current.pageNumber
+                ? initialView
+                : undefined
+            }
+            onLocationReady={(read) =>
+              locations.current.set(
+                (item.chapterId ?? activeChapterId) + ':' + item.pageNumber,
+                read,
+              )
+            }
+            onGestureActive={setPinching}
+            page={item}
+            onTapScreen={onTapScreen}
+            paged
+          />
+        )}
       />
     );
   },

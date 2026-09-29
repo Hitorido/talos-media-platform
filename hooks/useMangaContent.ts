@@ -1,3 +1,4 @@
+import { loadOfflineCatalog } from '@/services/offlineCatalog';
 import { useLibraryStore } from '@/stores/libraryStore';
 import { useEffect, useState } from 'react';
 
@@ -13,11 +14,7 @@ import { encodeMediaRouteId } from '@/types/provider';
 function toMangaDetails(media: NormalizedMedia, chapters: NormalizedChapter[]): MangaDetails {
   const routeId = encodeMediaRouteId(media.ref.providerId, media.ref.sourceId);
   const formatLabel =
-    media.mediaType === 'manhwa'
-      ? 'Manhwa'
-      : media.mediaType === 'manhua'
-        ? 'Manhua'
-        : 'Manga';
+    media.mediaType === 'manhwa' ? 'Manhwa' : media.mediaType === 'manhua' ? 'Manhua' : 'Manga';
   const genres =
     media.genres.length > 0
       ? media.genres.includes(formatLabel)
@@ -36,18 +33,16 @@ function toMangaDetails(media: NormalizedMedia, chapters: NormalizedChapter[]): 
     author: media.author ?? 'Unknown',
     artist: media.artist ?? 'Unknown',
     rating: media.rating ?? 0,
-    chapters: chapters.map(
-      (chapter): MangaChapter => ({
-        id: chapter.id,
-        number: chapter.number,
-        title: chapter.title,
-        releaseDate: chapter.releaseDate ?? '',
-        pageCount: chapter.pageCount ?? 0,
-        pages: [],
-        language: chapter.language || 'en',
-        scanlationGroup: chapter.scanlationGroup,
-      }),
-    ),
+    chapters: chapters.map((chapter): MangaChapter => ({
+      id: chapter.id,
+      number: chapter.number,
+      title: chapter.title,
+      releaseDate: chapter.releaseDate ?? '',
+      pageCount: chapter.pageCount ?? 0,
+      pages: [],
+      language: chapter.language || 'en',
+      scanlationGroup: chapter.scanlationGroup,
+    })),
   };
 }
 
@@ -84,16 +79,32 @@ export function useMangaContent(routeId: string | undefined): MangaContentState 
     }
 
     let cancelled = false;
+    let fresh = false;
+    let local: MangaDetails | null = null;
+    const localReady = loadOfflineCatalog('manga', routeId)
+      .then((saved) => {
+        local = saved;
+        if (saved && !cancelled && !fresh)
+          setState({ manga: saved, loading: false, error: null, isProviderContent: true });
+      })
+      .catch(() => {});
     setState((current) => ({ ...current, loading: true, error: null, isProviderContent: true }));
 
     Promise.all([getMediaDetails(routeId), getMediaChapters(routeId)])
       .then(([media, chapters]) => {
         if (cancelled) return;
+        fresh = true;
         useLibraryStore.getState().rememberMedia({
-          id: encodeMediaRouteId(media.ref.providerId, media.ref.sourceId), title:media.title, coverUrl:media.coverUrl,
-          bannerUrl:media.bannerUrl ?? media.coverUrl, genres:media.genres,
-          mediaType:media.mediaType === 'manhwa' || media.mediaType === 'manhua' ? media.mediaType : 'manga',
-          chapterCount:chapters.length,
+          id: encodeMediaRouteId(media.ref.providerId, media.ref.sourceId),
+          title: media.title,
+          coverUrl: media.coverUrl,
+          bannerUrl: media.bannerUrl ?? media.coverUrl,
+          genres: media.genres,
+          mediaType:
+            media.mediaType === 'manhwa' || media.mediaType === 'manhua'
+              ? media.mediaType
+              : 'manga',
+          chapterCount: chapters.length,
         });
         setState({
           manga: toMangaDetails(media, chapters),
@@ -102,13 +113,14 @@ export function useMangaContent(routeId: string | undefined): MangaContentState 
           isProviderContent: true,
         });
       })
-      .catch((error: unknown) => {
+      .catch(async (error: unknown) => {
+        await localReady;
         if (cancelled) return;
         const message = error instanceof Error ? error.message : 'Failed to load manga.';
         setState({
-          manga: null,
+          manga: local,
           loading: false,
-          error: message,
+          error: local ? null : message,
           isProviderContent: true,
         });
       });

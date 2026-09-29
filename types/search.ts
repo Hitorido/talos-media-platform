@@ -7,6 +7,7 @@ export type SearchResult = {
   providerId: string;
   sourceId: string;
   title: string;
+  alternativeTitles?: string[];
   coverUrl: string;
   type: ContentType;
   /** When type is manga, distinguishes manga / manhwa / manhua. */

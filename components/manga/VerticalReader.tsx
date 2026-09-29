@@ -7,8 +7,10 @@ import { FlatList, View, ViewToken, useWindowDimensions } from 'react-native';
 
 import type { MangaChapter, MangaPage } from '@/types/manga';
 
-
 export type VerticalReaderRef = {
+  getLocation: () =>
+    | { chapterId: string; pageNumber: number; fraction: number; scale: number; pan: number }
+    | undefined;
   scrollToPage: (pageNumber: number, animated?: boolean) => void;
   scrollToChapterPage: (chapterId: string, pageNumber: number) => void;
 };
@@ -34,6 +36,7 @@ type VerticalReaderProps = {
   chapters: MangaChapter[];
   activeChapterId: string;
   initialPage?: number;
+  initialView?: { fraction: number; scale: number; pan: number };
   onPageChange: (chapterId: string, pageNumber: number) => void;
   onChapterChange: (chapterId: string) => void;
   onTapScreen: () => void;
@@ -62,19 +65,61 @@ function buildFlatItems(chapters: MangaChapter[]): FlatItem[] {
 
 export const VerticalReader = forwardRef<VerticalReaderRef, VerticalReaderProps>(
   (
-    { chapters, activeChapterId, initialPage = 1, onPageChange, onChapterChange, onTapScreen },
+    {
+      chapters,
+      activeChapterId,
+      initialPage = 1,
+      initialView,
+      onPageChange,
+      onChapterChange,
+      onTapScreen,
+    },
     ref,
   ) => {
-    const [pinching,setPinching]=useState(false);
-    const {width,height}=useWindowDimensions();
-    const zoom=useReaderZoom(width,height-100,onTapScreen,setPinching);
+    const [pinching, setPinching] = useState(false);
+    const { width, height } = useWindowDimensions();
+    const [viewportHeight, setViewportHeight] = useState(height - 100);
+    const zoom = useReaderZoom(
+      width,
+      viewportHeight,
+      onTapScreen,
+      setPinching,
+      undefined,
+      initialView,
+    );
     const flatListRef = zoom.scrollRef;
-    const scrollRetryRef = useRef({index:-1,attempts:0});
+    const scrollRetryRef = useRef({ index: -1, attempts: 0 });
     const isReadyRef = useRef(false);
     const currentChapterRef = useRef(activeChapterId);
     const lastChapterSwitchRef = useRef<{ chapterId: string; at: number } | null>(null);
     const lastVisiblePageRef = useRef<{ chapterId: string; pageNumber: number } | null>(null);
     const flatItems = buildFlatItems(chapters);
+    const measured = useRef(new Map<string, number>());
+    const restored = useRef(false);
+    const restoreCallback = useRef<() => void>(() => {});
+    const itemHeight = (item: FlatItem) =>
+      item.type === 'separator'
+        ? 0
+        : (measured.current.get(item.chapterId + ':' + item.page.pageNumber) ??
+          width / (item.page.aspectRatio || 0.67));
+    const restoreView = () => {
+      if (restored.current || !initialView) return;
+      const target = flatItems[initialIndexRef.current];
+      if (
+        !target ||
+        target.type !== 'page' ||
+        !measured.current.has(target.chapterId + ':' + target.page.pageNumber)
+      )
+        return;
+      restored.current = true;
+      flatListRef.current?.scrollToIndex({
+        index: initialIndexRef.current,
+        animated: false,
+        viewOffset: -itemHeight(target) * initialView.fraction,
+      });
+    };
+
+    restoreCallback.current = restoreView;
 
     // Find the index of the initial page in the flat list
     const getInitialIndex = () => {
@@ -98,6 +143,22 @@ export const VerticalReader = forwardRef<VerticalReaderRef, VerticalReaderProps>
     const initialIndexRef = useRef(initialIndex);
 
     useImperativeHandle(ref, () => ({
+      getLocation: () => {
+        const offset = zoom.scrollY.value;
+        let top = 0;
+        for (const item of flatItems) {
+          const length = itemHeight(item);
+          if (item.type === 'page' && top + length > offset)
+            return {
+              chapterId: item.chapterId,
+              pageNumber: item.page.pageNumber,
+              fraction: Math.max(0, Math.min(1, (offset - top) / length)),
+              scale: zoom.scale.value,
+              pan: zoom.x.value / width,
+            };
+          top += length;
+        }
+      },
       scrollToPage: (pageNumber: number, animated = true) => {
         const idx = flatItems.findIndex(
           (item) =>
@@ -125,7 +186,8 @@ export const VerticalReader = forwardRef<VerticalReaderRef, VerticalReaderProps>
     useEffect(() => {
       if (initialIndexRef.current > 0) {
         const timer = setTimeout(() => {
-          flatListRef.current?.scrollToIndex({ index: initialIndexRef.current, animated: false });
+          if (!restored.current)
+            flatListRef.current?.scrollToIndex({ index: initialIndexRef.current, animated: false });
           isReadyRef.current = true;
         }, 100);
         return () => clearTimeout(timer);
@@ -172,12 +234,24 @@ export const VerticalReader = forwardRef<VerticalReaderRef, VerticalReaderProps>
     const renderItem = useCallback(
       ({ item }: { item: FlatItem }) => {
         if (item.type === 'separator') {
-          return <View style={{height:0}} />;
+          return <View style={{ height: 0 }} />;
         }
 
-        return <FittedPage page={item.page} width={width} height={height-100} scale={zoom.scale} x={zoom.x} />;
+        return (
+          <FittedPage
+            page={item.page}
+            width={width}
+            height={height - 100}
+            scale={zoom.scale}
+            x={zoom.x}
+            onHeight={(value) => {
+              measured.current.set(item.chapterId + ':' + item.page.pageNumber, value);
+              setTimeout(() => restoreCallback.current(), 0);
+            }}
+          />
+        );
       },
-      [width,height,zoom.scale,zoom.x],
+      [width, height, zoom.scale, zoom.x],
     );
 
     const keyExtractor = useCallback((item: FlatItem) => {
@@ -186,32 +260,51 @@ export const VerticalReader = forwardRef<VerticalReaderRef, VerticalReaderProps>
     }, []);
 
     return (
-      <GestureDetector gesture={zoom.gesture}><Animated.FlatList
-        onScroll={zoom.scrollHandler}
-        scrollEventThrottle={16}
-        scrollEnabled={!pinching}
-        ref={flatListRef}
-        data={flatItems}
-        keyExtractor={keyExtractor}
-        renderItem={renderItem}
-        onViewableItemsChanged={onViewableItemsChanged}
-        viewabilityConfig={viewabilityConfig}
-        showsVerticalScrollIndicator={false}
-        removeClippedSubviews={false}
-        initialNumToRender={8}
-        maxToRenderPerBatch={8}
-        windowSize={7}
-        className="flex-1 bg-black"
-        onScrollToIndexFailed={(info) => {
-          if (scrollRetryRef.current.index !== info.index) scrollRetryRef.current={index:info.index,attempts:0};
-          if (scrollRetryRef.current.attempts++ >= 3) return;
-          flatListRef.current?.scrollToOffset({offset:info.averageItemLength*info.index,animated:false});
-          setTimeout(() => {
-            flatListRef.current?.scrollToIndex({ index: info.index, animated: false });
-            isReadyRef.current = true;
-          }, 150);
-        }}
-      /></GestureDetector>
+      <GestureDetector gesture={zoom.gesture}>
+        <View
+          onLayout={(event) => setViewportHeight(event.nativeEvent.layout.height)}
+          style={{ flex: 1, overflow: 'hidden' }}
+          collapsable={false}
+        >
+          <Animated.View style={zoom.viewportStyle}>
+            <GestureDetector gesture={zoom.nativeGesture}>
+              <Animated.FlatList
+                onScroll={zoom.scrollHandler}
+                onContentSizeChange={restoreView}
+                scrollEventThrottle={16}
+                scrollEnabled={!pinching}
+                bounces={false}
+                overScrollMode="never"
+                ref={flatListRef}
+                data={flatItems}
+                keyExtractor={keyExtractor}
+                renderItem={renderItem}
+                onViewableItemsChanged={onViewableItemsChanged}
+                viewabilityConfig={viewabilityConfig}
+                showsVerticalScrollIndicator={false}
+                removeClippedSubviews={false}
+                initialNumToRender={8}
+                maxToRenderPerBatch={8}
+                windowSize={7}
+                className="flex-1 bg-black"
+                onScrollToIndexFailed={(info) => {
+                  if (scrollRetryRef.current.index !== info.index)
+                    scrollRetryRef.current = { index: info.index, attempts: 0 };
+                  if (scrollRetryRef.current.attempts++ >= 3) return;
+                  flatListRef.current?.scrollToOffset({
+                    offset: info.averageItemLength * info.index,
+                    animated: false,
+                  });
+                  setTimeout(() => {
+                    flatListRef.current?.scrollToIndex({ index: info.index, animated: false });
+                    isReadyRef.current = true;
+                  }, 150);
+                }}
+              />
+            </GestureDetector>
+          </Animated.View>
+        </View>
+      </GestureDetector>
     );
   },
 );

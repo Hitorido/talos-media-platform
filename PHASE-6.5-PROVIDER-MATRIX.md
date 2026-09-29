@@ -486,7 +486,7 @@ Direct feasibility: ordinary local HTTP requests with Origin http://localhost:80
 
 Code checkpoint 526928d pushed to main. At 2026-09-18T09:24:35Z all four Render endpoints still failed before HTTP with UND_ERR_CONNECT_TIMEOUT. MangaTown production flow and latest discovery deployment remain unverified; no provider-specific conclusion is drawn from these transport failures. No further unchanged-code redeploy was attempted.
 
-## Current stabilization status � 2026-09-23 (supersedes older summaries)
+## Current stabilization status � 2026-09-23 (supersedes older summaries)
 
 - Physical feedback: AnimeParadise plays but repeats short intervals; NovelCodex text renders but normal navigation/lag need fixes and retest. DemonicScans works for at least one user-tested title, not all titles. MangaPill/GdScans app route failures and WeebCentral content failures were reported.
 - Local fixes: encoded source/chapter routes, one-time player resume, preserved seamless continuous novel lookahead, normal navigation/touch handling, virtualized chapter picker, real-source local library/history metadata, Narou one-shot and paginated chapter parsing. Focused actual-screen/store tests pass; phone retest pending.
@@ -511,3 +511,25 @@ MangaDex/cards: English translation and English chapter-update filters; English 
 All seven discovery sections PASS locally. Backend build and 19-route web export PASS; frontend retains four existing canvas module errors. Render pre-deployment health timed out before HTTP; production remains separate from local verification.
 
 Deployment evidence: code `6c18a7c` pushed to main successfully. All four Render health/registry checks at 2026-09-25T08:34:21Z timed out before HTTP under fifteen-second bounds. New runtime deployment, NovelPing and English subtitle gateway remain production-unverified; local/decoder evidence above is not substituted for phone or production results.
+
+## September 28 local source additions and backend diagnosis
+
+- **Royal Road — limited, local reader verified.** Actual frontend/gateway Mother of Learning search, details, 109 public chapter entries, 172 first-chapter paragraphs, and unlisted-chapter rejection passed. Removed/stubbed chapters are not retrieved. Production/physical verification pending.
+- **DonghuaStream — limited, partial native-media coverage.** Source-provided aliases and 172 Soul Land 2 entries parsed. Episode 172 public Rumble HLS resolved through the actual frontend/gateway; roughly 887 seconds of media and burned-in English dialogue were verified by decoding a frame. Episode 1's StreamPlay embed remains unsupported. This is not all-episode, Korean-catalog, or physical Expo playback verification.
+- **NovelPing — local gateway passed again.** Shadow Slave 3,198 chapter links; The Nameless Extra 349. Popular and updated feeds each returned 12 items. Counts reflect the sampled source, not fixed expectations.
+- **AnimeParadise/Tokyo Ghoul — local quality/subtitle manifests passed.** 480p, up-to-720p, and full-quality variants retain English subtitle linkage. Physical buffering and synchronization remain unverified.
+- **Backend:** local port 5000 had no listener. Restarted the content gateway; LAN health at `http://192.168.0.109:5000/health` returned 200. Expo Metro and the backend are separate processes.
+- **Render:** all four health/provider endpoints timed out before HTTP under 15-second bounds on September 28. No new production rollout is claimed.
+- **Active-source cleanup:** explicitly unavailable/configuration-only/placeholder providers are hidden from active Sources/search while adapters remain for saved-route compatibility. Limited sources remain honestly labeled; this is not a claim that every listed title works.
+- **Pending:** Webnovel/Wuxiaworld/public translator-feed integrations, early Soul Land 2 native playback, broader Korean/Chinese coverage, deployed backend health, and phone retests. Public host names or iframe responses alone do not qualify as working playback sources.
+
+References: source-owned https://www.royalroad.com/fiction/21220/mother-of-learning ; https://donghuastream.org/anime/soul-land-2nd/ ; source-provided public Rumble embed/media; https://novelping.com/ . No third-party parser code was copied or executed.
+
+
+## September 29 verification correction
+
+Render is reachable: health/readiness/provider endpoints returned 200 after a cold-start-aware recheck. Tokyo Ghoul's production HLS master includes English subtitle linkage. Royal Road search and NovelCodex search/popular discovery returned 200. NovelPing production search returned upstream 403 (gateway 502), while its complete local two-title flows and discovery pass. Do not classify this as a global Render outage.
+
+Original Soul Land on DonghuaStream lists only episodes 262-264; First Episode is a placeholder '#'. Soul Land 2 episode 172 remains local VOD-verified, not proof of all episodes. WCO episode 1 returned challenge 403; Anime4Stream first-episode link was a placeholder. No additional native source passed a complete flow.
+
+See the September 29 section in PHASE-6.5-PROVIDER-EXPANSION.md for offline catalog, screenshot bookmark, gesture, fullscreen/subtitle controls and validation details. Latest changes remain local; physical verification and broader anime coverage remain open.

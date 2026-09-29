@@ -1,3 +1,4 @@
+import { loadOfflineCatalog } from '@/services/offlineCatalog';
 import { useLibraryStore } from '@/stores/libraryStore';
 import { useEffect, useState } from 'react';
 
@@ -66,16 +67,29 @@ export function useAnimeContent(routeId: string | undefined): AnimeContentState 
     }
 
     let cancelled = false;
+    let fresh = false;
+    let local: AnimeDetails | null = null;
+    const localReady = loadOfflineCatalog('anime', routeId)
+      .then((saved) => {
+        local = saved;
+        if (saved && !cancelled && !fresh)
+          setState({ anime: saved, loading: false, error: null, isProviderContent: true });
+      })
+      .catch(() => {});
     setState((current) => ({ ...current, loading: true, error: null, isProviderContent: true }));
 
     Promise.all([getMediaDetails(routeId), getMediaEpisodes(routeId)])
       .then(([media, episodes]) => {
         if (cancelled) return;
+        fresh = true;
         useLibraryStore.getState().rememberMedia({
-          id: encodeMediaRouteId(media.ref.providerId, media.ref.sourceId), title:media.title, coverUrl:media.coverUrl,
-          bannerUrl:media.bannerUrl ?? media.coverUrl, genres:media.genres,
-          mediaType:'anime',
-          episodeCount:episodes.length,
+          id: encodeMediaRouteId(media.ref.providerId, media.ref.sourceId),
+          title: media.title,
+          coverUrl: media.coverUrl,
+          bannerUrl: media.bannerUrl ?? media.coverUrl,
+          genres: media.genres,
+          mediaType: 'anime',
+          episodeCount: episodes.length,
         });
         setState({
           anime: toAnimeDetails(media, episodes),
@@ -84,13 +98,14 @@ export function useAnimeContent(routeId: string | undefined): AnimeContentState 
           isProviderContent: true,
         });
       })
-      .catch((error: unknown) => {
+      .catch(async (error: unknown) => {
+        await localReady;
         if (cancelled) return;
         const message = error instanceof Error ? error.message : 'Failed to load anime details.';
         setState({
-          anime: null,
+          anime: local,
           loading: false,
-          error: message,
+          error: local ? null : message,
           isProviderContent: true,
         });
       });

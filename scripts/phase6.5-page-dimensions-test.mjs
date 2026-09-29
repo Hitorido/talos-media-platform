@@ -1,0 +1,16 @@
+import fs from 'node:fs';
+import ts from 'typescript';
+import assert from 'node:assert/strict';
+const slots=[];let cursor=0,effects=[];
+const React={useState(initial){const i=cursor++;if(!(i in slots))slots[i]=initial;return[slots[i],value=>{slots[i]=value}]},useEffect(fn){effects.push(fn)}};
+const jsx=(type,props)=>({type,props});
+const dependencies={'react':React,'react/jsx-runtime':{jsx,jsxs:jsx},'react-native':{Image:'Image',View:'View',Text:'Text'},'react-native-gesture-handler':{GestureDetector:'GestureDetector'},'react-native-reanimated':{default:{View:'View'},useAnimatedStyle:fn=>fn()},'./useReaderZoom':{}};
+const module={exports:{}};const code=ts.transpileModule(fs.readFileSync('components/manga/ZoomablePage.tsx','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX,esModuleInterop:false}}).outputText;
+new Function('require','module','exports',code)(name=>dependencies[name],module,module.exports);
+const heights=[];const props={page:{imageUrl:'file:///long-strip.jpg',pageNumber:1},width:400,height:700,paged:true,scale:{value:2},x:{value:100},onHeight:value=>heights.push(value)};
+const render=()=>{cursor=0;const tree=module.exports.FittedPage(props);effects.splice(0).forEach(fn=>fn());return tree};
+let tree=render();assert.equal(heights.length,0,'do not restore bookmarks with an estimated page height');
+const image=tree.props.children.props.children;image.props.onLoad({nativeEvent:{source:{width:200,height:1000}}});tree=render();assert.equal(heights.at(-1),2000);assert.equal(tree.props.style.height,2000,'row stays unscaled; viewport owns zoom');
+slots.length=0;tree=render();assert.equal(tree.props.style.height,2000,'recycled strips reuse decoded dimensions instead of jumping to a placeholder ratio');
+assert.equal(tree.props.children.props.style.left,0,'viewport translation must not be applied again per page');
+console.log('PASS decoded-only bookmark height, stable unscaled strip rows, dimension reuse and no duplicate per-page translation');

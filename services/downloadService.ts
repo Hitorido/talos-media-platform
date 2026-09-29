@@ -1,3 +1,4 @@
+import { saveOfflineCatalog, flushOfflineCatalog } from '@/services/offlineCatalog';
 import { downloadHls } from '@/services/hlsDownload';
 import {
   deleteStoragePath,
@@ -59,6 +60,7 @@ async function runDownloadTask(item: DownloadItem): Promise<void> {
   store.setStatus(item.id, 'downloading', { error: null });
 
   try {
+    await flushOfflineCatalog(item.mediaId);
     if (item.mediaType === 'anime') {
       await processAnimeDownload(item, signal);
     } else if (
@@ -186,7 +188,12 @@ async function processNovelDownload(
   signal: { isAborted: boolean },
 ): Promise<void> {
   const store = useDownloadStore.getState();
-  const paragraphs = item.payload.paragraphs ?? [];
+  let paragraphs = item.payload.paragraphs ?? [];
+  if (!paragraphs.length) {
+    const { resolveNovelChapterContent } = await import('@/services/contentService');
+    paragraphs = (await resolveNovelChapterContent(item.mediaId, item.unitId)).chapter.paragraphs;
+  }
+  if (signal.isAborted) return;
   if (paragraphs.length === 0) {
     throw new Error('No text content found for this novel chapter');
   }
@@ -227,6 +234,7 @@ async function processNovelDownload(
 // ----------------------------------------------------
 
 export function downloadAnimeEpisode(anime: AnimeDetails, episode: AnimeEpisode): string {
+  void saveOfflineCatalog('anime', anime).catch(() => {});
   const id = useDownloadStore.getState().enqueueDownload({
     mediaId: anime.id,
     mediaType: 'anime',
@@ -245,6 +253,7 @@ export function downloadAnimeEpisode(anime: AnimeDetails, episode: AnimeEpisode)
 }
 
 export function downloadMangaChapter(manga: MangaDetails, chapter: MangaChapter): string {
+  void saveOfflineCatalog('manga', manga).catch(() => {});
   const mangaType = manga.genres.includes('Manhwa')
     ? 'manhwa'
     : manga.genres.includes('Manhua')
@@ -269,6 +278,7 @@ export function downloadMangaChapter(manga: MangaDetails, chapter: MangaChapter)
 }
 
 export function downloadNovelChapter(novel: NovelDetails, chapter: NovelChapter): string {
+  void saveOfflineCatalog('novel', novel).catch(() => {});
   const id = useDownloadStore.getState().enqueueDownload({
     mediaId: novel.id,
     mediaType: 'novel',

@@ -226,7 +226,7 @@ Final search UI integration: Expo web export to .expo/phase65-search-web-check P
 
 Render pre-push recheck on 2026-09-19: /health, /health/ready, /api/providers/health and /api/content/providers all failed before HTTP with UND_ERR_CONNECT_TIMEOUT (TCP 443 to 216.24.57.16 / 216.24.57.18; connection timeout 10000 ms). No provider code was changed to address this network failure. Production verification of this new batch remains pending connectivity; local success is not production success.
 
-## Core media stabilization � 2026-09-23
+## Core media stabilization � 2026-09-23
 
 This section supersedes earlier statements where they conflict. Phase 6.5 remains open. No account/cloud synchronization, database migration, or Phase 6.6 work was performed.
 
@@ -326,3 +326,66 @@ This checklist includes the latest user requests; unchecked items are not comple
 - [ ] Remove unavailable sources from the active user catalog based on current tests while preserving saved-title compatibility.
 - [ ] Refactor touched code into named reusable helpers; remove redundant comments/debug code. Organize historical reports for GitHub documentation.
 - [ ] Backend build, focused regressions, web export, and physical Android verification.
+
+## Catalog, downloads and source verification — 2026-09-28
+
+This section supersedes conflicting earlier notes. Changes are local; no new production rollout is claimed. The repository baseline advanced externally to `1558c6a` (README) / `8b01f53` (UI/UX) during this continuation; existing commits were preserved.
+
+### Implemented behavior
+
+- Pinch follows the initial finger focal point; below fitted size, horizontal placement recenters. Double tap animates over 240 ms around the tapped point. Webtoon pages share one scale/pan controller with zero page gaps. A one-finger pan cannot compete with a two-finger pinch. Physical Android gesture/layout arbitration remains unverified.
+- Detail chapter/episode lists render a selected 100-entry range. Ranges use catalog positions so interludes/fractional chapter numbers are retained. The last range is clamped when changing catalogs/languages. Full catalog metadata still loads; this change bounds rendered rows, not upstream archive size.
+- Library status opens an explicit selection popup. Opening or cancelling does not change the status.
+- Novel end navigation updates independently of throttled progress persistence. Momentum-end and drag-end events report the final position, preventing the missed threshold observed after fast scrolling.
+- Search recommendations cover each category and existing query results. Search cards sort descending by known episode/English chapter count; unknown counts remain last. Count retrieval retains its two-operation cap and cancellation of obsolete queued work.
+- Real-provider manga/anime download controls are visible. Novel downloads also resolve public text on demand. Supported unencrypted HLS VOD downloads save local segments and supplied English subtitle playlists/VTT before completion; unsupported live/encrypted/separate-audio formats fail explicitly. Web no longer pretends a remote URL is downloaded. Physical offline playback remains unverified.
+- Tokyo Ghoul quality manifests provide 480p, up to 720p, and full quality while retaining English subtitle linkage. Native buffering uses a 45-second target, two-second startup minimum, and 64 MB cap. Initial subtitle-gateway fallback now allows 15 seconds instead of five, then falls back once to the original stream. No measured phone speedup is claimed.
+- Exact source title/alias matches stop redundant playback searches. Source-provided aliases permit Soul Land 2's Tang Clan/Tang Sect names to match without lowering the matching threshold.
+- Explicitly unavailable, broken, configuration-only, demo and placeholder sources are excluded from active Sources/search. Their adapters remain for saved-route compatibility. Limited sources are still labeled limited; transient outages are not treated as permanent removal.
+- New reusable modules have descriptive names and short contract comments. Historical reports are retained and indexed in `docs/DEVELOPMENT.md`, linked from README.
+
+### Source evidence
+
+Royal Road: actual frontend/local gateway search, details, complete public list and first text PASS for Mother of Learning: 109 chapters, 172 paragraphs, Completed status. Unlisted chapters return 404. This is a public-text adapter, not access to removed/stubbed chapters. Source: https://www.royalroad.com/fiction/21220/mother-of-learning . Webnovel/Wuxiaworld and translator-feed integrations remain research tasks; they have not been added as working readers.
+
+DonghuaStream: actual frontend/local gateway returns all 172 listed Soul Land 2 episodes. Episode 172 resolves a public Rumble HLS VOD of roughly 887 seconds. A decoded frame at 16 seconds shows burned-in English dialogue; two other sampled frames were action shots without dialogue. This is full-episode media/caption evidence, not physical Expo playback proof. The source page supplies the Tang Clan alternative title. Episode 1 uses an unsupported StreamPlay browser embed and still has no verified native path. Broader Chinese/Korean coverage remains incomplete. Source: https://donghuastream.org/anime/soul-land-2nd/ . An initial parser accepted only plain numeric episode labels and omitted quality-annotated labels; the corrected parser retains all 172. The prior 410 probe targeted episode 63 because of that parser issue, not the verified episode 172.
+
+NovelPing: actual frontend/local gateway PASS for Shadow Slave (3,198 chapter links, 91 first-chapter paragraphs) and The Nameless Extra: I Proofread This World (349 chapter links, 189 paragraphs). Both English feeds return 12 items. Counts changed upstream and are not constants.
+
+Tokyo Ghoul: live local master/low/auto manifests returned maximum heights 720/480/1080 respectively with English subtitle linkage. Earlier sampled high-resolution download time was approximately 5.4 seconds for approximately 5.3 seconds of video; quality controls address that narrow margin, but native smoothness/subtitle synchronization need retesting.
+
+### Verification and remaining checks
+
+Backend build PASS. Frontend TypeScript reports only the four pre-existing `cursor/canvas` TS2307 errors. Web export to `.expo/phase65-catalog-playback-web-check` PASS: 19 routes, exit 0, existing forced-exit notice. Focused gesture, 100-entry ranges, explicit selection/cancel, recommendations, count ordering, fast-scroll navigation, download queue, local HLS captions, English-count/subtitle-origin checks, search service/performance/hook, and existing stabilization regressions PASS.
+
+Local backend was not listening on port 5000, explaining the Expo Go backend-source failures. It was started on `0.0.0.0:5000`; the development LAN address is `http://192.168.0.109:5000`. Sources now displays the resolved API URL. Keep the backend running alongside Expo. The eventual APK needs a reachable deployed HTTPS API URL.
+
+Phone retest: pinch/double tap across connected webtoon pages; manga page fitting/panning; range 3101–3198 on Shadow Slave; explicit library status/cancel; fast swipe to novel end; completed offline chapter/episode with network disabled; Tokyo Ghoul English captions and lower quality; Soul Land 2 Episode 172 with DonghuaStream enabled. Do not claim all Soul Land 2 episodes or Korean titles work. Production reachability and physical verification remain open.
+
+September 28 production recheck: `/health`, `/health/ready`, `/api/providers/health`, and `/api/content/providers` each timed out before HTTP under 15-second bounds. LAN gateway `/health` returned 200 after restart. No new deployment was performed. Latest local changes remain uncommitted.
+
+
+## Offline reading and native player/gesture fixes - 2026-09-29
+
+This is a local implementation checkpoint. No deployment or native-device PASS is claimed for these new changes. Phase 6.5 remains open.
+
+- Downloads now persist the full title details and chapter/episode catalog once per title. Detail hooks read that snapshot immediately and retain it after a network failure. Older downloads reconstruct their saved units from download records. Offline anime resolution no longer waits for online metadata, and comic page loading checks local storage before requesting the source. Catalogs omit signed stream URLs and chapter bodies; media files remain separate. Covers still depend on the image cache unless already available locally.
+- The player reserves phone safe-area space. Both native and app fullscreen controls wait for the first rendered frame, preventing entry while the video surface is still loading. English subtitle tracks can be switched on/off and the choice survives source-load events. Burned-in text remains part of the picture. Existing adaptive/limited-bandwidth quality options are displayed as selectable badges; DonghuaStream now returns its source-provided 360/480/720/1080 variants where present. No promise of buffer-free playback is made.
+- Pinch cancels unfinished zoom animations. Two-finger touches cannot become double taps. Fitted manga pages reject the inner pan gesture so normal swipes reach the pager. Zoom uses one transformed viewport with unscaled page rows, including webtoon mode, and page fitting uses the measured viewport. Center padding is included in tap anchoring. Decoded dimensions are cached across recycled pages. Physical gesture sensitivity, gaps and swipe smoothness still need retesting.
+- Comic bookmarks capture the reading viewport into app-private image storage and save page-relative position, zoom and horizontal offset. Details show the preview and open an encoded bookmark route. Both reader modes restore saved view information; old page bookmarks remain supported. Preview files are removed with the bookmark. Anime timestamps and novel passages retain their existing persistence paths. Actual native screenshot capture and exact restoration remain phone checks.
+- Chapter/episode row downloads are icon-only, with accessible labels. Long badges use smaller text. Recommendation format names are capitalized. Sources now explains hosted cold starts separately from local LAN setup.
+- MangaDex catalog requests are restricted to English, deduplicated while in flight and cached for five minutes. Non-search GETs retry one transient connection/preface failure and have a 15-second request/body bound. Search still has no automatic retry. This mitigates the reported intermittent SETTINGS/preface failure; it does not establish its upstream cause.
+
+Validation: backend build PASS; frontend typecheck contains only the four existing cursor/canvas TS2307 errors. Web export to .expo/phase65-offline-player-web-check PASS, 19 routes, exit 0 (existing forced-exit notice). Focused actual hook/player/store tests PASS for offline restart/failure fallback, bulk catalog-write deduplication, subtitle off across reloads, first-frame fullscreen gating, bookmark view persistence, resume/fallback, search and catalog UI. Gesture math, two-finger tap rejection and pager handoff tests PASS; these are not native touch evidence. A formatting-sensitive zero-height assertion was corrected to accept whitespace.
+
+Backend correction: the user identified Render free-tier sleep as relevant. After earlier 15-second timeouts, a health request allowing a 90-second cold start returned 200 in about 1.4 seconds. /health/ready, /api/providers/health and /api/content/providers also returned 200. The brief local-LAN change to .env.local was reverted; EXPO_PUBLIC_API_URL again points to https://talos-media-platform.onrender.com. The local gateway remains available on port 5000 for development. Do not describe Render as currently unreachable based on the historical timeout.
+
+Source evidence: Tokyo Ghoul's local gateway master/low manifests and English WebVTT returned 200 (357 cues); the Render master also returned 200 with English subtitle linkage. Native rendering/sync remains unverified. Royal Road search and NovelCodex search/popular discovery work through Render. NovelPing search from Render returns gateway 502 with upstream HTTP 403; its popular feed also fails. This is a provider-specific cloud failure, not a sleeping/unreachable backend. Locally, complete NovelPing bridge flows pass for Shadow Slave (3,199 chapters, 91 first-chapter paragraphs) and The Nameless Extra (351 chapters, 189 paragraphs), plus both 12-item feeds. An initial smoke used the wrong default port 5001; it passed after using the running port 5000.
+
+Soul Land research: DonghuaStream's original Soul Land catalog currently exposes episodes 262-264 only; its First Episode link is '#'. Episode 1 cannot be resolved from that catalog. Soul Land 2 episode 172 still passes a complete local VOD check; this does not cover early episodes. WCO's actual episode-one request returned a 403 challenge. Anime4Stream's sampled first-season page returned 200 but its first-episode link was also '#'. 4KDonghua's catalog page did not establish a direct full-episode media flow. No additional anime source is marked working from these results.
+
+Subtitle research: AnimeTosho documents extracted subtitle files and a feed/JSON API; Jimaku documents release-specific filenames/retiming. Neither establishes automatic timing compatibility with the current streams. SubSource's official API requires a user API key. No unverified track was silently attached, no credentials were requested or exposed, and no challenge/locked-content bypass was added. References: https://animetosho.org/about ; https://jimaku.cc/help ; https://jimaku.cc/api/docs ; https://subsource.net/api-docs ; https://opensubtitles.stoplight.io/docs/opensubtitles-api/e3750fd63a100-getting-started ; https://docs.expo.dev/versions/v57.0.0/sdk/video/ ; https://docs.expo.dev/versions/v57.0.0/sdk/captureRef/ .
+
+Phone retest: restart Expo with the current .env.local, then check fullscreen before loading, captions on/off, lower quality, repeated pinch/double-tap and quick page swipes; save a mid-strip preview and reopen it after restart; download a new chapter/episode, restart with Wi-Fi off and open its details and media. Remaining open work: physical verification, production NovelPing availability, and complete early donghua/Korean playback coverage.
+
+Final September 29 recheck: Render /health returned HTTP 200 after 32.8 seconds with a 90-second request bound, supporting the need to allow cold-start time rather than declaring failure at 15 seconds. Final web export including the decoded-dimension bookmark restoration refinements passed at .expo/phase65-offline-player-final-check: 19 routes, exit 0, with Expo's existing forced-exit notice. These changes remain local and uncommitted; no new deployment or physical-device PASS is claimed.

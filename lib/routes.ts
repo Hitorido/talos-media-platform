@@ -5,15 +5,20 @@ export function animeDetailsHref(animeId: string): Href {
 }
 
 export function animeWatchHref(animeId: string, episodeId: string, seconds?: number): Href {
-  return `/anime/${encodeURIComponent(animeId)}/watch/${encodeURIComponent(episodeId)}${seconds === undefined ? '' : '?seconds='+Math.max(0,seconds)}` as Href;
+  return `/anime/${encodeURIComponent(animeId)}/watch/${encodeURIComponent(episodeId)}${seconds === undefined ? '' : '?seconds=' + Math.max(0, seconds)}` as Href;
 }
 
 export function mangaDetailsHref(mangaId: string): Href {
   return `/manga/${encodeURIComponent(mangaId)}` as Href;
 }
 
-export function mangaReadHref(mangaId: string, chapterId: string, page?: number): Href {
-  return `/manga/${encodeURIComponent(mangaId)}/read/${encodeURIComponent(chapterId)}${page === undefined ? '' : '?page='+Math.max(1,Math.floor(page))}` as Href;
+export function mangaReadHref(
+  mangaId: string,
+  chapterId: string,
+  page?: number,
+  bookmarkId?: string,
+): Href {
+  return `/manga/${encodeURIComponent(mangaId)}/read/${encodeURIComponent(chapterId)}${page === undefined ? '' : '?page=' + Math.max(1, Math.floor(page))}${bookmarkId ? (page === undefined ? '?' : '&') + 'bookmark=' + encodeURIComponent(bookmarkId) : ''}` as Href;
 }
 
 export function novelDetailsHref(novelId: string): Href {
@@ -21,5 +26,5 @@ export function novelDetailsHref(novelId: string): Href {
 }
 
 export function novelReadHref(novelId: string, chapterId: string, progress?: number): Href {
-  return `/novel/${encodeURIComponent(novelId)}/read/${encodeURIComponent(chapterId)}${progress === undefined ? '' : '?progress='+Math.max(0,Math.min(1,progress))}` as Href;
+  return `/novel/${encodeURIComponent(novelId)}/read/${encodeURIComponent(chapterId)}${progress === undefined ? '' : '?progress=' + Math.max(0, Math.min(1, progress))}` as Href;
 }

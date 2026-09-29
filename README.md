@@ -275,3 +275,8 @@ Distributed under the [MIT License](LICENSE). See `LICENSE` for more information
 <p align="center">
   Crafted with care by <strong>Talos Contributors</strong>
 </p>
+
+
+## Development evidence
+
+See the [development guide and report index](docs/DEVELOPMENT.md) for the current beta status, code map, backend setup notes, and historical milestones.

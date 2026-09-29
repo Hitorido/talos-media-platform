@@ -24,6 +24,8 @@ bookmarkStore.getState().toggle({kind:'anime',mediaId:'anilist-anime__20',unitId
 const restoredBookmarks=loadProviderTs('stores/mediaBookmarkStore.ts',deps).useMediaBookmarkStore;await restoredBookmarks.persist.rehydrate();
 assert.equal(restoredBookmarks.getState().bookmarks.length,2);assert.equal(restoredBookmarks.getState().bookmarks[0].position,93);
 assert.equal(routes.mangaReadHref('mangapill__2/one-piece','1/chapter',12),'/manga/mangapill__2%2Fone-piece/read/1%2Fchapter?page=12');
+bookmarkStore.getState().save({kind:'manga',mediaId:'comic',unitId:'ch',unitTitle:'Chapter',position:3,previewUri:'file:///preview.jpg',view:{fraction:.63,scale:2,pan:-.2}});
+const viewStore=loadProviderTs('stores/mediaBookmarkStore.ts',deps).useMediaBookmarkStore;await viewStore.persist.rehydrate();assert.deepEqual(viewStore.getState().bookmarks[0].view,{fraction:.63,scale:2,pan:-.2});assert.equal(viewStore.getState().bookmarks[0].previewUri,'file:///preview.jpg');assert.match(routes.mangaReadHref('comic','ch',3,'saved/id'),/page=3&bookmark=saved%2Fid/);
 assert.equal(routes.animeWatchHref('anilist-anime__20','1',93),'/anime/anilist-anime__20/watch/1?seconds=93');
 console.log('PASS page/scene bookmarks persist across store recreation with encoded location routes');
 console.log('PASS encoded source/chapter routes, fixed-origin website fallback, real-source metadata/favorites/tags survive store recreation');
@@ -47,9 +49,15 @@ const englishTrack={id:'en',language:'en',label:'English'};
 for(const fn of listeners.sourceLoad??[])fn({availableSubtitleTracks:[{id:'ja',language:'ja',label:'Japanese'},englishTrack]});
 assert.equal(player.subtitleTrack,englishTrack,'select the real English native track');
 render();const video=find(playerTree,'VideoView');let fullscreenCalls=0;video.props.ref.current={enterFullscreen:async()=>{fullscreenCalls++}};
+assert.equal(video.props.fullscreenOptions.enable,false,'fullscreen must wait for a rendered frame');
 video.props.onFirstFrameRender();video.props.onFirstFrameRender();await Promise.resolve();assert.equal(fullscreenCalls,1);assert.equal(video.props.fullscreenOptions.orientation,'landscape');
 position=90;video.props.onFullscreenExit();assert.equal(saved,90,'native fullscreen exit saves actual player time');
-console.log('PASS native English track selection and one automatic fullscreen request per stream');
+render();assert.equal(find(playerTree,'VideoView').props.fullscreenOptions.enable,true);
+const findSwitch=node=>{if(!node||typeof node!=='object')return; if(node.props?.accessibilityRole==='switch')return node;const children=node.props?.children;for(const child of Array.isArray(children)?children:[children]){const result=findSwitch(child);if(result)return result}};
+findSwitch(playerTree).props.onPress();render();assert.equal(player.subtitleTrack,null,'off explicitly clears subtitle track');
+for(const fn of listeners.sourceLoad??[])fn({availableSubtitleTracks:[englishTrack]});assert.equal(player.subtitleTrack,null,'reload respects subtitle off');
+findSwitch(playerTree).props.onPress();render();for(const fn of listeners.sourceLoad??[])fn({availableSubtitleTracks:[englishTrack]});assert.equal(player.subtitleTrack,englishTrack);
+console.log('PASS first-frame fullscreen gating and subtitle on/off across source loads');
 for(const fn of listeners.statusChange??[])fn({status:'error',error:{message:'Subtitle gateway unavailable'}});render();
 assert.equal(currentSource.uri,'https://test.invalid/original','gateway failure automatically uses the same episode original video');
 assert.equal(seeks.at(-1),90,'fallback preserves current position');
@@ -75,6 +83,9 @@ find(tree,'Reader').props.onChapterChange('2');renderNovel();await settleNovel()
 find(tree,'Reader').props.onScrollProgress('2',.5,1);renderNovel();assert.equal(find(tree,'Reader').props.activeChapterId,'2','saving progress must not reset active chapter');
 settings={...settings,scrollMode:'normal'};renderNovel();await settleNovel();assert.equal(find(tree,'Reader').props.chapters.length,1);
 find(tree,'Controls').props.onNextChapter();renderNovel();await settleNovel();assert.equal(find(tree,'Reader').props.activeChapterId,'3');assert.equal(find(tree,'Reader').props.initialChapterId,'3');
+find(tree,'Reader').props.onScrollProgress('3',.90,1);renderNovel();
+find(tree,'Reader').props.onScrollProgress('3',.945,1);renderNovel();
+assert.equal(find(tree,'AnimatedView').props.pointerEvents,'auto','end navigation appears even within the persistence throttle');
 assert.equal(find(tree,'FlatList').props.data.length,0,'closed chapter picker must not render thousands of rows');
 console.log('PASS actual novel screen: seamless bounded lookahead, normal next navigation, no progress reset, closed chapter picker remains empty');
 

@@ -1,3 +1,4 @@
+import { loadOfflineCatalog } from '@/services/offlineCatalog';
 import { isActiveSource } from '@/utils/activeSource';
 import { settleProviderSearches, sameComicTitle, inSearchSlot, searchRequest } from '@/services/providerSearch';
 import { initializeProviders, providerRegistry } from '@/providers';
@@ -371,12 +372,14 @@ async function resolveCrossProviderPlayback(
     );
     for (const result of results) {
       if (result.type !== 'anime') continue;
-      const score = scoreTitleMatch(result.title, title);
+      const score = Math.max(...[result.title, ...(result.alternativeTitles ?? [])].map(candidate => scoreTitleMatch(candidate, title)));
       if (score > bestScore) {
         bestScore = score;
         bestMatch = result;
       }
     }
+    // An exact source title or alias needs no further search requests.
+    if (bestScore === 100) break;
   }
 
   if (!bestMatch || bestScore < TITLE_MATCH_THRESHOLD) {
@@ -418,7 +421,7 @@ export async function resolveAnimePlayback(
   episodeId: string,
 ): Promise<ResolvedAnimePlaybackResult> {
   const ref = resolveMediaRef(routeId);
-  assertProviderEnabled(ref.providerId);
+
 
   const offline = await resolveAnimeSource(routeId, episodeId, '');
   if (offline.isOffline && offline.streamUrl) {
@@ -427,17 +430,12 @@ export async function resolveAnimePlayback(
     let episodeTitle = 'Episode';
     let durationSeconds: number | undefined;
 
-    try {
-      const media = await getMediaDetails(routeId);
-      const episodes = await getMediaEpisodes(routeId);
-      const episode = episodes.find((entry) => entry.id === episodeId);
-      animeTitle = media.title;
-      episodeNumber = episode?.number ?? 0;
-      episodeTitle = episode?.title ?? 'Episode';
-      durationSeconds = episode?.durationSeconds;
-    } catch {
-      // Offline playback can proceed even if metadata fetch fails.
-    }
+    const saved = await loadOfflineCatalog('anime', routeId);
+    const episode = saved?.episodes.find(entry => entry.id === episodeId);
+    animeTitle = saved?.title ?? animeTitle;
+    episodeNumber = episode?.number ?? episodeNumber;
+    episodeTitle = episode?.title ?? episodeTitle;
+    durationSeconds = episode?.durationSeconds;
 
     return {
       source: {
@@ -457,6 +455,7 @@ export async function resolveAnimePlayback(
     };
   }
 
+  assertProviderEnabled(ref.providerId);
   const media = await getMediaDetails(routeId);
   const episodes = await getMediaEpisodes(routeId);
   const episode = episodes.find((entry) => entry.id === episodeId);

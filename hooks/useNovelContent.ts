@@ -1,3 +1,4 @@
+import { loadOfflineCatalog } from '@/services/offlineCatalog';
 import { useLibraryStore } from '@/stores/libraryStore';
 import { useEffect, useState } from 'react';
 
@@ -69,16 +70,29 @@ export function useNovelContent(routeId: string | undefined): NovelContentState 
     }
 
     let cancelled = false;
+    let fresh = false;
+    let local: NovelDetails | null = null;
+    const localReady = loadOfflineCatalog('novel', routeId)
+      .then((saved) => {
+        local = saved;
+        if (saved && !cancelled && !fresh)
+          setState({ novel: saved, loading: false, error: null, isProviderContent: true });
+      })
+      .catch(() => {});
     setState((current) => ({ ...current, loading: true, error: null, isProviderContent: true }));
 
     Promise.all([getMediaDetails(routeId), getMediaChapters(routeId)])
       .then(([media, chapters]) => {
         if (cancelled) return;
+        fresh = true;
         useLibraryStore.getState().rememberMedia({
-          id: encodeMediaRouteId(media.ref.providerId, media.ref.sourceId), title:media.title, coverUrl:media.coverUrl,
-          bannerUrl:media.bannerUrl ?? media.coverUrl, genres:media.genres,
-          mediaType:'novel',
-          chapterCount:chapters.length,
+          id: encodeMediaRouteId(media.ref.providerId, media.ref.sourceId),
+          title: media.title,
+          coverUrl: media.coverUrl,
+          bannerUrl: media.bannerUrl ?? media.coverUrl,
+          genres: media.genres,
+          mediaType: 'novel',
+          chapterCount: chapters.length,
         });
         setState({
           novel: toNovelDetails(media, chapters),
@@ -87,13 +101,14 @@ export function useNovelContent(routeId: string | undefined): NovelContentState 
           isProviderContent: true,
         });
       })
-      .catch((error: unknown) => {
+      .catch(async (error: unknown) => {
+        await localReady;
         if (cancelled) return;
         const message = error instanceof Error ? error.message : 'Failed to load novel details.';
         setState({
-          novel: null,
+          novel: local,
           loading: false,
-          error: message,
+          error: local ? null : message,
           isProviderContent: true,
         });
       });

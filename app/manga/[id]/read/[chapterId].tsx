@@ -1,3 +1,5 @@
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { captureBookmarkPreview } from '@/services/bookmarkPreview';
 import { useMediaBookmarkStore } from '@/stores/mediaBookmarkStore';
 import { SourceWebsiteButton } from '@/components/content/SourceWebsiteButton';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
@@ -5,12 +7,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, View } from 'react-native';
 
 import {
-    HorizontalReader,
-    HorizontalReaderRef,
-    MangaReaderControls,
-    MangaReaderHeader,
-    VerticalReader,
-    VerticalReaderRef,
+  HorizontalReader,
+  HorizontalReaderRef,
+  MangaReaderControls,
+  MangaReaderHeader,
+  VerticalReader,
+  VerticalReaderRef,
 } from '@/components/manga';
 import { Text } from '@/components/ui';
 import { useMangaContent } from '@/hooks/useMangaContent';
@@ -22,20 +24,36 @@ import { cn } from '@/utils/cn';
 
 export default function MangaReaderScreen() {
   const router = useRouter();
-  const { id, chapterId, page } = useLocalSearchParams<{ id: string; chapterId: string; page?:string }>();
-  const toggleBookmark=useMediaBookmarkStore(state=>state.toggle);
+  const insets = useSafeAreaInsets();
+  const { id, chapterId, page, bookmark } = useLocalSearchParams<{
+    id: string;
+    chapterId: string;
+    page?: string;
+    bookmark?: string;
+  }>();
+  const saveBookmark = useMediaBookmarkStore((state) => state.save);
+  const savedView = useMediaBookmarkStore(
+    (state) =>
+      state.bookmarks.find((b) => b.id === bookmark && b.mediaId === id && b.unitId === chapterId)
+        ?.view,
+  );
+  const viewportRef = useRef<View>(null);
+  const savingBookmark = useRef(false);
+  const [bookmarkNotice, setBookmarkNotice] = useState('');
 
   const { manga, loading: mangaLoading, error: mangaError } = useMangaContent(id);
   const setChapterProgress = useMangaProgressStore((state) => state.setChapterProgress);
 
-  const [initialPage] = useState(
-    () => page && Number.isFinite(Number(page)) ? Math.max(1,Math.floor(Number(page))) : useMangaProgressStore.getState().getChapterProgress(id, chapterId)?.pageNumber ?? 1,
+  const [initialPage] = useState(() =>
+    page && Number.isFinite(Number(page))
+      ? Math.max(1, Math.floor(Number(page)))
+      : (useMangaProgressStore.getState().getChapterProgress(id, chapterId)?.pageNumber ?? 1),
   );
 
   // Track the currently visible chapter (changes as user scrolls in webtoon mode)
   const [activeChapterId, setActiveChapterId] = useState(chapterId);
   const [currentPage, setCurrentPage] = useState<number>(initialPage);
-  const [readingMode, setReadingMode] = useState<ReadingMode>('vertical');
+  const [readingMode, setReadingMode] = useState<ReadingMode>(savedView?.mode ?? 'vertical');
   const [readingDirection, setReadingDirection] = useState<ReadingDirection>('rtl');
   const [overlayVisible, setOverlayVisible] = useState<boolean>(true);
   const [showModeOptions, setShowModeOptions] = useState<boolean>(false);
@@ -44,8 +62,12 @@ export default function MangaReaderScreen() {
     visible: false,
     title: '',
   });
-  const [offlinePagesByChapter, setOfflinePagesByChapter] = useState<Record<string, MangaPage[]>>({});
-  const [providerPagesByChapter, setProviderPagesByChapter] = useState<Record<string, MangaPage[]>>({});
+  const [offlinePagesByChapter, setOfflinePagesByChapter] = useState<Record<string, MangaPage[]>>(
+    {},
+  );
+  const [providerPagesByChapter, setProviderPagesByChapter] = useState<Record<string, MangaPage[]>>(
+    {},
+  );
   const [pagesLoading, setPagesLoading] = useState(false);
   const [pagesError, setPagesError] = useState<string | null>(null);
 
@@ -92,7 +114,8 @@ export default function MangaReaderScreen() {
     setPagesLoading(true);
     setPagesError(null);
 
-    getMangaChapterPages(id, chapterId)
+    resolveMangaPages(id, chapterId, chapter.pages)
+      .then((local) => (local.isOffline ? local.pages : getMangaChapterPages(id, chapterId)))
       .then((pages) => {
         if (cancelled) return;
         if (pages.length === 0) {
@@ -123,7 +146,8 @@ export default function MangaReaderScreen() {
   // Determine active language of the currently opened chapter
   const currentChapterLanguage = useMemo(() => {
     if (!manga) return 'en';
-    const current = manga.chapters.find((ch) => ch.id === activeChapterId) ??
+    const current =
+      manga.chapters.find((ch) => ch.id === activeChapterId) ??
       manga.chapters.find((ch) => ch.id === chapterId);
     return (current?.language || 'en').toLowerCase();
   }, [manga, activeChapterId, chapterId]);
@@ -131,7 +155,8 @@ export default function MangaReaderScreen() {
   // Filter relevant chapters to the same language (or all if only 1 language exists)
   const languageChapters = useMemo<MangaChapter[]>(() => {
     if (!manga) return [];
-    const hasMultipleLanguages = new Set(manga.chapters.map((c) => (c.language || 'en').toLowerCase())).size > 1;
+    const hasMultipleLanguages =
+      new Set(manga.chapters.map((c) => (c.language || 'en').toLowerCase())).size > 1;
     if (!hasMultipleLanguages) return manga.chapters;
     return manga.chapters.filter(
       (ch) => (ch.language || 'en').toLowerCase() === currentChapterLanguage,
@@ -318,6 +343,41 @@ export default function MangaReaderScreen() {
     }
   };
 
+  const bookmarkView = async () => {
+    if (savingBookmark.current || !activeChapter || !manga) return;
+    savingBookmark.current = true;
+    const location =
+      readingMode === 'vertical'
+        ? verticalRef.current?.getLocation()
+        : horizontalRef.current?.getLocation();
+    let previewUri: string | undefined;
+    try {
+      previewUri = await captureBookmarkPreview(viewportRef);
+    } catch {
+      /* Position is still useful when image capture is unavailable. */
+    }
+    const savedChapter =
+      chaptersToLoad.find((ch) => ch.id === location?.chapterId) ?? activeChapter;
+    saveBookmark({
+      kind: 'manga',
+      mediaId: manga.id,
+      unitId: savedChapter.id,
+      unitTitle: savedChapter.title,
+      position: location?.pageNumber ?? currentPage,
+      previewUri,
+      view: location
+        ? {
+            fraction: location.fraction,
+            scale: location.scale,
+            pan: location.pan,
+            mode: readingMode,
+          }
+        : undefined,
+    });
+    setBookmarkNotice(previewUri ? 'View saved to Bookmarks' : 'Position saved to Bookmarks');
+    savingBookmark.current = false;
+  };
+
   const openChapterPicker = () => setShowChapterPicker(true);
 
   const selectChapter = (chapterIdToOpen: string) => {
@@ -385,7 +445,9 @@ export default function MangaReaderScreen() {
       {/* Top Header */}
       {overlayVisible ? (
         <MangaReaderHeader
-          onBookmark={()=>toggleBookmark({kind:'manga',mediaId:manga.id,unitId:activeChapterId,unitTitle:activeChapter.title,position:currentPage})}
+          onBookmark={() => {
+            void bookmarkView();
+          }}
           mangaTitle={manga.title}
           chapterTitle={activeChapter.title}
           onBack={() => router.back()}
@@ -394,11 +456,25 @@ export default function MangaReaderScreen() {
         />
       ) : null}
 
+      {bookmarkNotice ? (
+        <Text
+          className="absolute bottom-20 left-4 right-4 z-30 rounded-xl bg-black/80 px-4 py-2 text-white"
+          accessibilityLiveRegion="polite"
+        >
+          {bookmarkNotice}
+        </Text>
+      ) : null}
       {/* Reader Content */}
-      <View className="flex-1">
+      <View
+        style={{ marginTop: insets.top, marginBottom: insets.bottom }}
+        ref={viewportRef}
+        collapsable={false}
+        className="flex-1"
+      >
         {readingMode === 'vertical' ? (
           <VerticalReader
-            key="webtoon-reader"
+            key={bookmark ?? 'webtoon-reader'}
+            initialView={savedView}
             ref={verticalRef}
             chapters={chaptersToLoad}
             activeChapterId={activeChapterId}
@@ -409,6 +485,7 @@ export default function MangaReaderScreen() {
           />
         ) : (
           <HorizontalReader
+            initialView={savedView}
             ref={horizontalRef}
             pages={chaptersToLoad.flatMap((chapter) =>
               chapter.pages.map((page) => ({
@@ -495,7 +572,7 @@ export default function MangaReaderScreen() {
                     Chapter {chapter.number}: {chapter.title}
                   </Text>
                   {chapter.language ? (
-                    <View className="ml-2 rounded bg-neutral-800 px-1.5 py-0.5 border border-neutral-700">
+                    <View className="ml-2 rounded border border-neutral-700 bg-neutral-800 px-1.5 py-0.5">
                       <Text className="text-[10px] font-bold text-neutral-400">
                         {chapter.language.toUpperCase()}
                       </Text>

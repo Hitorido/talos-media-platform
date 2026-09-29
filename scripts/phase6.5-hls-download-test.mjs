@@ -8,5 +8,9 @@ try{
  body='#EXTM3U\n#EXT-X-KEY:METHOD=AES-128,URI="key"\n#EXT-X-ENDLIST\nvideo.ts';await assert.rejects(()=>downloadHls('https://media.invalid/list','file:///x/',{isAborted:false},()=>{}),/not supported/);
  body='#EXTM3U\n#EXTINF:5,\nvideo.ts';await assert.rejects(()=>downloadHls('https://media.invalid/list','file:///x/',{isAborted:false},()=>{}),/VOD/);
  assert.equal(written.length,1,'unsupported streams never produce a completed local manifest');
+ globalThis.fetch=async url=>new Response(String(url).endsWith('master')?'#EXTM3U\n#EXT-X-MEDIA:TYPE=SUBTITLES,LANGUAGE="en",URI="captions"\n#EXT-X-STREAM-INF:BANDWIDTH=1000,RESOLUTION=1280x720\nvideo\n':String(url).endsWith('captions')?'#EXTM3U\n#EXTINF:10,\nenglish.vtt\n#EXT-X-ENDLIST':'#EXTM3U\n#EXTINF:10,\nmedia.ts\n#EXT-X-ENDLIST');
+ const subtitled=await downloadHls('https://media.invalid/master','file:///sub/',{isAborted:false},()=>{});
+ assert.equal(subtitled.bytes,200);assert.ok(files.some(file=>file.path.endsWith('caption-1.vtt')));assert.match(written.at(-1).text,/SUBTITLES="en"/);assert.ok(written.some(file=>file.path.endsWith('english.m3u8')&&file.text.includes('caption-1.vtt')));
+ console.log('PASS English captions retained in local master, subtitle playlist and VTT files');
  console.log('PASS real HLS downloader: segment storage, relative local manifest, bytes, encrypted/live rejection');
 }finally{globalThis.fetch=original;}

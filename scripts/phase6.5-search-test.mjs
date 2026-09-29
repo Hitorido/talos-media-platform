@@ -24,6 +24,7 @@ const service=loadProviderTs('services/contentService.ts',{
  '@/providers/types':loadProviderTs('providers/types.ts'),
  '@/stores/providerHealthStore':{useProviderHealthStore:{getState:()=>({recordSuccess(){},recordFailure:id=>failures.push(id)})}},
  '@/stores/providerStore':{useProviderStore:{getState:()=>({enabled:{comic:true,anime:true,failed:true,disabled:false},isEnabled:id=>id!=='disabled',getPreferredProvider:()=>undefined})}},
+ '@/services/offlineCatalog':{},
  '@/services/offlineResolver':{},'@/types/provider':loadProviderTs('types/provider.ts'),'@/utils/comicFormat':{},
 });
 const manga=await service.unifiedSearch('error','manga');assert.equal(manga.results.length,2);assert.ok(calls.every(([id,q])=>id!=='anime'&&id!=='disabled'&&q==='error'));assert.ok(failures.includes('failed'));

@@ -16,6 +16,7 @@ const service=loadProviderTs('services/contentService.ts',{
  '@/providers/builtin-mock':{},'@/providers/types':loadProviderTs('providers/types.ts'),
  '@/stores/providerHealthStore':{useProviderHealthStore:{getState:()=>({recordSuccess(){},recordFailure:id=>failures.push(id)})}},
  '@/stores/providerStore':{useProviderStore:{getState:()=>({enabled,getPreferredProvider:()=>undefined})}},
+ '@/services/offlineCatalog':{},
  '@/services/offlineResolver':{},'@/types/provider':{},'@/utils/comicFormat':{},
 });
 let first,finished=false;const start=Date.now();

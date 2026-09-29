@@ -51,7 +51,7 @@ export function ChapterListItem({
           <View className="flex-row flex-wrap items-center gap-2">
             <Text variant="label">{chapter.title}</Text>
             {showLanguageBadge && langBadge ? (
-              <View className="rounded bg-neutral-100 px-1.5 py-0.5 border border-neutral-300 dark:bg-neutral-800 dark:border-neutral-700">
+              <View className="rounded border border-neutral-300 bg-neutral-100 px-1.5 py-0.5 dark:border-neutral-700 dark:bg-neutral-800">
                 <Text className="text-[10px] font-bold text-neutral-600 dark:text-neutral-400">
                   {langBadge}
                 </Text>
@@ -81,10 +81,15 @@ export function ChapterListItem({
               }}
               className="p-1.5"
               accessibilityRole="button"
-              accessibilityLabel="Download for offline reading or watching"
+              accessibilityLabel={
+                isDownloaded
+                  ? 'Downloaded'
+                  : isDownloading
+                    ? 'Download queued'
+                    : 'Download for offline use'
+              }
               hitSlop={8}
             >
-              <Text variant="caption" tone="primary">{isDownloaded?'Saved':isDownloading?'Queued':'Download'}</Text>
               {isDownloaded ? (
                 <Ionicons name="checkmark-circle" size={22} color="#10B981" />
               ) : isDownloading ? (

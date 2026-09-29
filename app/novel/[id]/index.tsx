@@ -95,8 +95,7 @@ export default function NovelDetailsScreen() {
         <View className="flex-row flex-wrap items-center justify-between gap-2">
           <Text variant="h3">Chapters ({novel.chapters.length})</Text>
           <ChapterRangePicker count={novel.chapters.length} value={range} onChange={setRange} />
-          {!isProviderContent ? (
-            <Pressable
+          <Pressable
               onPress={() => setBulkModalOpen(true)}
               className="flex-row items-center gap-1.5 rounded-full bg-primary-50 px-3 py-1.5 dark:bg-primary-950"
             >
@@ -105,7 +104,6 @@ export default function NovelDetailsScreen() {
                 Download All
               </Text>
             </Pressable>
-          ) : null}
         </View>
         <Pressable accessibilityRole="button" onPress={()=>setShowBookmarks(value=>!value)} className="self-start rounded-full bg-primary-100 px-4 py-2 dark:bg-primary-950"><Text tone="primary">{showBookmarks?'Show chapters':'Bookmarks'}</Text></Pressable>
         {showBookmarks ? <MediaBookmarks mediaId={novel.id} kind="novel" /> : <NovelChapterList
@@ -115,18 +113,16 @@ export default function NovelDetailsScreen() {
           getChapterProgress={getChapterProgress}
           onChapterPress={(chapter) => openChapter(chapter.id)}
           onDownloadChapter={
-            isProviderContent ? undefined : (chapter) => downloadNovelChapter(novel, chapter)
+            (chapter) => downloadNovelChapter(novel, chapter)
           }
         />}
       </View>
 
-      {!isProviderContent ? (
-        <BulkDownloadModal
+      <BulkDownloadModal
           visible={bulkModalOpen}
           target={novel ? { kind: 'novel', novel, chapters: novel.chapters } : null}
           onClose={() => setBulkModalOpen(false)}
         />
-      ) : null}
     </Screen>
   );
 }

@@ -34,10 +34,21 @@ const variantTextClassNames: Record<BadgeVariant, string> = {
 export function Badge({ label, variant = 'default', className, ...props }: BadgeProps) {
   return (
     <View
-      className={cn('self-start rounded-full px-3 py-1', variantClassNames[variant], className)}
+      className={cn(
+        'max-w-full shrink self-start rounded-full px-2 py-1',
+        variantClassNames[variant],
+        className,
+      )}
       {...props}
     >
-      <Text variant="caption" className={variantTextClassNames[variant]}>
+      <Text
+        variant="caption"
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.75}
+        style={{ fontSize: label.length > 12 ? 10 : 12 }}
+        className={variantTextClassNames[variant]}
+      >
         {label}
       </Text>
     </View>
