@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Image, Pressable, View } from 'react-native';
 
 import { ProgressBar } from '@/components/home/ProgressBar';
@@ -8,14 +9,24 @@ import { cn } from '@/utils/cn';
 type ContinueWatchingCardProps = {
   item: ContinueWatchingItem;
   onPress?: () => void;
+  onContinue?: () => void;
   className?: string;
 };
 
-export function ContinueWatchingCard({ item, onPress, className }: ContinueWatchingCardProps) {
+export function ContinueWatchingCard({
+  item,
+  onPress,
+  onContinue,
+  className,
+}: ContinueWatchingCardProps) {
   return (
     <Pressable accessibilityRole="button" onPress={onPress} className={cn('w-72', className)}>
       <View className="overflow-hidden rounded-xl bg-neutral-200 dark:bg-neutral-800">
-        <Image source={item.coverUrl?.trim() ? { uri: item.coverUrl } : undefined} className="aspect-video w-full" resizeMode="cover" />
+        <Image
+          source={item.coverUrl?.trim() ? { uri: item.coverUrl } : undefined}
+          className="aspect-video w-full"
+          resizeMode="cover"
+        />
         <View className="absolute inset-x-0 bottom-0 bg-black/60 px-3 py-2">
           <ProgressBar progress={item.progress} className="mb-2 bg-white/30" />
           <Text variant="caption" className="text-white">
@@ -29,6 +40,20 @@ export function ContinueWatchingCard({ item, onPress, className }: ContinueWatch
       <Text variant="caption" tone="muted" numberOfLines={1} className="mt-0.5">
         {item.episodeTitle}
       </Text>
+      {onContinue ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Continue from saved position"
+          onPress={(event) => {
+            event.stopPropagation();
+            onContinue();
+          }}
+          className="flex-row items-center gap-2 self-start rounded-full bg-primary-600 px-3 py-2"
+        >
+          <Ionicons name="eye-outline" size={16} color="white" />
+          <Text className="text-xs font-semibold text-white">Continue</Text>
+        </Pressable>
+      ) : null}
     </Pressable>
   );
 }

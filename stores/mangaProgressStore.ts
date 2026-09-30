@@ -9,6 +9,8 @@ import type { ChapterReadingProgress, ContinueReadingEntry } from '@/types/manga
 
 type MangaProgressState = {
   progressByManga: Record<string, ChapterReadingProgress>;
+  readingModes: Record<string, 'vertical' | 'horizontal'>;
+  setReadingMode: (id: string, mode: 'vertical' | 'horizontal') => void;
   libraryMangaIds: string[];
   favoriteMangaIds: string[];
   setChapterProgress: (progress: ChapterReadingProgress) => void;
@@ -20,7 +22,6 @@ type MangaProgressState = {
   isFavorite: (mangaId: string) => boolean;
   removeMangaProgress: (mangaId: string) => void;
 };
-
 
 const seedProgress: Record<string, ChapterReadingProgress> = {
   'manga-cw-1': {
@@ -73,7 +74,8 @@ export function buildContinueReading(
         chapterId: progress.chapterId,
         chapterNumber: progress.chapterNumber,
         chapterTitle:
-          manga?.chapters.find((ch) => ch.id === progress.chapterId)?.title ?? progress.chapterTitle,
+          manga?.chapters.find((ch) => ch.id === progress.chapterId)?.title ??
+          progress.chapterTitle,
         pageNumber: progress.pageNumber,
         totalPages: progress.totalPages,
         progress: Math.min(Math.max(progressRatio, 0), 1),
@@ -81,73 +83,76 @@ export function buildContinueReading(
       } satisfies ContinueReadingEntry;
     })
     .filter((entry): entry is ContinueReadingEntry => entry !== null);
-
 }
 
 export const useMangaProgressStore = create<MangaProgressState>()(
   persist(
     (set, get) => ({
-  progressByManga: seedProgress,
-  libraryMangaIds: ['manga-cw-1', 'manga-cw-2'],
-  favoriteMangaIds: ['manga-cw-1'],
+      progressByManga: seedProgress,
+      readingModes: {},
+      setReadingMode: (id, mode) =>
+        set((state) => ({ readingModes: { ...state.readingModes, [id]: mode } })),
+      libraryMangaIds: ['manga-cw-1', 'manga-cw-2'],
+      favoriteMangaIds: ['manga-cw-1'],
 
-  setChapterProgress: (progress) => {
-    set((state) => ({
-      progressByManga: {
-        ...state.progressByManga,
-        [progress.mangaId]: progress,
+      setChapterProgress: (progress) => {
+        set((state) => ({
+          progressByManga: {
+            ...state.progressByManga,
+            [progress.mangaId]: progress,
+          },
+        }));
       },
-    }));
-  },
 
-  getMangaProgress: (mangaId) => get().progressByManga[mangaId],
+      getMangaProgress: (mangaId) => get().progressByManga[mangaId],
 
-  getChapterProgress: (mangaId, chapterId) => {
-    const latest = get().progressByManga[mangaId];
-    if (!latest || latest.chapterId !== chapterId) {
-      return undefined;
-    }
-    return latest;
-  },
+      getChapterProgress: (mangaId, chapterId) => {
+        const latest = get().progressByManga[mangaId];
+        if (!latest || latest.chapterId !== chapterId) {
+          return undefined;
+        }
+        return latest;
+      },
 
-  toggleLibrary: (mangaId) => {
-    set((state) => {
-      const exists = state.libraryMangaIds.includes(mangaId);
-      return {
-        libraryMangaIds: exists
-          ? state.libraryMangaIds.filter((id) => id !== mangaId)
-          : [...state.libraryMangaIds, mangaId],
-      };
-    });
-  },
+      toggleLibrary: (mangaId) => {
+        set((state) => {
+          const exists = state.libraryMangaIds.includes(mangaId);
+          return {
+            libraryMangaIds: exists
+              ? state.libraryMangaIds.filter((id) => id !== mangaId)
+              : [...state.libraryMangaIds, mangaId],
+          };
+        });
+      },
 
-  toggleFavorite: (mangaId) => {
-    set((state) => {
-      const exists = state.favoriteMangaIds.includes(mangaId);
-      return {
-        favoriteMangaIds: exists
-          ? state.favoriteMangaIds.filter((id) => id !== mangaId)
-          : [...state.favoriteMangaIds, mangaId],
-      };
-    });
-  },
+      toggleFavorite: (mangaId) => {
+        set((state) => {
+          const exists = state.favoriteMangaIds.includes(mangaId);
+          return {
+            favoriteMangaIds: exists
+              ? state.favoriteMangaIds.filter((id) => id !== mangaId)
+              : [...state.favoriteMangaIds, mangaId],
+          };
+        });
+      },
 
-  isInLibrary: (mangaId) => get().libraryMangaIds.includes(mangaId),
-  isFavorite: (mangaId) => get().favoriteMangaIds.includes(mangaId),
+      isInLibrary: (mangaId) => get().libraryMangaIds.includes(mangaId),
+      isFavorite: (mangaId) => get().favoriteMangaIds.includes(mangaId),
 
-  removeMangaProgress: (mangaId) => {
-    set((state) => {
-      const next = { ...state.progressByManga };
-      delete next[mangaId];
-      return { progressByManga: next };
-    });
-  },
+      removeMangaProgress: (mangaId) => {
+        set((state) => {
+          const next = { ...state.progressByManga };
+          delete next[mangaId];
+          return { progressByManga: next };
+        });
+      },
     }),
     {
       name: 'manga-progress',
       storage: createJSONStorage(() => appPersistStorage),
       partialize: (state) => ({
         progressByManga: state.progressByManga,
+        readingModes: state.readingModes,
         libraryMangaIds: state.libraryMangaIds,
         favoriteMangaIds: state.favoriteMangaIds,
       }),
@@ -155,9 +160,8 @@ export const useMangaProgressStore = create<MangaProgressState>()(
   ),
 );
 
-
 export function useContinueReading(): ContinueReadingEntry[] {
-  const media = useLibraryStore(state => state.media);
+  const media = useLibraryStore((state) => state.media);
   const progressByManga = useMangaProgressStore((state) => state.progressByManga);
   return useMemo(() => buildContinueReading(progressByManga), [progressByManga, media]);
 }

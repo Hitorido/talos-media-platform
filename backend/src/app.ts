@@ -61,6 +61,18 @@ export function createApp() {
     }
   });
 
+  // Public update manifest for Talos clients. Keep downloadUrl on GitHub Releases only.
+  app.get('/api/version', (_req, res) => {
+    res.json({
+      latestVersion: '0.6.5-beta',
+      minimumVersion: '0.6.0-beta',
+      downloadUrl: 'https://github.com/Hitorido/talos-media-platform/releases/latest',
+      title: 'New version available',
+      message: 'Bug fixes and improvements for the Talos beta.',
+      mandatory: false,
+    });
+  });
+
   app.use('/api/auth', authRouter);
   app.use('/api/user', userRouter);
   app.use('/api/library', libraryRouter);

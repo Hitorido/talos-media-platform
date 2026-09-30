@@ -90,14 +90,52 @@ async function processAnimeDownload(
 ): Promise<void> {
   const store = useDownloadStore.getState();
   let videoUrl = item.payload.videoUrl;
-  let hls=Boolean(videoUrl?.includes('.m3u8'));
-  if(!videoUrl){const {resolveAnimePlayback}=await import('@/services/contentService');const playback=await resolveAnimePlayback(item.mediaId,item.unitId);videoUrl=playback.source.url;hls=playback.source.contentType==='hls';}
-  if(signal.isAborted)return;
-  if(hls){
-   const directory=getAnimeStoragePath(item.mediaId,item.unitId).replace(/video\.mp4$/,'');
-   const result=await downloadHls(videoUrl!,directory,signal,(done,total,bytes)=>store.updateProgress(item.id,{progress:done/total,bytesDownloaded:bytes,totalBytes:Math.round(bytes*total/done)}));
-   if(!signal.isAborted)store.setStatus(item.id,'completed',{localPath:result.localPath,progress:1,bytesDownloaded:result.bytes,totalBytes:result.bytes});
-   return;
+  let hls = Boolean(videoUrl?.includes('.m3u8'));
+  let fallbackUrl: string | undefined;
+  const resolveFresh = async () => {
+    const { resolveAnimePlayback } = await import('@/services/contentService');
+    const playback = await resolveAnimePlayback(item.mediaId, item.unitId);
+    videoUrl = playback.source.url;
+    fallbackUrl = playback.source.fallbackUrl;
+    hls = playback.source.contentType === 'hls' || Boolean(videoUrl?.includes('.m3u8'));
+  };
+  if (!videoUrl) await resolveFresh();
+  if (signal.isAborted) return;
+  if (hls) {
+    const directory = getAnimeStoragePath(item.mediaId, item.unitId).replace(/video\.mp4$/, '');
+    const download = (url: string) =>
+      downloadHls(url, directory, signal, (done, total, bytes) =>
+        store.updateProgress(item.id, {
+          progress: done / total,
+          bytesDownloaded: bytes,
+          totalBytes: Math.round((bytes * total) / Math.max(1, done)),
+        }),
+      );
+    let result;
+    try {
+      result = await download(videoUrl!);
+    } catch (error) {
+      if (
+        signal.isAborted ||
+        !(error instanceof Error) ||
+        !/Playlist download failed \((404|410)\)/.test(error.message)
+      )
+        throw error;
+      const previous = videoUrl;
+      await resolveFresh();
+      // Only retry this episode's refreshed URL or its provider-supplied original stream.
+      const retryUrl = videoUrl !== previous ? videoUrl : fallbackUrl;
+      if (!retryUrl) throw error;
+      result = await download(retryUrl);
+    }
+    if (!signal.isAborted)
+      store.setStatus(item.id, 'completed', {
+        localPath: result.localPath,
+        progress: 1,
+        bytesDownloaded: result.bytes,
+        totalBytes: result.bytes,
+      });
+    return;
   }
   if (!videoUrl) {
     throw new Error('No stream URL provided for anime episode');
@@ -130,8 +168,11 @@ async function processMangaDownload(
 ): Promise<void> {
   const store = useDownloadStore.getState();
   let pageUrls = item.payload.pageUrls ?? [];
-  if(!pageUrls.length){const {getMangaChapterPages}=await import('@/services/contentService');pageUrls=(await getMangaChapterPages(item.mediaId,item.unitId)).map(page=>page.imageUrl);}
-  if(signal.isAborted)return;
+  if (!pageUrls.length) {
+    const { getMangaChapterPages } = await import('@/services/contentService');
+    pageUrls = (await getMangaChapterPages(item.mediaId, item.unitId)).map((page) => page.imageUrl);
+  }
+  if (signal.isAborted) return;
   if (pageUrls.length === 0) {
     throw new Error('No page URLs available for this manga chapter');
   }
@@ -328,7 +369,9 @@ export async function deleteDownload(id: string): Promise<void> {
   if (item) {
     cancelDownload(id);
     if (item.mediaType === 'anime') {
-      await deleteStoragePath(getAnimeStoragePath(item.mediaId, item.unitId).replace(/video\.mp4$/,''));
+      await deleteStoragePath(
+        getAnimeStoragePath(item.mediaId, item.unitId).replace(/video\.mp4$/, ''),
+      );
     } else if (
       item.mediaType === 'manga' ||
       item.mediaType === 'manhwa' ||

@@ -1,11 +1,12 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
-import { getDefaultProviderEnabledMap, initializeProviders, providerRegistry } from '@/providers';
+import { RESTORED_SOURCE_IDS, getDefaultProviderEnabledMap, initializeProviders, providerRegistry } from '@/providers';
 import { appPersistStorage } from '@/stores/persistStorage';
 import type { ProviderStatus } from '@/types/provider';
 
 type ProviderPreferences = {
+  sourcesRestored?: boolean;
   enabled: Record<string, boolean>;
   preferredByMediaType: Partial<Record<string, string>>;
   statusOverrides: Record<string, ProviderStatus>;
@@ -31,13 +32,14 @@ function mergeEnabledState(
 export const useProviderStore = create<ProviderStoreState>()(
   persist(
     (set, get) => ({
+      sourcesRestored: true,
       enabled: getDefaultProviderEnabledMap(),
       preferredByMediaType: {
         manga: 'mangadex',
         manhwa: 'mangadex',
         manhua: 'mangadex',
-        anime: 'kitsu-anime',
-        novel: 'novelcodex',
+        anime: 'anilist-anime',
+        novel: 'novelping',
       },
       statusOverrides: {},
 
@@ -89,16 +91,21 @@ export const useProviderStore = create<ProviderStoreState>()(
       name: 'providers',
       storage: createJSONStorage(() => appPersistStorage),
       partialize: (state) => ({
+        sourcesRestored: true,
         enabled: state.enabled,
         preferredByMediaType: state.preferredByMediaType,
         statusOverrides: state.statusOverrides,
       }),
       merge: (persisted, current) => {
         const saved = persisted as Partial<ProviderPreferences> | undefined;
+        const enabled = mergeEnabledState(saved?.enabled);
+        if (!saved?.sourcesRestored) for (const id of RESTORED_SOURCE_IDS) enabled[id] = true;
+        for (const id of Object.keys(enabled)) if (id.includes("consumet")) delete enabled[id];
         return {
           ...current,
           ...saved,
-          enabled: mergeEnabledState(saved?.enabled),
+          sourcesRestored: true,
+          enabled,
           preferredByMediaType: {
             ...current.preferredByMediaType,
             ...saved?.preferredByMediaType,

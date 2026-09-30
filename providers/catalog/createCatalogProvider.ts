@@ -10,7 +10,7 @@ export type CatalogProviderConfig = {
   statusNote: string;
   executionMode: ProviderExecutionMode;
   backendRequired?: boolean;
-  backendKey?: 'consumet' | 'scraper' | 'novel';
+  backendKey?: 'scraper' | 'novel';
 };
 
 export function createCatalogProvider(config: CatalogProviderConfig): MediaProvider {

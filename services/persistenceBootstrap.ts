@@ -1,14 +1,15 @@
-import { checkFileExists } from '@/services/storageService';
-import { processDownloadQueue } from '@/services/downloadService';
 import { initializeProviders } from '@/providers';
+import { processDownloadQueue } from '@/services/downloadService';
+import { checkFileExists } from '@/services/storageService';
 import { useAnimeProgressStore } from '@/stores/animeProgressStore';
+import { useAuthStore } from '@/stores/authStore';
 import { useDownloadStore } from '@/stores/downloadStore';
 import { useLibraryStore } from '@/stores/libraryStore';
 import { useMangaProgressStore } from '@/stores/mangaProgressStore';
 import { useNovelProgressStore } from '@/stores/novelProgressStore';
 import { useProviderStore } from '@/stores/providerStore';
-import { useAuthStore } from '@/stores/authStore';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { useSubtitlePreferencesStore } from '@/stores/subtitlePreferencesStore';
 import type { DownloadItem } from '@/types/download';
 
 /**
@@ -32,6 +33,7 @@ export async function bootstrapPersistence(): Promise<void> {
     useDownloadStore.persist.rehydrate(),
     useSettingsStore.persist.rehydrate(),
     useProviderStore.persist.rehydrate(),
+    useSubtitlePreferencesStore.persist.rehydrate(),
   ]);
 
   await reconcileDownloadStore();

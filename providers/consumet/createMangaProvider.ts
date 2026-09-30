@@ -1,15 +1,15 @@
 import {
-  consumetMangaInfo,
-  consumetMangaRead,
-  consumetMangaSearch,
+    consumetMangaInfo,
+    consumetMangaRead,
+    consumetMangaSearch,
 } from '@/providers/consumet/client';
 import type { MediaProvider } from '@/providers/types';
 import type {
-  MediaRef,
-  NormalizedChapter,
-  NormalizedMedia,
-  NormalizedPage,
-  ProviderStatus,
+    MediaRef,
+    NormalizedChapter,
+    NormalizedMedia,
+    NormalizedPage,
+    ProviderStatus,
 } from '@/types/provider';
 import { encodeMediaRouteId } from '@/types/provider';
 import type { SearchResult } from '@/types/search';
@@ -55,7 +55,6 @@ export function createConsumetMangaProvider(config: ConsumetMangaProviderConfig)
         'Uses the Consumet API. Availability depends on the configured Consumet base URL.',
       attribution: 'Powered by Consumet API.',
       executionMode: 'public-api',
-      backendKey: 'consumet',
       health: {},
     },
 

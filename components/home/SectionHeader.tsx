@@ -1,6 +1,6 @@
 import { Pressable } from 'react-native';
 
-import { Text } from '@/components/ui';
+import { Button, Text } from '@/components/ui';
 import { cn } from '@/utils/cn';
 
 type SectionHeaderProps = {
@@ -23,9 +23,9 @@ export function SectionHeader({
       disabled={!onActionPress}
     >
       <Text variant="h3">{title}</Text>
-      <Text variant="label" tone="primary">
-        {actionLabel}
-      </Text>
+      {onActionPress ? (
+        <Button label={actionLabel} size="sm" variant="secondary" onPress={onActionPress} />
+      ) : null}
     </Pressable>
   );
 }

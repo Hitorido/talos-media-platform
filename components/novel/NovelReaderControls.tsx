@@ -147,6 +147,9 @@ export function NovelReaderControls({
   return (
     <View
       style={{ paddingBottom: Math.max(insets.bottom, 12) }}
+      // Claim the touch responder so the ScrollView below does not fire onTouchEnd
+      // (which would toggle the overlay) when the user taps Prev/Next Chapter.
+      onStartShouldSetResponder={() => true}
       className={cn(
         'absolute bottom-0 left-0 right-0 z-20 max-h-[55vh] border-t px-4 pt-3 shadow-2xl',
         themeContainerClasses[activeTheme],
@@ -438,7 +441,10 @@ export function NovelReaderControls({
           <View className="flex-row items-center justify-between border-t border-neutral-500/20 pt-2">
             <TouchableOpacity
               activeOpacity={0.7}
-              onPress={onPrevChapter}
+              onPress={(e) => {
+                e.stopPropagation();
+                onPrevChapter();
+              }}
               disabled={!hasPrevChapter}
               className={cn(
                 'rounded-lg border border-neutral-500/30 px-4 py-2',
@@ -456,7 +462,10 @@ export function NovelReaderControls({
 
             <TouchableOpacity
               activeOpacity={0.7}
-              onPress={onNextChapter}
+              onPress={(e) => {
+                e.stopPropagation();
+                onNextChapter();
+              }}
               disabled={!hasNextChapter}
               className={cn(
                 'rounded-lg border border-neutral-500/30 px-4 py-2',

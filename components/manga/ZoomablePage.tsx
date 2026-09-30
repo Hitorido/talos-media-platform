@@ -1,12 +1,12 @@
-﻿import { useEffect, useState } from 'react';
+﻿import type { MangaPage } from '@/types/manga';
+import { useEffect, useState } from 'react';
 import { Image, Text, View, useWindowDimensions } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  type SharedValue,
+    useAnimatedStyle,
+    useSharedValue,
+    type SharedValue,
 } from 'react-native-reanimated';
-import type { MangaPage } from '@/types/manga';
 import { useReaderZoom } from './useReaderZoom';
 
 const dimensions = new Map<string, number>();
@@ -19,6 +19,7 @@ export function FittedPage({
   scale,
   x,
   onHeight,
+  onWidth,
 }: {
   page: MangaPage;
   width: number;
@@ -27,20 +28,22 @@ export function FittedPage({
   scale: SharedValue<number>;
   x: SharedValue<number>;
   onHeight?: (height: number) => void;
+  onWidth?: (width: number) => void;
 }) {
   const [ratio, setRatio] = useState(dimensions.get(page.imageUrl) || page.aspectRatio || 0.67);
   const [decoded, setDecoded] = useState(
     Boolean(dimensions.get(page.imageUrl) || page.aspectRatio),
   );
   const baseWidth = paged && ratio >= 0.5 ? Math.min(width, height * ratio) : width;
-  const row = { height: baseWidth / ratio, width };
+  // Row is only as wide as the page so empty letterbox isn't part of the layout.
+  const row = { height: baseWidth / ratio, width: baseWidth, alignSelf: 'center' as const };
   useEffect(() => {
+    onWidth?.(baseWidth);
     if (decoded) onHeight?.(baseWidth / ratio);
-  }, [baseWidth, ratio, onHeight, decoded]);
+  }, [baseWidth, ratio, onHeight, onWidth, decoded]);
   const image = useAnimatedStyle(() => ({
     width: baseWidth,
     height: baseWidth / ratio,
-    left: (width - baseWidth) / 2,
   }));
   return (
     <Animated.View style={row}>
@@ -49,7 +52,7 @@ export function FittedPage({
           <Image
             source={{ uri: page.imageUrl }}
             style={{ width: '100%', height: '100%' }}
-            resizeMode="contain"
+            resizeMode="cover"
             onLoad={(event) => {
               const { width: w, height: h } = event.nativeEvent.source;
               if (w > 0 && h > 0) {
@@ -75,6 +78,8 @@ export function ZoomablePage({
   viewportHeight: suppliedHeight,
   initialView,
   onLocationReady,
+  onNavigateLeft,
+  onNavigateRight,
 }: {
   page: MangaPage;
   onTapScreen: () => void;
@@ -83,17 +88,30 @@ export function ZoomablePage({
   viewportHeight?: number;
   initialView?: { fraction: number; scale: number; pan: number };
   onLocationReady?: (read: () => { fraction: number; scale: number; pan: number }) => void;
+  onNavigateLeft?: () => void;
+  onNavigateRight?: () => void;
 }) {
   const { width, height } = useWindowDimensions();
   const viewportHeight = Math.max(100, suppliedHeight ?? height - 100);
   const contentHeight = useSharedValue(viewportHeight);
+  const initialRatio = page.aspectRatio || 0.67;
+  const initialPageWidth =
+    paged && initialRatio >= 0.5 ? Math.min(width, viewportHeight * initialRatio) : width;
+  const contentWidth = useSharedValue(initialPageWidth);
+  const [gestureLock, setGestureLock] = useState(false);
   const zoom = useReaderZoom(
     width,
     viewportHeight,
     onTapScreen,
-    onGestureActive,
+    (active) => {
+      setGestureLock(active);
+      onGestureActive?.(active);
+    },
     contentHeight,
     initialView,
+    onNavigateLeft,
+    onNavigateRight,
+    contentWidth,
   );
   useEffect(() => {
     onLocationReady?.(() => ({
@@ -116,7 +134,9 @@ export function ZoomablePage({
   useEffect(() => {
     restoreView();
   }, [contentReady, initialView]);
-  const contentStyle = useAnimatedStyle(() => ({ minHeight: viewportHeight / zoom.scale.value }));
+  // Worklets must capture shared values, never the gesture-bearing hook result.
+  const { scale } = zoom;
+  const contentStyle = useAnimatedStyle(() => ({ minHeight: viewportHeight / scale.value }));
   return (
     <GestureDetector gesture={zoom.gesture}>
       <View
@@ -130,10 +150,12 @@ export function ZoomablePage({
               onScroll={zoom.scrollHandler}
               onContentSizeChange={restoreView}
               scrollEventThrottle={16}
-              contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
+              scrollEnabled={!gestureLock}
+              decelerationRate={0.993}
+              contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center' }}
               style={contentStyle}
-              bounces={false}
-              overScrollMode="never"
+              bounces={!gestureLock}
+              overScrollMode={gestureLock ? 'never' : 'auto'}
             >
               <FittedPage
                 key={page.imageUrl}
@@ -144,6 +166,9 @@ export function ZoomablePage({
                 onHeight={(value) => {
                   contentHeight.value = value;
                   setContentReady(true);
+                }}
+                onWidth={(value) => {
+                  contentWidth.value = value;
                 }}
                 scale={zoom.scale}
                 x={zoom.x}

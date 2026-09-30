@@ -273,8 +273,10 @@ export const VerticalReader = forwardRef<VerticalReaderRef, VerticalReaderProps>
                 onContentSizeChange={restoreView}
                 scrollEventThrottle={16}
                 scrollEnabled={!pinching}
-                bounces={false}
-                overScrollMode="never"
+                // Longer coast after a throw-swipe; keep edges from rubber-banding mid-chapter.
+                decelerationRate={0.993}
+                bounces={!pinching}
+                overScrollMode={pinching ? 'never' : 'auto'}
                 ref={flatListRef}
                 data={flatItems}
                 keyExtractor={keyExtractor}

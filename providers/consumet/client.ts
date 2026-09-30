@@ -1,9 +1,12 @@
-import { getConsumetBaseUrl } from '@/stores/backendConfigStore';
-
 const CONSUMET_HEADERS: HeadersInit = {
   'User-Agent': 'MangaAnimeNovelReader/1.0',
   Accept: 'application/json',
 };
+
+// Consumet is deprecated and no longer supported in active usage
+function getConsumetBaseUrl(): string {
+  return 'https://disabled-consumet-endpoint';
+}
 
 export type ConsumetSearchResult = {
   id: string;

@@ -1,4 +1,3 @@
-import { load } from 'cheerio';
 import { ProviderGatewayError } from '../types.js';
 import { ENV } from '../../config/env.js';
 import type {
@@ -80,12 +79,19 @@ async function fetchNovel(ncode: string): Promise<NarouNovel> {
 
 function parseChapterList(ncode: string, html: string): BackendNormalizedChapter[] {
   const chapters: BackendNormalizedChapter[] = [];
-  const $ = load(html);
-  $('a.p-eplist__subtitle[href]').each((_, el) => {
-    const match = $(el).attr('href')?.match(/^\/(n[a-z0-9]+)\/(\d+)\/$/i);
-    if (!match || match[1].toLowerCase() !== ncode) return;
-    chapters.push({id:match[2], providerId:PROVIDER_ID, mediaId:ncode, title:$(el).text().trim(), chapterNumber:Number(match[2]), language:'ja'});
-  });
+  const pattern = /<a\s+href="\/(n[a-z0-9]+)\/(\d+)\/"[^>]*class="p-eplist__subtitle"[^>]*>([\s\S]*?)<\/a>/gi;
+  for (const match of html.matchAll(pattern)) {
+    const chapterNumber = Number.parseInt(match[2], 10);
+    if (!Number.isFinite(chapterNumber)) continue;
+    chapters.push({
+      id: match[2],
+      providerId: PROVIDER_ID,
+      mediaId: ncode,
+      title: decodeHtml(match[3]),
+      chapterNumber,
+      language: 'ja',
+    });
+  }
   return chapters;
 }
 
@@ -133,7 +139,6 @@ export const narouProviderAdapter: ContentProviderAdapter = {
         sourceId: item.ncode,
         mediaType: 'novel' as const,
         title: item.title,
-        chapterCount: Number.isSafeInteger(item.general_all_no) && (item.general_all_no ?? 0) > 0 ? item.general_all_no : undefined,
         coverUrl: `https://sbo.syosetu.com/${item.ncode.toLowerCase()}/twitter.png`,
         author: item.writer,
         description: item.story,
@@ -159,32 +164,14 @@ export const narouProviderAdapter: ContentProviderAdapter = {
   },
 
   async getChapters(sourceId): Promise<BackendNormalizedChapter[]> {
-    const code = sourceId.toLowerCase();
-    if (!/^n[a-z0-9]+$/.test(code)) throw new ProviderGatewayError('Invalid Narou ID.', 400);
-    const meta = await fetchNovel(code);
-    if (meta.novel_type === 2) return [{id:'oneshot',providerId:PROVIDER_ID,mediaId:code,title:meta.title,chapterNumber:1,language:'ja'}];
-    const chapters = new Map<string, BackendNormalizedChapter>();
-    let page = 1;
-    while (page <= 100) {
-      const html = await fetchText(SITE_URL + '/' + code + '/' + (page > 1 ? '?p=' + page : ''));
-      const parsed = parseChapterList(code, html);
-      for (const chapter of parsed) chapters.set(chapter.id, chapter);
-      const $ = load(html);
-      const hasNext = $('a[href]').toArray().some(el => {
-        const url = new URL($(el).attr('href') || '/', SITE_URL);
-        return url.origin === SITE_URL && url.pathname === '/' + code + '/' && url.searchParams.get('p') === String(page + 1);
-      });
-      if (!hasNext) break;
-      if (page === 100) throw new ProviderGatewayError('Narou chapter index exceeds the supported pagination limit.', 502);
-      page++;
-    }
-    if (!chapters.size) throw new ProviderGatewayError('Narou chapter list unavailable.', 502, 'CONTENT_NOT_FOUND');
-    return [...chapters.values()].sort((a,b)=>a.chapterNumber-b.chapterNumber);
+    const html = await fetchText(`${SITE_URL}/${encodeURIComponent(sourceId.toLowerCase())}/`);
+    return parseChapterList(sourceId.toLowerCase(), html);
   },
 
   async getNovelContent(sourceId, chapterId): Promise<BackendNormalizedNovelContent> {
-    if (!/^n[a-z0-9]+$/i.test(sourceId) || !/^(?:oneshot|[1-9][0-9]*)$/.test(chapterId)) throw new ProviderGatewayError('Invalid Narou chapter.', 400);
-    const html = await fetchText(SITE_URL + '/' + sourceId.toLowerCase() + '/' + (chapterId === 'oneshot' ? '' : chapterId + '/'));
+    const html = await fetchText(
+      `${SITE_URL}/${encodeURIComponent(sourceId.toLowerCase())}/${encodeURIComponent(chapterId)}/`,
+    );
     return parseChapterContent(sourceId, chapterId, html);
   },
 };

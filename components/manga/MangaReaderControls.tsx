@@ -133,19 +133,19 @@ export function MangaReaderControls({
     >
       {/* Mode & Direction — only visible when Options is on */}
       {showModeOptions ? (
-        <View className="mb-3 flex-row items-center justify-between gap-2 border-b border-neutral-800 pb-3">
+        <View className="mb-3 flex-row items-center justify-between gap-1 border-b border-neutral-800 pb-3">
           {/* Page Navigation (only in Manga/horizontal mode) */}
           {mode === 'horizontal' ? (
-            <View className="flex-row items-center gap-2">
+            <View className="flex-row items-center gap-1">
               <Pressable
                 onPress={onPrevPage}
                 disabled={currentPage <= 1}
                 className={cn(
-                  'rounded-lg bg-neutral-800 px-3 py-1.5',
+                  'rounded-lg bg-neutral-800 px-2 py-1',
                   currentPage <= 1 && 'opacity-40',
                 )}
               >
-                <Text className="text-xs font-semibold text-white">‹ Page</Text>
+                <Text className="text-xs font-semibold text-white">‹</Text>
               </Pressable>
               <Text className="text-xs text-neutral-400">
                 {currentPage}/{totalPages}
@@ -154,11 +154,11 @@ export function MangaReaderControls({
                 onPress={onNextPage}
                 disabled={currentPage >= totalPages}
                 className={cn(
-                  'rounded-lg bg-neutral-800 px-3 py-1.5',
+                  'rounded-lg bg-neutral-800 px-2 py-1',
                   currentPage >= totalPages && 'opacity-40',
                 )}
               >
-                <Text className="text-xs font-semibold text-white">Page ›</Text>
+                <Text className="text-xs font-semibold text-white">›</Text>
               </Pressable>
             </View>
           ) : (
@@ -194,24 +194,24 @@ export function MangaReaderControls({
 
             {/* RTL/LTR only in Manga mode */}
             {mode === 'horizontal' ? (
-              <View className="flex-row rounded-lg bg-neutral-900 p-1">
+              <View className="flex-row rounded-lg bg-neutral-900 p-0.5">
                 <Pressable
                   onPress={() => onSelectDirection('rtl')}
                   className={cn(
-                    'rounded-md px-2 py-1',
+                    'rounded-md px-1.5 py-0.5',
                     direction === 'rtl' ? 'bg-primary-600' : 'bg-transparent',
                   )}
                 >
-                  <Text className="text-xs text-white">RTL</Text>
+                  <Text className="text-[10px] text-white">RTL</Text>
                 </Pressable>
                 <Pressable
                   onPress={() => onSelectDirection('ltr')}
                   className={cn(
-                    'rounded-md px-2 py-1',
+                    'rounded-md px-1.5 py-0.5',
                     direction === 'ltr' ? 'bg-primary-600' : 'bg-transparent',
                   )}
                 >
-                  <Text className="text-xs text-white">LTR</Text>
+                  <Text className="text-[10px] text-white">LTR</Text>
                 </Pressable>
               </View>
             ) : null}

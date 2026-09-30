@@ -1,15 +1,15 @@
 import {
-  consumetAnimeInfo,
-  consumetAnimeSearch,
-  consumetAnimeWatch,
+    consumetAnimeInfo,
+    consumetAnimeSearch,
+    consumetAnimeWatch,
 } from '@/providers/consumet/client';
 import type { MediaProvider } from '@/providers/types';
 import type {
-  MediaRef,
-  NormalizedEpisode,
-  NormalizedMedia,
-  NormalizedPlaybackSource,
-  ProviderStatus,
+    MediaRef,
+    NormalizedEpisode,
+    NormalizedMedia,
+    NormalizedPlaybackSource,
+    ProviderStatus,
 } from '@/types/provider';
 import { encodeMediaRouteId } from '@/types/provider';
 import type { SearchResult } from '@/types/search';
@@ -53,7 +53,6 @@ export function createConsumetAnimeProvider(config: ConsumetAnimeProviderConfig)
         'Requires a reachable Consumet base URL (self-hosted or configured backend gateway). Public api.consumet.org returns HTTP 451.',
       attribution: 'Powered by Consumet API.',
       executionMode: 'public-api',
-      backendKey: 'consumet',
       health: {},
     },
 

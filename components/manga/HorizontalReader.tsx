@@ -20,11 +20,23 @@ type HorizontalReaderProps = {
   initialView?: { fraction: number; scale: number; pan: number };
   onPageChange: (chapterId: string, pageNumber: number) => void;
   onTapScreen: () => void;
+  onNavigateLeft?: () => void;
+  onNavigateRight?: () => void;
 };
 
 export const HorizontalReader = forwardRef<HorizontalReaderRef, HorizontalReaderProps>(
   (
-    { pages, activeChapterId, direction, initialPage = 1, initialView, onPageChange, onTapScreen },
+    {
+      pages,
+      activeChapterId,
+      direction,
+      initialPage = 1,
+      initialView,
+      onPageChange,
+      onTapScreen,
+      onNavigateLeft,
+      onNavigateRight,
+    },
     ref,
   ) => {
     const { width: SCREEN_WIDTH } = useWindowDimensions();
@@ -129,7 +141,13 @@ export const HorizontalReader = forwardRef<HorizontalReaderRef, HorizontalReader
         scrollEnabled={!pinching}
         ref={flatListRef}
         horizontal
-        pagingEnabled
+        // snapToInterval + fast deceleration gives a "thrown" page fling that coasts into the next page
+        pagingEnabled={false}
+        snapToInterval={SCREEN_WIDTH}
+        snapToAlignment="start"
+        disableIntervalMomentum={false}
+        decelerationRate="fast"
+        disableScrollViewPanResponder={false}
         showsHorizontalScrollIndicator={false}
         data={displayPages}
         keyExtractor={(item) => `h-page-${item.chapterId ?? 'unknown'}-${item.pageNumber}`}
@@ -173,6 +191,8 @@ export const HorizontalReader = forwardRef<HorizontalReaderRef, HorizontalReader
             onGestureActive={setPinching}
             page={item}
             onTapScreen={onTapScreen}
+            onNavigateLeft={onNavigateLeft}
+            onNavigateRight={onNavigateRight}
             paged
           />
         )}

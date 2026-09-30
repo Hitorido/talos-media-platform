@@ -1,282 +1,143 @@
-# 🌌 Talos Media Platform
+# Talos
 
 <p align="center">
-  <img src="assets/images/icon.png" alt="Talos Logo" width="120" height="120" style="border-radius: 24px;" />
+  <img src="assets/images/talos-logo.svg" alt="Talos" width="96" />
 </p>
 
 <p align="center">
-  <strong>A unified, provider-agnostic client for discovering, reading, watching, and tracking Anime, Manga, Manhwa, Manhua, and Web Novels.</strong>
+  <strong>Talos</strong> is a unified media application for discovering, reading, watching, organizing, and downloading supported manga, novels, and anime across multiple provider integrations.
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Expo-v57.0-000020.svg?style=flat-square&logo=expo" alt="Expo SDK 57" />
-  <img src="https://img.shields.io/badge/React%20Native-0.86-61DAFB.svg?style=flat-square&logo=react" alt="React Native" />
-  <img src="https://img.shields.io/badge/TypeScript-5.3+-3178C6.svg?style=flat-square&logo=typescript" alt="TypeScript" />
-  <img src="https://img.shields.io/badge/NativeWind-v4-06B6D4.svg?style=flat-square&logo=tailwindcss" alt="NativeWind" />
-  <img src="https://img.shields.io/badge/Node.js-Express%20%2B%20Prisma-339933.svg?style=flat-square&logo=nodedotjs" alt="Backend" />
-  <img src="https://img.shields.io/badge/Platform-Android%20%7C%20iOS%20%7C%20Web-brightgreen.svg?style=flat-square" alt="Platform" />
+  <img src="https://img.shields.io/badge/status-Beta-orange.svg" alt="Beta" />
+  <img src="https://img.shields.io/badge/version-0.6.5--beta-blue.svg" alt="Version" />
+  <img src="https://img.shields.io/badge/Expo-57-000020.svg?logo=expo" alt="Expo" />
+  <img src="https://img.shields.io/badge/platform-Android%20%7C%20Web-brightgreen.svg" alt="Platform" />
 </p>
 
----
+## Preview
 
-## 📖 Overview
+![Talos Preview](docs/media/talos-preview.gif)
 
-**Talos** eliminates the friction of switching between multiple fragmented apps for reading and watching Japanese, Korean, Chinese, and global media. Built with a clean **provider-based decoupling pattern**, the core reading and viewing experience remains rock-solid while content sources can be dynamically plugged in, extended, or configured.
+Full demo video is available in the [latest GitHub Release](https://github.com/Hitorido/talos-media-platform/releases/latest).
 
-Whether you are binge-reading manga chapters, tracking ongoing light novels, streaming anime episodes, or caching content for offline commutes, Talos delivers a fast, fluid, and unified interface.
+## Screenshots
 
----
+<p align="center">
+  <img src="docs/images/home.jpg" alt="Home" width="180" />
+  <img src="docs/images/search.jpg" alt="Search" width="180" />
+  <img src="docs/images/details.jpg" alt="Details" width="180" />
+  <img src="docs/images/manga-reader.jpg" alt="Manga reader" width="180" />
+</p>
+<p align="center">
+  <img src="docs/images/webtoon-reader.jpg" alt="Webtoon reader" width="180" />
+  <img src="docs/images/novel-reader.jpg" alt="Novel reader" width="180" />
+  <img src="docs/images/anime-player.jpg" alt="Anime player" width="180" />
+  <img src="docs/images/downloads.jpg" alt="Downloads" width="180" />
+</p>
+<p align="center">
+  <img src="docs/images/sources.jpg" alt="Sources" width="180" />
+  <img src="docs/images/settings.jpg" alt="Settings" width="180" />
+</p>
 
-## ✨ Key Features
+## Features
 
-### 📺 Anime Streaming & Discovery
-- **Discovery & Catalog:** Search, filter, and view metadata powered by AniList, Kitsu, and Jikan (MyAnimeList).
-- **Streaming Players:** Built with `expo-video` supporting multi-resolution HLS / MP4 playback, episode selection, and position resume.
-- **Provider Switching:** Decoupled streaming resolvers (including DonghuaStream and optional Consumet proxies) with graceful error handling and fallbacks.
+- **Unified search & discovery** across manga, novels, and anime providers
+- **Manga / manhwa / manhua reader** with pinch zoom, double-tap zoom, fling, RTL/LTR, and bookmarks
+- **Novel reader** with continuous and chapter modes, styling controls, and bookmarks
+- **Anime playback** with subtitles, bookmarks, offline downloads where supported
+- **Library, history, and progress** persistence
+- **Downloads / offline** queue for supported media types
+- **Multi-provider architecture** with source switching and failure isolation
+- **In-app update checker** against the official GitHub Releases channel
 
-### 📖 Manga, Manhwa & Manhua Reader
-- **High-Performance Reader:** Continuous vertical webtoon strip and horizontal paged reader modes powered by `react-native-reanimated` and gesture handlers.
-- **Multi-Source Catalog:** Native integrations for MangaDex, WeebCentral, MangaPill, MangaTown, and scraper adapters.
-- **Reading Progress Tracking:** Instant auto-save of current chapter and scroll percentages locally and via cloud synchronization.
+## Technology
 
-### 📚 Web & Light Novel Reader
-- **Distraction-Free Text Engine:** Clean reader interface with customizable font sizes, line heights, themes (AMOLED dark, sepia, light), and reading margins.
-- **Rich Source Support:** Integration with Narou (Shousetsuka ni Narou), Royal Road, NovelCodex, NovelPing, NovelArrow, and external novel microservices.
-- **Offline Text Caching:** Fast chapter-by-chapter local storage for instant offline reading.
+**Frontend:** Expo 57, React Native, TypeScript, Expo Router, NativeWind, Zustand, Reanimated, Gesture Handler, expo-video
 
-### 📥 Download & Offline Manager
-- **Centralized Queue:** Background download engine with pause, resume, cancel, and auto-retry capabilities.
-- **Storage Management:** Monitor downloaded storage usage, browse downloaded media without an internet connection, and purge cached chapters cleanly.
+**Backend:** Node.js, Express, TypeScript, Prisma, MySQL (production), SQLite (local development)
 
-### 🔄 Cloud Sync & Personal Library
-- **Cross-Device Sync:** Optional sync with the Talos Express backend for favorites, reading history, and playback progress.
-- **Unified Library:** Organize content into custom statuses (*Reading*, *Plan to Read*, *Completed*, *On Hold*, *Dropped*).
-- **Local-First Fallback:** Seamless offline functionality backed by Zustand and encrypted secure storage (`expo-secure-store`).
+**Infrastructure:** Render, Aiven MySQL, EAS Hosting / EAS Build, GitHub Releases
 
----
-
-## 🏛️ System Architecture
-
-Talos enforces a strict separation of concerns between UI presentation, domain entities, and data providers:
+## Architecture
 
 ```
-┌────────────────────────────────────────────────────────┐
-│                   Talos Client (Expo)                  │
-│       Pages (Expo Router) ── Components ── Stores      │
-└───────────────────────────┬────────────────────────────┘
-                            │
-                            ▼
-┌────────────────────────────────────────────────────────┐
-│               Unified Media Domain Layer               │
-│      Media Hooks (useAnimeContent, useMangaContent)    │
-│      Normalized Models (UnifiedMedia, Chapter, Ep)     │
-└───────────────────────────┬────────────────────────────┘
-                            │
-                            ▼
-┌────────────────────────────────────────────────────────┐
-│                   Provider Registry                    │
-│  Validates capabilities, status checks, active toggles  │
-└───────┬───────────────────┬────────────────────┬───────┘
-        │                   │                    │
-        ▼                   ▼                    ▼
-┌───────────────┐   ┌───────────────┐   ┌────────────────┐
-│ Direct Client │   │ Direct Client │   │ Talos Backend  │
-│  (MangaDex,   │   │ (AniList API, │   │ Content Gateway│
-│   Narou, etc) │   │  Kitsu, etc)  │   │  (Express/TS)  │
-└───────────────┘   └───────────────┘   └───────┬────────┘
-                                                │
-                                                ▼
-                                    ┌───────────────────────┐
-                                    │ External Aggregators  │
-                                    │ & Scraper Microservices│
-                                    └───────────────────────┘
+Talos (Android / Web)
+  ├─ Direct APIs (MangaDex, AniList, Kitsu, Jikan, …)
+  └─ Talos Render Backend
+       └─ Fixed source-specific adapters
+            └─ Normalized Talos media models
 ```
 
----
+Talos does not expose a generic arbitrary-URL scraper. Scraper Backend providers use dedicated adapters on the Render service.
 
-## 🔌 Provider Matrix
-
-| Provider | Type | Media Supported | Implementation | Status |
-| :--- | :--- | :--- | :--- | :--- |
-| **MangaDex** | Manga / Manhwa | Manga, Manhwa, Manhua | Direct API | 🟢 Working |
-| **WeebCentral** | Manga / Manhwa | Manga, Manhwa, Manhua | Backend Gateway | 🟢 Working |
-| **MangaPill** | Manga | Manga | Backend Gateway | 🟢 Working |
-| **MangaTown** | Manga | Manga | Backend Gateway | 🟢 Working |
-| **GdScans / DemonicScans**| Manga | Manga | Backend Gateway | 🟡 Limited / Host dependent |
-| **AniList** | Anime Catalog | Anime Metadata | Direct GraphQL | 🟢 Working |
-| **Kitsu** | Anime Catalog | Anime Metadata | Direct REST | 🟢 Working |
-| **Jikan (MAL)** | Anime Catalog | Anime Metadata | Direct REST | 🟢 Working |
-| **DonghuaStream** | Anime Streaming| Donghua / Anime | Backend Gateway | 🟢 Working |
-| **Royal Road** | Web Novel | Web Novels | Backend Gateway | 🟢 Working |
-| **NovelCodex** | Web Novel | Light / Web Novels | Backend Gateway | 🟢 Working |
-| **NovelPing** | Web Novel | Web Novels | Backend Gateway | 🟢 Working |
-| **Narou** | Light Novel | Japanese Web Novels | Direct Web Scraper | 🟢 Working |
-| **Consumet Proxies** | Multi-Media | Anime / Manga | Self-Hosted Gateway | ⚪ Configurable URL required |
-
----
-
-## 🛠️ Tech Stack
-
-### Frontend Application
-- **Framework:** [Expo SDK 57](https://docs.expo.dev/versions/v57.0.0/) with React Native 0.86
-- **Routing:** [Expo Router](https://docs.expo.dev/router/introduction/) (File-system based navigation)
-- **Styling:** [NativeWind v4](https://www.nativewind.dev/) (Tailwind CSS for React Native)
-- **State Management:** [Zustand](https://github.com/pmndrs/zustand)
-- **Video Engine:** [expo-video](https://docs.expo.dev/versions/latest/sdk/video/)
-- **Animations & Gestures:** [Reanimated 4](https://docs.swmansion.com/react-native-reanimated/) & [React Native Gesture Handler](https://docs.swmansion.com/react-native-gesture-handler/)
-- **Storage:** Expo FileSystem, Expo SecureStore
-
-### Backend Service
-- **Runtime:** Node.js (v20+ / v22 LTS) & TypeScript
-- **Server:** Express.js, Helmet, CORS
-- **ORM & Database:** Prisma ORM with SQLite (Development) / MySQL (Cloud-ready: Aiven / PlanetScale)
-- **Authentication:** Stateless JWT & Bcrypt password hashing
-- **Parsing & Scraping:** Cheerio
-
----
-
-## 📂 Project Structure
-
-```text
-talos/
-├── app/                       # Expo Router application screens
-│   ├── (tabs)/                # Main bottom tab routes (Home, Library, History, Settings)
-│   ├── anime/                 # Anime details & video player screens
-│   ├── manga/                 # Manga chapter details & interactive image reader
-│   ├── novel/                 # Novel reader interface & typography controls
-│   └── _layout.tsx            # Root navigation stack & theme providers
-├── backend/                   # Standalone Express + Prisma gateway
-│   ├── prisma/                # Database schema & migrations (SQLite & MySQL)
-│   ├── src/
-│   │   ├── controllers/       # Auth, Library, Progress, Content controllers
-│   │   ├── middleware/        # JWT verification, CORS, error handling
-│   │   ├── providers/         # Gateway scraper & aggregator adapters
-│   │   ├── routes/            # REST API route declarations
-│   │   └── server.ts          # Server initialization & graceful shutdown
-│   └── package.json
-├── components/                # Reusable UI components (Modals, Cards, Players, Controls)
-├── hooks/                     # Custom React hooks (useAnimeContent, useMangaContent, etc.)
-├── providers/                 # Client-side media provider registry and implementations
-├── stores/                    # Zustand stores (authStore, libraryStore, downloadStore)
-├── types/                     # Shared TypeScript interface definitions
-└── package.json
-```
-
----
-
-## 🚀 Getting Started
-
-### Prerequisites
-- [Node.js](https://nodejs.org/) (v20.x or v22.x recommended)
-- [npm](https://www.npmjs.com/) or [yarn](https://yarnpkg.com/)
-- [Expo Go](https://expo.dev/go) app on your mobile device OR Android Studio / Xcode
-
----
-
-### 1. Repository Setup
+## Installation (developers)
 
 ```bash
 git clone https://github.com/Hitorido/talos-media-platform.git
 cd talos-media-platform
+npm install
+cd backend && npm install && cd ..
 ```
 
-### 2. Frontend Configuration & Launch
+Public client env (optional for local development):
 
-1. Install project dependencies:
-   ```bash
-   npm install
-   ```
+```bash
+# .env.local — never commit secrets
+EXPO_PUBLIC_API_URL=http://localhost:5000
+```
 
-2. Configure environment (optional, defaults to local detection):
-   ```bash
-   # Copy sample client environment
-   cp .env.example .env
-   ```
-   *For physical devices, set `EXPO_PUBLIC_API_URL=http://<YOUR_LOCAL_IP>:5000`.*
+Production / beta builds default to `https://talos-media-platform.onrender.com`.
 
-3. Start the Expo development server:
-   ```bash
-   npm run start
-   ```
+```bash
+# Terminal A — backend
+cd backend && npm run dev
 
-4. Press:
-   - `a` to open in Android Emulator
-   - `i` to open in iOS Simulator
-   - `w` to open in Web Browser
-   - Or scan the terminal QR code with **Expo Go**
+# Terminal B — Expo
+npx expo start
+```
 
----
+## Beta download
 
-### 3. Backend Setup (Optional for cloud sync & gateway scrapers)
+Install the Android APK from [GitHub Releases](https://github.com/Hitorido/talos-media-platform/releases).
 
-1. Navigate to the backend directory:
-   ```bash
-   cd backend
-   npm install
-   ```
+Updates are optional. Talos can notify you in-app when a newer beta is published; Download opens the official release page only.
 
-2. Initialize backend environment variables:
-   ```bash
-   cp .env.example .env
-   ```
+## Web version
 
-3. Run database migrations & generate Prisma client:
-   ```bash
-   npx prisma migrate dev
-   npx prisma generate
-   ```
+Production web hosting via EAS Hosting:
 
-4. Start the backend development server:
-   ```bash
-   npm run dev
-   ```
-   The backend API will run at `http://localhost:5000`. You can verify health via:
-   ```bash
-   curl http://localhost:5000/health
-   ```
+> **TODO:** replace with the live EAS Hosting URL after first production deploy  
+> Example: `https://talos-media-platform.expo.app`
 
----
+```bash
+npx expo export --platform web
+eas deploy --prod
+```
 
-## 🧪 Available Scripts
+## Update manifest
 
-### Frontend
-- `npm run start` — Launch Expo dev server.
-- `npm run android` — Launch on connected Android device/emulator.
-- `npm run ios` — Launch on iOS simulator.
-- `npm run web` — Run web preview.
-- `npm run lint` — Lint files using Expo ESLint rules.
-- `npm run typecheck` — Perform strict TypeScript validation (`tsc --noEmit`).
-- `npm run format` — Auto-format codebase with Prettier.
+Clients check:
 
-### Backend
-- `npm run dev` — Run server with live reloading via `tsx watch`.
-- `npm run build` — Compile TypeScript to `dist/`.
-- `npm run start` — Run production server.
-- `npm run prisma:migrate` — Apply database schema updates.
+`GET https://talos-media-platform.onrender.com/api/version`
 
----
+Hosted on the Talos backend. The `downloadUrl` must point at the official GitHub Releases page.
 
-## ⚖️ Disclaimer & Content Notice
+## Provider disclaimer
 
-Talos is an open-source media player and content client developed strictly for educational and personal portfolio purposes. 
+Providers are third-party sites and APIs. Availability can change without notice. Talos does not control upstream uptime, CAPTCHA, geo blocks, or anti-bot measures. Some sources may appear limited or unavailable in beta.
 
-- **No Media Hosting:** Talos does not host, upload, or store any video, audio, comic, or novel files on its servers.
-- **Provider Aggregation:** All content is retrieved dynamically from third-party APIs and publicly accessible external sources.
-- **Copyright Compliance:** Users are responsible for complying with copyright laws, licensing, and terms of service of the content providers they access.
+## Roadmap
 
----
+- Stabilize scraper backends behind Render
+- Expand reliable discovery feeds
+- Improve offline packaging for anime media
+- Optional account sync polish
 
-## 📄 License
+## Development status
 
-Distributed under the [MIT License](LICENSE). See `LICENSE` for more information.
+**Beta** — suitable for early testers. Not a stable 1.0 release.
 
----
+## License
 
-<p align="center">
-  Crafted with care by <strong>Talos Contributors</strong>
-</p>
-
-
-## Development evidence
-
-See the [development guide and report index](docs/DEVELOPMENT.md) for the current beta status, code map, backend setup notes, and historical milestones.
+See repository license terms and third-party attributions where applicable.

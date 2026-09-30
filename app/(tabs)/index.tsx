@@ -3,15 +3,22 @@ import { useEffect, useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import {
-    ContentPosterCard,
-    ContinueReadingCard,
-    ContinueWatchingCard,
-    HomeHeader,
-    HorizontalSection,
+  ContentPosterCard,
+  ContinueReadingCard,
+  ContinueWatchingCard,
+  HomeHeader,
+  HorizontalSection,
 } from '@/components/home';
 import { useNovelPreferencesStore } from '@/stores/novelPreferencesStore';
 import { Screen, Text } from '@/components/ui';
-import { animeDetailsHref, mangaDetailsHref, novelDetailsHref } from '@/lib/routes';
+import {
+  animeWatchHref,
+  mangaReadHref,
+  novelReadHref,
+  animeDetailsHref,
+  mangaDetailsHref,
+  novelDetailsHref,
+} from '@/lib/routes';
 import { emptyDiscovery, getDiscovery } from '@/services/discoveryService';
 import { useProviderStore } from '@/stores/providerStore';
 import { useContinueWatching } from '@/stores/animeProgressStore';
@@ -28,20 +35,28 @@ export default function HomeScreen() {
   const continueReadingNovels = useContinueReadingNovels();
   const [readingCategory, setReadingCategory] = useState<ReadingCategory>('all');
 
-  const novelLanguage = useNovelPreferencesStore(state => state.language);
-  const enabled = useProviderStore(state => state.enabled);
+  const novelLanguage = useNovelPreferencesStore((state) => state.language);
+  const enabled = useProviderStore((state) => state.enabled);
   const [discovery, setDiscovery] = useState(emptyDiscovery);
   const [loadingDiscovery, setLoadingDiscovery] = useState(true);
   const [refresh, setRefresh] = useState(0);
   useEffect(() => {
     let active = true;
     setLoadingDiscovery(true);
-    getDiscovery(enabled, refresh > 0, novelLanguage).then(result => {
-      if (active) setDiscovery(result);
-    }).catch(() => {
-      if (active) setDiscovery(emptyDiscovery().map(section => ({...section, unavailable: true})));
-    }).finally(() => { if (active) setLoadingDiscovery(false); });
-    return () => { active = false; };
+    getDiscovery(enabled, refresh > 0, novelLanguage)
+      .then((result) => {
+        if (active) setDiscovery(result);
+      })
+      .catch(() => {
+        if (active)
+          setDiscovery(emptyDiscovery().map((section) => ({ ...section, unavailable: true })));
+      })
+      .finally(() => {
+        if (active) setLoadingDiscovery(false);
+      });
+    return () => {
+      active = false;
+    };
   }, [enabled, refresh, novelLanguage]);
 
   const combinedReadingItems = useMemo(() => {
@@ -55,6 +70,7 @@ export default function HomeScreen() {
       progress: item.progress,
       chapterTitle: item.chapterTitle,
       chapterId: item.chapterId,
+      pageNumber: 'pageNumber' in item ? item.pageNumber : undefined,
       updatedAt: item.updatedAt,
     }));
 
@@ -70,7 +86,6 @@ export default function HomeScreen() {
       chapterId: item.chapterId,
       updatedAt: item.updatedAt,
     }));
-
 
     const all = [...mangaItems, ...novelItems].sort((a, b) => b.updatedAt - a.updatedAt);
     if (readingCategory === 'manga') return all.filter((i) => i.type === 'manga');
@@ -96,6 +111,7 @@ export default function HomeScreen() {
               progress: item.progress,
               episodeTitle: item.episodeTitle,
             }}
+            onContinue={() => router.push(animeWatchHref(item.animeId, item.episodeId))}
             onPress={() => router.push(animeDetailsHref(item.animeId))}
           />
         ))}
@@ -134,6 +150,13 @@ export default function HomeScreen() {
             <ContinueReadingCard
               key={`${item.type}-${item.id}`}
               item={item}
+              onContinue={() =>
+                router.push(
+                  item.type === 'manga'
+                    ? mangaReadHref(item.id, item.chapterId, item.pageNumber as number)
+                    : novelReadHref(item.id, item.chapterId, item.progress),
+                )
+              }
               onPress={() => {
                 if (item.type === 'manga') router.push(mangaDetailsHref(item.id));
                 else router.push(novelDetailsHref(item.id));
@@ -144,26 +167,46 @@ export default function HomeScreen() {
       </View>
 
       <View className="flex-row items-center justify-between px-4">
-        <Text variant="caption" tone="muted">{loadingDiscovery ? 'Loading discovery?' : 'Discover from your enabled sources'}</Text>
-        <Pressable accessibilityRole="button" disabled={loadingDiscovery} onPress={() => setRefresh(value => value + 1)}>
+        <Text variant="caption" tone="muted">
+          {loadingDiscovery ? 'Loading discovery?' : 'Discover from your enabled sources'}
+        </Text>
+        <Pressable
+          accessibilityRole="button"
+          disabled={loadingDiscovery}
+          onPress={() => setRefresh((value) => value + 1)}
+        >
           <Text variant="caption">Refresh</Text>
         </Pressable>
       </View>
-      {discovery.map(section => (
+      {discovery.map((section) => (
         <HorizontalSection key={section.id} title={section.title}>
-          {section.items.filter(item => enabled[item.providerId]).map(item => (
-            <ContentPosterCard key={item.id} title={item.title} coverUrl={item.coverUrl} type={item.type}
-              routeId={item.id} episodeCount={item.episodeCount} chapterCount={item.chapterCount}
-              sourceName={item.sourceName} status={item.status}
-              onPress={() => {
-                if (item.type === 'anime') router.push(animeDetailsHref(item.id));
-                else if (item.type === 'novel') router.push(novelDetailsHref(item.id));
-                else router.push(mangaDetailsHref(item.id));
-              }} />
-          ))}
-          {!section.items.some(item => enabled[item.providerId]) && (
+          {section.items
+            .filter((item) => enabled[item.providerId])
+            .map((item) => (
+              <ContentPosterCard
+                key={item.id}
+                title={item.title}
+                coverUrl={item.coverUrl}
+                type={item.type}
+                routeId={item.id}
+                episodeCount={item.episodeCount}
+                chapterCount={item.chapterCount}
+                sourceName={item.sourceName}
+                status={item.status}
+                onPress={() => {
+                  if (item.type === 'anime') router.push(animeDetailsHref(item.id));
+                  else if (item.type === 'novel') router.push(novelDetailsHref(item.id));
+                  else router.push(mangaDetailsHref(item.id));
+                }}
+              />
+            ))}
+          {!section.items.some((item) => enabled[item.providerId]) && (
             <Text variant="caption" tone="muted" className="px-4">
-              {loadingDiscovery ? 'Loading?' : section.unavailable ? 'Source temporarily unavailable. Try refreshing later.' : 'No items available from your enabled sources.'}
+              {loadingDiscovery
+                ? 'Loading?'
+                : section.unavailable
+                  ? 'Source temporarily unavailable. Try refreshing later.'
+                  : 'No items available from your enabled sources.'}
             </Text>
           )}
         </HorizontalSection>

@@ -7,17 +7,22 @@ import {
 } from '@/types/provider';
 
 /** Anime gateway bridge; metadata cards stay in AniList while playback resolves here. */
-export function backendAnimeProvider(id: string, name: string): MediaProvider {
+export function backendAnimeProvider(
+  id: string,
+  name: string,
+  options?: { website: string; statusNote: string },
+): MediaProvider {
   const route = (sourceId: string) => `/api/content/anime/${id}/${encodeURIComponent(sourceId)}`;
   return {
     definition: {
       id,
       name,
-      website: 'https://donghuastream.org',
+      website: options?.website ?? 'https://donghuastream.org',
       mediaTypes: ['anime'],
       capabilities: ['search', 'details', 'episodes', 'streaming'],
       status: 'limited',
       statusNote:
+        options?.statusNote ??
         'Rumble-hosted donghua episodes. Other hosts remain unavailable; native phone verification pending.',
       executionMode: 'backend-api',
       backendRequired: true,

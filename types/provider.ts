@@ -146,8 +146,8 @@ export type ProviderDefinition = {
   executionMode: ProviderExecutionMode;
   /** When true, a backend URL must be configured before the provider can work. */
   backendRequired?: boolean;
-  /** Backend key used in backendConfigStore (e.g. "consumet", "scraper"). */
-  backendKey?: 'consumet' | 'scraper' | 'novel';
+  /** Backend key used in backendConfigStore (e.g. "scraper", "novel"). */
+  backendKey?: 'scraper' | 'novel';
   health: ProviderHealth;
 };
 

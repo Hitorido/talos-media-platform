@@ -1,18 +1,20 @@
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SourceWebsiteButton } from '@/components/content/SourceWebsiteButton';
+import { mangaDetailsHref } from '@/lib/routes';
 import { captureBookmarkPreview } from '@/services/bookmarkPreview';
 import { useMediaBookmarkStore } from '@/stores/mediaBookmarkStore';
-import { SourceWebsiteButton } from '@/components/content/SourceWebsiteButton';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
-  HorizontalReader,
-  HorizontalReaderRef,
-  MangaReaderControls,
-  MangaReaderHeader,
-  VerticalReader,
-  VerticalReaderRef,
+    HorizontalReader,
+    HorizontalReaderRef,
+    MangaReaderControls,
+    MangaReaderHeader,
+    VerticalReader,
+    VerticalReaderRef,
 } from '@/components/manga';
 import { Text } from '@/components/ui';
 import { useMangaContent } from '@/hooks/useMangaContent';
@@ -44,6 +46,17 @@ export default function MangaReaderScreen() {
   const { manga, loading: mangaLoading, error: mangaError } = useMangaContent(id);
   const setChapterProgress = useMangaProgressStore((state) => state.setChapterProgress);
 
+  // Safe back navigation — falls back to details screen on deep-link entry.
+  const handleBack = useCallback(() => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      // Cast needed: typed routes require literal path strings; our helper returns a cast Href.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      router.replace(mangaDetailsHref(id) as any);
+    }
+  }, [router, id]);
+
   const [initialPage] = useState(() =>
     page && Number.isFinite(Number(page))
       ? Math.max(1, Math.floor(Number(page)))
@@ -53,7 +66,9 @@ export default function MangaReaderScreen() {
   // Track the currently visible chapter (changes as user scrolls in webtoon mode)
   const [activeChapterId, setActiveChapterId] = useState(chapterId);
   const [currentPage, setCurrentPage] = useState<number>(initialPage);
-  const [readingMode, setReadingMode] = useState<ReadingMode>(savedView?.mode ?? 'vertical');
+  const [readingMode, setReadingMode] = useState<ReadingMode>(
+    savedView?.mode ?? useMangaProgressStore.getState().readingModes?.[id] ?? 'vertical',
+  );
   const [readingDirection, setReadingDirection] = useState<ReadingDirection>('rtl');
   const [overlayVisible, setOverlayVisible] = useState<boolean>(true);
   const [showModeOptions, setShowModeOptions] = useState<boolean>(false);
@@ -365,6 +380,13 @@ export default function MangaReaderScreen() {
       unitTitle: savedChapter.title,
       position: location?.pageNumber ?? currentPage,
       previewUri,
+      progress: savedChapter.pages.length
+        ? Math.min(
+            1,
+            ((location?.pageNumber ?? currentPage) - 1 + (location?.fraction ?? 0)) /
+              savedChapter.pages.length,
+          )
+        : undefined,
       view: location
         ? {
             fraction: location.fraction,
@@ -406,7 +428,7 @@ export default function MangaReaderScreen() {
   if (mangaLoading || pagesLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-black px-6">
-        <Stack.Screen options={{ headerShown: true, title: 'Read chapter' }} />
+        <Stack.Screen options={{ headerShown: false }} />
         <Text className="text-white">Loading chapter...</Text>
       </View>
     );
@@ -415,10 +437,10 @@ export default function MangaReaderScreen() {
   if (pagesError) {
     return (
       <View className="flex-1 items-center justify-center bg-black px-6">
-        <Stack.Screen options={{ headerShown: true, title: 'Read chapter' }} />
+        <Stack.Screen options={{ headerShown: false }} />
         <Text className="text-center text-white">{pagesError}</Text>
         <SourceWebsiteButton routeId={id} chapterId={chapterId} />
-        <Pressable onPress={() => router.back()} className="mt-4">
+        <Pressable onPress={handleBack} className="mt-4">
           <Text tone="primary">Go back</Text>
         </Pressable>
       </View>
@@ -428,10 +450,10 @@ export default function MangaReaderScreen() {
   if (!manga || !activeChapter || mangaError) {
     return (
       <View className="flex-1 items-center justify-center bg-black px-6">
-        <Stack.Screen options={{ headerShown: true, title: 'Read chapter' }} />
+        <Stack.Screen options={{ headerShown: false }} />
         <Text className="text-white">Unable to load this chapter.</Text>
         <SourceWebsiteButton routeId={id} chapterId={chapterId} />
-        <Pressable onPress={() => router.back()} className="mt-4">
+        <Pressable onPress={handleBack} className="mt-4">
           <Text tone="primary">Go back</Text>
         </Pressable>
       </View>
@@ -439,7 +461,7 @@ export default function MangaReaderScreen() {
   }
 
   return (
-    <View className="flex-1 bg-black">
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: 'black' }}>
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* Top Header */}
@@ -450,7 +472,7 @@ export default function MangaReaderScreen() {
           }}
           mangaTitle={manga.title}
           chapterTitle={activeChapter.title}
-          onBack={() => router.back()}
+          onBack={handleBack}
           onToggleControls={handleToggleOptions}
           onOpenChapterList={openChapterPicker}
         />
@@ -473,7 +495,7 @@ export default function MangaReaderScreen() {
       >
         {readingMode === 'vertical' ? (
           <VerticalReader
-            key={bookmark ?? 'webtoon-reader'}
+            key={(bookmark ?? 'webtoon-reader') + '-' + readingMode}
             initialView={savedView}
             ref={verticalRef}
             chapters={chaptersToLoad}
@@ -499,6 +521,8 @@ export default function MangaReaderScreen() {
             initialPage={currentPage}
             onPageChange={handlePageChange}
             onTapScreen={toggleOverlay}
+            onNavigateLeft={readingDirection === 'rtl' ? handlePrevChapter : handleNextChapter}
+            onNavigateRight={readingDirection === 'rtl' ? handleNextChapter : handlePrevChapter}
           />
         )}
       </View>
@@ -513,7 +537,10 @@ export default function MangaReaderScreen() {
           hasPrevChapter={Boolean(prevChapter)}
           hasNextChapter={Boolean(nextChapter)}
           showModeOptions={showModeOptions}
-          onSelectMode={setReadingMode}
+          onSelectMode={(mode) => {
+            setReadingMode(mode);
+            useMangaProgressStore.getState().setReadingMode(id, mode);
+          }}
           onSelectDirection={setReadingDirection}
           onPrevPage={handlePrevPage}
           onNextPage={handleNextPage}
@@ -584,6 +611,6 @@ export default function MangaReaderScreen() {
           </Pressable>
         </Pressable>
       </Modal>
-    </View>
+    </GestureHandlerRootView>
   );
 }

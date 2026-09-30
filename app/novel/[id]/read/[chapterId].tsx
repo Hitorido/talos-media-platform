@@ -4,26 +4,39 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, FlatList, Modal, Pressable, View } from 'react-native';
 
 import {
-  NovelReaderControls,
-  NovelReaderHeader,
-  NovelReaderText,
-  NovelReaderTextRef,
+    NovelReaderControls,
+    NovelReaderHeader,
+    NovelReaderText,
+    NovelReaderTextRef,
 } from '@/components/novel';
 import { Badge, Text } from '@/components/ui';
 import { useNovelContent } from '@/hooks/useNovelContent';
-import {
-  getProviderDisplayName,
-  resolveNovelChapterContent,
-} from '@/services/contentService';
+import { novelDetailsHref } from '@/lib/routes';
+import { getProviderDisplayName, resolveNovelChapterContent } from '@/services/contentService';
 import { useNovelProgressStore } from '@/stores/novelProgressStore';
 import type { NovelChapter } from '@/types/novel';
 import { cn } from '@/utils/cn';
 
 export default function NovelReaderScreen() {
   const router = useRouter();
-  const { id, chapterId, progress } = useLocalSearchParams<{ id: string; chapterId: string; progress?:string }>();
+  const { id, chapterId, progress } = useLocalSearchParams<{
+    id: string;
+    chapterId: string;
+    progress?: string;
+  }>();
   const { novel, loading: novelLoading, error: novelError } = useNovelContent(id);
   const progressNovelId = novel?.id ?? id;
+
+  // Safe back navigation — falls back to details screen on deep-link entry.
+  const handleBack = useCallback(() => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      // Cast needed: typed routes require literal path strings; our helper returns a cast Href.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      router.replace(novelDetailsHref(id) as any);
+    }
+  }, [router, id]);
 
   const settings = useNovelProgressStore((state) => state.settings);
   const updateSettings = useNovelProgressStore((state) => state.updateSettings);
@@ -35,16 +48,25 @@ export default function NovelReaderScreen() {
   const isCurrentBookmarked = useNovelProgressStore((state) =>
     Boolean(
       progressNovelId &&
-        activeChapterId &&
-        state.bookmarks.some(
-          (bm) => bm.novelId === progressNovelId && bm.chapterId === activeChapterId && bm.paragraphIndex === (state.getChapterProgress(progressNovelId,activeChapterId)?.paragraphIndex ?? 0),
-        ),
+      activeChapterId &&
+      state.bookmarks.some(
+        (bm) =>
+          bm.novelId === progressNovelId &&
+          bm.chapterId === activeChapterId &&
+          bm.paragraphIndex ===
+            (state.getChapterProgress(progressNovelId, activeChapterId)?.paragraphIndex ?? 0),
+      ),
     ),
   );
 
-  const chapterScrollProgress = useMemo(() =>
-    progress !== undefined && Number.isFinite(Number(progress)) ? Math.max(0,Math.min(1,Number(progress))) : useNovelProgressStore.getState().getChapterProgress(progressNovelId, chapterId)?.scrollPercentage ?? 0,
-    [progressNovelId, chapterId, progress]);
+  const chapterScrollProgress = useMemo(
+    () =>
+      progress !== undefined && Number.isFinite(Number(progress))
+        ? Math.max(0, Math.min(1, Number(progress)))
+        : (useNovelProgressStore.getState().getChapterProgress(progressNovelId, chapterId)
+            ?.scrollPercentage ?? 0),
+    [progressNovelId, chapterId, progress],
+  );
 
   const [overlayVisible, setOverlayVisible] = useState<boolean>(true);
   const [readingProgress, setReadingProgress] = useState(chapterScrollProgress);
@@ -78,6 +100,17 @@ export default function NovelReaderScreen() {
     lastSavedRef.current = { chapterId, ratio: chapterScrollProgress };
   }, [chapterId, chapterScrollProgress]);
 
+  // Reset the chapter-navigation prompt when the active chapter changes to prevent
+  // ghost overlays from stale animation state on the incoming chapter.
+  useEffect(() => {
+    if (settings.scrollMode === 'continuous') return;
+    setShowChapterNavPrompt(false);
+    // Snap values to hidden immediately — no animation delay means no ghost frame.
+    chapterPromptOpacity.setValue(0);
+    chapterPromptTranslate.setValue(80);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeChapterId]); // intentionally minimal — only reset on chapter switch
+
   const loadChapterContent = useCallback(
     async (targetChapterId: string) => {
       if (!novel || !id) return null;
@@ -90,17 +123,21 @@ export default function NovelReaderScreen() {
 
   const loadedContentRef = useRef(chaptersWithContent);
   loadedContentRef.current = chaptersWithContent;
-  useEffect(() => { loadedContentRef.current = {}; setChaptersWithContent({}); }, [id]);
+  useEffect(() => {
+    loadedContentRef.current = {};
+    setChaptersWithContent({});
+  }, [id]);
   useEffect(() => {
     if (!novel || novel.id !== id || !id || !activeChapterId) return;
     let cancelled = false;
     setContentLoading(!loadedContentRef.current[activeChapterId]);
     setContentError(null);
-    const index = novel.chapters.findIndex(ch => ch.id === activeChapterId);
+    const index = novel.chapters.findIndex((ch) => ch.id === activeChapterId);
     // Continuous reading appends nearby chapters ahead of the reader; normal stays chapter-based.
-    const targets = settings.scrollMode === 'continuous'
-      ? novel.chapters.slice(Math.max(0, index), Math.max(0, index) + 3).map(ch => ch.id)
-      : [activeChapterId];
+    const targets =
+      settings.scrollMode === 'continuous'
+        ? novel.chapters.slice(Math.max(0, index), Math.max(0, index) + 3).map((ch) => ch.id)
+        : [activeChapterId];
     void (async () => {
       for (const target of targets) {
         if (cancelled) return;
@@ -111,11 +148,13 @@ export default function NovelReaderScreen() {
         try {
           const result = await loadChapterContent(target);
           if (cancelled || !result) return;
-          loadedContentRef.current = {...loadedContentRef.current, [target]:result.chapter};
+          loadedContentRef.current = { ...loadedContentRef.current, [target]: result.chapter };
           setChaptersWithContent(loadedContentRef.current);
           if (target === activeChapterId) {
-            setIsOffline(result.isOffline); setIsDemo(result.isDemo);
-            setContentProviderId(result.content.providerId ?? null); setContentLoading(false);
+            setIsOffline(result.isOffline);
+            setIsDemo(result.isDemo);
+            setContentProviderId(result.content.providerId ?? null);
+            setContentLoading(false);
           }
         } catch (error) {
           if (!cancelled && target === activeChapterId) {
@@ -126,14 +165,14 @@ export default function NovelReaderScreen() {
         }
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [novel, id, activeChapterId, settings.scrollMode, loadChapterContent, retryNonce]);
 
   const chaptersToLoad = useMemo<NovelChapter[]>(() => {
     if (!novel) return [];
-    const merged = novel.chapters.map(
-      (chapter) => chaptersWithContent[chapter.id] ?? chapter,
-    );
+    const merged = novel.chapters.map((chapter) => chaptersWithContent[chapter.id] ?? chapter);
     if (settings.scrollMode === 'continuous') {
       return merged.filter((chapter) => chapter.paragraphs.length > 0);
     }
@@ -164,14 +203,6 @@ export default function NovelReaderScreen() {
       if (!novel) return;
       const ch = novel.chapters.find((c) => c.id === chId);
       if (!ch) return;
-      // Navigation must react even when persistence skips a small progress change.
-      if (settings.scrollMode !== 'continuous') {
-        if (scrollPercentage > 0.94) {
-          setShowChapterNavPrompt(true);
-        } else if (scrollPercentage < 0.85) {
-          setShowChapterNavPrompt(false);
-        }
-      }
       if (
         lastSavedRef.current.chapterId === chId &&
         Math.abs(lastSavedRef.current.ratio - scrollPercentage) < 0.05
@@ -189,8 +220,6 @@ export default function NovelReaderScreen() {
         paragraphIndex,
         updatedAt: Date.now(),
       });
-
-
     },
     [novel, progressNovelId, settings.scrollMode, setChapterProgress],
   );
@@ -216,12 +245,12 @@ export default function NovelReaderScreen() {
       Animated.parallel([
         Animated.timing(chapterPromptTranslate, {
           toValue: 80,
-          duration: 180,
+          duration: 120,
           useNativeDriver: true,
         }),
         Animated.timing(chapterPromptOpacity, {
           toValue: 0,
-          duration: 180,
+          duration: 120,
           useNativeDriver: true,
         }),
       ]).start();
@@ -230,15 +259,14 @@ export default function NovelReaderScreen() {
 
     if (showChapterNavPrompt) {
       Animated.parallel([
-        Animated.spring(chapterPromptTranslate, {
+        Animated.timing(chapterPromptTranslate, {
           toValue: 0,
-          tension: 60,
-          friction: 9,
+          duration: 120,
           useNativeDriver: true,
         }),
         Animated.timing(chapterPromptOpacity, {
           toValue: 1,
-          duration: 180,
+          duration: 120,
           useNativeDriver: true,
         }),
       ]).start();
@@ -246,12 +274,12 @@ export default function NovelReaderScreen() {
       Animated.parallel([
         Animated.timing(chapterPromptTranslate, {
           toValue: 80,
-          duration: 180,
+          duration: 120,
           useNativeDriver: true,
         }),
         Animated.timing(chapterPromptOpacity, {
           toValue: 0,
-          duration: 180,
+          duration: 120,
           useNativeDriver: true,
         }),
       ]).start();
@@ -271,11 +299,19 @@ export default function NovelReaderScreen() {
       const existing = useNovelProgressStore
         .getState()
         .bookmarks.find(
-          (bm) => bm.novelId === progressNovelId && bm.chapterId === activeChapter.id && bm.paragraphIndex === (useNovelProgressStore.getState().getChapterProgress(progressNovelId,activeChapter.id)?.paragraphIndex ?? 0),
+          (bm) =>
+            bm.novelId === progressNovelId &&
+            bm.chapterId === activeChapter.id &&
+            bm.paragraphIndex ===
+              (useNovelProgressStore
+                .getState()
+                .getChapterProgress(progressNovelId, activeChapter.id)?.paragraphIndex ?? 0),
         );
       if (existing) removeBookmark(existing.id);
     } else {
-      const paragraphIndex=useNovelProgressStore.getState().getChapterProgress(progressNovelId,activeChapter.id)?.paragraphIndex ?? 0;
+      const paragraphIndex =
+        useNovelProgressStore.getState().getChapterProgress(progressNovelId, activeChapter.id)
+          ?.paragraphIndex ?? 0;
       const snippetSource =
         chaptersWithContent[activeChapter.id]?.paragraphs[paragraphIndex] ??
         activeChapter.paragraphs[paragraphIndex] ??
@@ -319,7 +355,7 @@ export default function NovelReaderScreen() {
   if (novelLoading || (contentLoading && !chaptersToLoad.length)) {
     return (
       <View className="flex-1 items-center justify-center gap-3 bg-black px-6">
-        <Stack.Screen options={{ headerShown: true, title: 'Read chapter' }} />
+        <Stack.Screen options={{ headerShown: false }} />
         <ActivityIndicator size="large" color="#fff" />
         <Text className="text-center text-neutral-300">Loading novel chapter...</Text>
       </View>
@@ -329,7 +365,7 @@ export default function NovelReaderScreen() {
   if (novelError || !novel || contentError || !activeChapter || chaptersToLoad.length === 0) {
     return (
       <View className="flex-1 items-center justify-center gap-3 bg-black px-6">
-        <Stack.Screen options={{ headerShown: true, title: 'Read chapter' }} />
+        <Stack.Screen options={{ headerShown: false }} />
         <Text className="text-center text-white">Unable to load this novel chapter.</Text>
         <Text className="text-center text-neutral-400">
           {contentError ?? novelError ?? 'No chapter text was resolved from the provider.'}
@@ -338,7 +374,7 @@ export default function NovelReaderScreen() {
           <Text tone="primary">Retry</Text>
         </Pressable>
         <SourceWebsiteButton routeId={id} chapterId={chapterId} />
-        <Pressable onPress={() => router.back()} className="mt-2">
+        <Pressable onPress={handleBack} className="mt-2">
           <Text className="text-neutral-400">Go back</Text>
         </Pressable>
       </View>
@@ -355,7 +391,7 @@ export default function NovelReaderScreen() {
           chapterTitle={activeChapter.title}
           theme={settings.theme}
           isBookmarked={isCurrentBookmarked}
-          onBack={() => router.back()}
+          onBack={handleBack}
           onToggleBookmark={handleToggleBookmark}
           onToggleSettings={handleToggleSettingsSheet}
           onOpenChapterList={openChapterPicker}
@@ -367,10 +403,7 @@ export default function NovelReaderScreen() {
           {isOffline ? <Badge label="Offline" variant="secondary" /> : null}
           {isDemo ? <Badge label="Demo Content" variant="secondary" /> : null}
           {!isDemo && !isOffline && contentProviderId ? (
-            <Badge
-              label={getProviderDisplayName(contentProviderId)}
-              variant="secondary"
-            />
+            <Badge label={getProviderDisplayName(contentProviderId)} variant="secondary" />
           ) : null}
         </View>
       ) : null}
@@ -388,6 +421,9 @@ export default function NovelReaderScreen() {
         settings={settings}
         initialScrollPercentage={activeChapterId === chapterId ? chapterScrollProgress : 0}
         onScrollProgress={saveProgress}
+        onEndVisibilityChange={
+          settings.scrollMode !== 'continuous' ? setShowChapterNavPrompt : undefined
+        }
         onChapterChange={handleChapterChange}
         onTapScreen={toggleControls}
       />
@@ -421,7 +457,11 @@ export default function NovelReaderScreen() {
         <Animated.View
           pointerEvents={showChapterNavPrompt && !showSettingsSheet ? 'auto' : 'none'}
           style={{
-            position: 'absolute', left: 16, right: 16, bottom: 80, elevation: 40,
+            position: 'absolute',
+            left: 16,
+            right: 16,
+            bottom: 80,
+            elevation: 40,
             opacity: chapterPromptOpacity,
             zIndex: showSettingsSheet ? 10 : 30,
             transform: [{ translateY: chapterPromptTranslate }],
@@ -430,7 +470,10 @@ export default function NovelReaderScreen() {
         >
           <View className="flex-row gap-2">
             <Pressable
-              onPress={(event) => { event.stopPropagation(); handlePrevChapter(); }}
+              onPress={(event) => {
+                event.stopPropagation();
+                handlePrevChapter();
+              }}
               disabled={!prevChapter}
               className={cn(
                 'flex-1 rounded-full border border-neutral-700 bg-neutral-950/90 px-4 py-3 shadow-2xl',
@@ -440,7 +483,10 @@ export default function NovelReaderScreen() {
               <Text className="text-center text-xs font-semibold text-white">Prev Chapter</Text>
             </Pressable>
             <Pressable
-              onPress={(event) => { event.stopPropagation(); handleNextChapter(); }}
+              onPress={(event) => {
+                event.stopPropagation();
+                handleNextChapter();
+              }}
               disabled={!nextChapter}
               className={cn(
                 'flex-1 rounded-full border border-neutral-700 bg-neutral-950/90 px-4 py-3 shadow-2xl',
@@ -473,7 +519,12 @@ export default function NovelReaderScreen() {
                 <Text className="text-sm text-white">Close</Text>
               </Pressable>
             </View>
-            <FlatList style={{maxHeight:320}} data={showChapterPicker ? novel.chapters : []} keyExtractor={chapter => chapter.id} initialNumToRender={12} renderItem={({item:chapter}) => (
+            <FlatList
+              style={{ maxHeight: 320 }}
+              data={showChapterPicker ? novel.chapters : []}
+              keyExtractor={(chapter) => chapter.id}
+              initialNumToRender={12}
+              renderItem={({ item: chapter }) => (
                 <Pressable
                   key={chapter.id}
                   onPress={() => selectChapter(chapter.id)}
@@ -493,7 +544,8 @@ export default function NovelReaderScreen() {
                     Chapter {chapter.number}: {chapter.title}
                   </Text>
                 </Pressable>
-              )} />
+              )}
+            />
           </Pressable>
         </Pressable>
       </Modal>

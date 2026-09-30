@@ -3,9 +3,9 @@ import { useLibraryStore } from '@/stores/libraryStore';
 import { useEffect, useState } from 'react';
 
 import {
-  getBuiltinMangaDetails,
-  getMediaChapters,
-  getMediaDetails,
+    getBuiltinMangaDetails,
+    getMediaChapters,
+    getMediaDetails,
 } from '@/services/contentService';
 import type { MangaChapter, MangaDetails } from '@/types/manga';
 import type { NormalizedChapter, NormalizedMedia } from '@/types/provider';
@@ -94,11 +94,23 @@ export function useMangaContent(routeId: string | undefined): MangaContentState 
       .then(([media, chapters]) => {
         if (cancelled) return;
         fresh = true;
+        // Prefer detail cover; fall back to any saved library cover so Shadow Slave
+        // (and similar titles) do not show blank on the detail screen.
+        const savedCover =
+          useLibraryStore.getState().media?.[
+            encodeMediaRouteId(media.ref.providerId, media.ref.sourceId)
+          ]?.coverUrl ??
+          local?.coverUrl ??
+          '';
+        const resolvedCoverUrl = media.coverUrl?.trim() ? media.coverUrl : savedCover;
+        const resolvedBannerUrl = (media.bannerUrl ?? media.coverUrl)?.trim()
+          ? (media.bannerUrl ?? media.coverUrl)
+          : savedCover;
         useLibraryStore.getState().rememberMedia({
           id: encodeMediaRouteId(media.ref.providerId, media.ref.sourceId),
           title: media.title,
-          coverUrl: media.coverUrl,
-          bannerUrl: media.bannerUrl ?? media.coverUrl,
+          coverUrl: resolvedCoverUrl,
+          bannerUrl: resolvedBannerUrl,
           genres: media.genres,
           mediaType:
             media.mediaType === 'manhwa' || media.mediaType === 'manhua'
@@ -107,7 +119,10 @@ export function useMangaContent(routeId: string | undefined): MangaContentState 
           chapterCount: chapters.length,
         });
         setState({
-          manga: toMangaDetails(media, chapters),
+          manga: toMangaDetails(
+            { ...media, coverUrl: resolvedCoverUrl, bannerUrl: resolvedBannerUrl },
+            chapters,
+          ),
           loading: false,
           error: null,
           isProviderContent: true,

@@ -1,14 +1,13 @@
-import { isActiveSource } from '@/utils/activeSource';
-import { getApiBaseUrl } from '@/lib/apiConfig';
-import { SourceWebsiteButton } from '@/components/content/SourceWebsiteButton';
-import { sourceWebsite } from '@/services/sourceWebsite';
 import { useState } from 'react';
 import { Switch, View } from 'react-native';
 
 import { Button, Input, Text } from '@/components/ui';
 import { initializeProviders, providerRegistry } from '@/providers';
 import { fetchProviderHealth } from '@/services/api/backendApi';
-import { useBackendConfigStore, type BackendUrlKey } from '@/stores/backendConfigStore';
+import {
+    useBackendConfigStore,
+    type BackendUrlKey,
+} from '@/stores/backendConfigStore';
 import { useProviderHealthStore } from '@/stores/providerHealthStore';
 import { useProviderStore } from '@/stores/providerStore';
 import type { ProviderExecutionMode, ProviderStatus } from '@/types/provider';
@@ -42,11 +41,6 @@ const backendFields: { key: BackendUrlKey; label: string; hint: string }[] = [
     hint: 'Compatible novel API base (search/details/chapters/content). Leave empty to use this app Express /api/novels gateway.',
   },
   {
-    key: 'consumet',
-    label: 'Consumet Base URL',
-    hint: 'Self-hosted Consumet API. Public api.consumet.org returns HTTP 451.',
-  },
-  {
     key: 'scraper',
     label: 'Scraper Backend URL',
     hint: 'Optional future comic scraper backend.',
@@ -78,7 +72,7 @@ export function SourcesContent() {
   initializeProviders();
   const providers = providerRegistry
     .list()
-    .filter((provider) => isActiveSource(provider.definition.status));
+    .filter((provider) => !/consumet/i.test(provider.definition.id));
   const enabledMap = useProviderStore((state) => state.enabled);
   const setProviderEnabled = useProviderStore((state) => state.setProviderEnabled);
   const setPreferredProvider = useProviderStore((state) => state.setPreferredProvider);
@@ -120,37 +114,20 @@ export function SourcesContent() {
   return (
     <View className="gap-6">
       <View className="gap-3 rounded-2xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
-        <Text variant="label">Talos backend</Text>
-        <Text selectable variant="caption">
-          API URL: {getApiBaseUrl()}
-        </Text>
+        <Text variant="label">Backend Endpoints</Text>
         <Text variant="caption" tone="muted">
-          Novel feeds, gateway readers and external subtitles use this server. A sleeping hosted
-          server may take a minute to wake up. A local LAN URL requires your computer and phone on
-          the same Wi-Fi.
-        </Text>
-        <Text variant="caption" tone="muted">
-          Configure optional self-hosted backends. Novel Backend Gateway uses the Novel URL when
-          set; otherwise it calls this app&apos;s Express /api/novels proxy (requires
-          NOVEL_GATEWAY_URL).
+          Configure optional self-hosted backends. Novel Backend Gateway uses the Novel URL when set;
+          otherwise it calls this app&apos;s Express /api/novels proxy (requires NOVEL_GATEWAY_URL).
         </Text>
         <Button
-          label="Check connection"
+          label="Refresh backend health"
           variant="outline"
           size="sm"
           loading={healthLoading}
           onPress={refreshBackendHealth}
         />
-        {healthLoading ? (
-          <Text variant="caption" tone="muted">
-            Connecting? the server may be waking up.
-          </Text>
-        ) : null}
         {healthMessage ? (
-          <Text
-            variant="caption"
-            tone={healthMessage.startsWith('Checked') ? 'success' : 'destructive'}
-          >
+          <Text variant="caption" tone={healthMessage.startsWith('Checked') ? 'success' : 'destructive'}>
             {healthMessage}
           </Text>
         ) : null}
@@ -233,17 +210,10 @@ export function SourcesContent() {
                   <View className="flex-row items-start justify-between gap-3">
                     <View className="flex-1 gap-1">
                       <Text variant="label">{def.name}</Text>
-                      {sourceWebsite(def.id) ? (
-                        <Text variant="caption">{sourceWebsite(def.id)!.mode}</Text>
-                      ) : null}
-                      <SourceWebsiteButton routeId={def.id} />
                       <Text variant="caption" tone="muted">
                         {def.description}
                       </Text>
-                      <Text
-                        variant="caption"
-                        className={statusColor(enabled ? status : 'disabled')}
-                      >
+                      <Text variant="caption" className={statusColor(enabled ? status : 'disabled')}>
                         Status: {statusLabels[enabled ? status : 'disabled']}
                       </Text>
                       <Text variant="caption" tone="muted">
