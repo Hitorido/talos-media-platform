@@ -1,15 +1,27 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
+const PRODUCTION_API_URL = 'https://talos-media-platform.onrender.com';
+
 /**
- * Resolves the backend base URL for web / emulator / simulator / device.
- * Override with EXPO_PUBLIC_API_URL (no trailing slash), e.g.:
- *   EXPO_PUBLIC_API_URL=http://192.168.1.20:5000
+ * Resolves the Talos backend base URL.
+ * Release/preview builds use the Render production host unless EXPO_PUBLIC_API_URL overrides it.
+ * Development keeps LAN / emulator / localhost fallbacks when the env var is unset.
  */
 export function getApiBaseUrl(): string {
   const configured = process.env.EXPO_PUBLIC_API_URL?.trim();
   if (configured) {
     return configured.replace(/\/$/, '');
+  }
+
+  const fromExtra = (Constants.expoConfig?.extra as { apiUrl?: string } | undefined)?.apiUrl?.trim();
+  if (fromExtra) {
+    return fromExtra.replace(/\/$/, '');
+  }
+
+  // Release bundles must never fall back to a developer LAN host.
+  if (typeof __DEV__ !== 'undefined' && !__DEV__) {
+    return PRODUCTION_API_URL;
   }
 
   const hostUri =
@@ -30,7 +42,6 @@ export function getApiBaseUrl(): string {
   }
 
   if (Platform.OS === 'android') {
-    // Android emulator maps host loopback to 10.0.2.2
     return 'http://10.0.2.2:5000';
   }
 

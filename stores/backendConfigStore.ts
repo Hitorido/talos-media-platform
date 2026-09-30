@@ -3,7 +3,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { appPersistStorage } from '@/stores/persistStorage';
 
-export type BackendUrlKey = 'consumet' | 'scraper' | 'novel';
+export type BackendUrlKey = 'scraper' | 'novel';
 
 type BackendConfigState = {
   backendUrls: Partial<Record<BackendUrlKey, string>>;
@@ -40,9 +40,3 @@ export const useBackendConfigStore = create<BackendConfigState>()(
     },
   ),
 );
-
-export const DEFAULT_CONSUMET_BASE = 'https://api.consumet.org';
-
-export function getConsumetBaseUrl(): string {
-  return useBackendConfigStore.getState().getBackendUrl('consumet') ?? DEFAULT_CONSUMET_BASE;
-}

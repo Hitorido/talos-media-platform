@@ -14,6 +14,7 @@ type NovelReaderTextProps = {
   onScrollProgress: (chapterId: string, percentage: number, paragraphIndex: number) => void;
   onChapterChange: (chapterId: string) => void;
   onTapScreen?: () => void;
+  onEndVisibilityChange?: (visible: boolean) => void;
 };
 
 export type NovelReaderTextRef = {
@@ -77,10 +78,11 @@ export const NovelReaderText = forwardRef<NovelReaderTextRef, NovelReaderTextPro
       onScrollProgress,
       onChapterChange,
       onTapScreen,
+      onEndVisibilityChange,
     }: NovelReaderTextProps,
     ref,
   ) {
-    const tapStart = useRef<{x:number;y:number;at:number} | null>(null);
+    const tapStart = useRef<{ x: number; y: number; at: number } | null>(null);
     const scrollViewRef = useRef<ScrollView>(null);
     const hasRestoredScrollRef = useRef(false);
     const currentChapterRef = useRef(activeChapterId);
@@ -94,13 +96,17 @@ export const NovelReaderText = forwardRef<NovelReaderTextRef, NovelReaderTextPro
     const chapterOffsetMapRef = useRef<Record<string, number>>({});
     const totalContentHeightRef = useRef(0);
     const viewportRef = useRef(0);
+    const offsetRef = useRef(0);
     const chapterHeightRef = useRef<Record<string, number>>({});
 
     useImperativeHandle(ref, () => ({
       scrollToProgress: (progress: number) => {
         const boundedProgress = Math.max(0, Math.min(1, progress));
         scrollViewRef.current?.scrollTo({
-          y: (chapterOffsetMapRef.current[activeChapterId] ?? 0) + boundedProgress * Math.max(0, (chapterHeightRef.current[activeChapterId] ?? 0) - viewportRef.current),
+          y:
+            (chapterOffsetMapRef.current[activeChapterId] ?? 0) +
+            boundedProgress *
+              Math.max(0, (chapterHeightRef.current[activeChapterId] ?? 0) - viewportRef.current),
           animated: false,
         });
       },
@@ -112,28 +118,35 @@ export const NovelReaderText = forwardRef<NovelReaderTextRef, NovelReaderTextPro
       const chapterOffset = chapterOffsetMapRef.current[targetChapterId];
       if (chapterOffset !== undefined && viewportRef.current > 0) {
         hasRestoredScrollRef.current = true;
-        scrollViewRef.current?.scrollTo({ y: chapterOffset + initialScrollPercentage * Math.max(0, (chapterHeightRef.current[targetChapterId] ?? 0) - viewportRef.current), animated: false });
+        scrollViewRef.current?.scrollTo({
+          y:
+            chapterOffset +
+            initialScrollPercentage *
+              Math.max(0, (chapterHeightRef.current[targetChapterId] ?? 0) - viewportRef.current),
+          animated: false,
+        });
         currentChapterRef.current = targetChapterId;
         onChapterChange(targetChapterId);
         return;
       }
-
-
     }, [initialScrollPercentage, onChapterChange, targetChapterId]);
 
     const handleContentSizeChange = (_w: number, contentHeight: number) => {
       totalContentHeightRef.current = contentHeight;
+      if (viewportRef.current > 0)
+        onEndVisibilityChange?.(contentHeight - viewportRef.current - offsetRef.current <= 48);
       tryRestoreScrollPosition();
     };
 
     const handleScroll = useCallback(
       (event: NativeSyntheticEvent<NativeScrollEvent>) => {
         const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
+        offsetRef.current = Math.max(0, contentOffset.y);
         const maxScroll = contentSize.height - layoutMeasurement.height;
+        onEndVisibilityChange?.(maxScroll <= 0 || maxScroll - Math.max(0, contentOffset.y) <= 48);
         if (maxScroll <= 0) return;
 
         const scrollY = contentOffset.y;
-
 
         // Determine the chapter by the scroll midpoint instead of a noisy edge threshold.
         const midpoint = scrollY + layoutMeasurement.height * 0.5;
@@ -163,7 +176,13 @@ export const NovelReaderText = forwardRef<NovelReaderTextRef, NovelReaderTextPro
 
         const chapterStart = chapterOffsetMapRef.current[visibleChapterId] ?? 0;
         const chapterHeight = chapterHeightRef.current[visibleChapterId] ?? contentSize.height;
-        const scrollRatio = Math.max(0, Math.min(1, (scrollY - chapterStart) / Math.max(1, chapterHeight - layoutMeasurement.height)));
+        const scrollRatio = Math.max(
+          0,
+          Math.min(
+            1,
+            (scrollY - chapterStart) / Math.max(1, chapterHeight - layoutMeasurement.height),
+          ),
+        );
         // Compute paragraph index within active chapter
         const activeChapter = chapters.find((ch) => ch.id === visibleChapterId);
         const paragraphIndex = activeChapter
@@ -175,7 +194,7 @@ export const NovelReaderText = forwardRef<NovelReaderTextRef, NovelReaderTextPro
 
         onScrollProgress(visibleChapterId, scrollRatio, paragraphIndex);
       },
-      [chapters, activeChapterId, onChapterChange, onScrollProgress],
+      [chapters, activeChapterId, onChapterChange, onScrollProgress, onEndVisibilityChange],
     );
 
     const lineMultiplier = lineSpacingHeights[settings.lineSpacing];
@@ -187,18 +206,40 @@ export const NovelReaderText = forwardRef<NovelReaderTextRef, NovelReaderTextPro
     return (
       <ScrollView
         ref={scrollViewRef}
-        onLayout={event => { viewportRef.current = event.nativeEvent.layout.height; tryRestoreScrollPosition(); }}
+        onLayout={(event) => {
+          viewportRef.current = event.nativeEvent.layout.height;
+          if (totalContentHeightRef.current > 0)
+            onEndVisibilityChange?.(
+              totalContentHeightRef.current - viewportRef.current - offsetRef.current <= 48,
+            );
+          tryRestoreScrollPosition();
+        }}
         onScroll={handleScroll}
         onMomentumScrollEnd={handleScroll}
         onScrollEndDrag={handleScroll}
-        onTouchStart={event => { tapStart.current = {x:event.nativeEvent.pageX,y:event.nativeEvent.pageY,at:Date.now()}; }}
-        onScrollBeginDrag={() => { tapStart.current = null; }}
-        onTouchEnd={event => {
-          const start=tapStart.current; tapStart.current=null;
-          if(start && Date.now()-start.at < 300 && Math.abs(event.nativeEvent.pageX-start.x)<8 && Math.abs(event.nativeEvent.pageY-start.y)<8) onTapScreen?.();
+        onTouchStart={(event) => {
+          tapStart.current = {
+            x: event.nativeEvent.pageX,
+            y: event.nativeEvent.pageY,
+            at: Date.now(),
+          };
+        }}
+        onScrollBeginDrag={() => {
+          tapStart.current = null;
+        }}
+        onTouchEnd={(event) => {
+          const start = tapStart.current;
+          tapStart.current = null;
+          if (
+            start &&
+            Date.now() - start.at < 300 &&
+            Math.abs(event.nativeEvent.pageX - start.x) < 8 &&
+            Math.abs(event.nativeEvent.pageY - start.y) < 8
+          )
+            onTapScreen?.();
         }}
         onContentSizeChange={handleContentSizeChange}
-        scrollEventThrottle={100}
+        scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
         removeClippedSubviews
         className={cn('flex-1', themeBgClasses[settings.theme])}

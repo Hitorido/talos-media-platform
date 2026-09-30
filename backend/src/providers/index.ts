@@ -10,7 +10,6 @@ import { novelArrowAdapter } from './novelarrow/adapter.js';
 import { mangaPillAdapter } from './mangapill/adapter.js';
 import { weebCentralAdapter } from './weebcentral/adapter.js';
 import { asuraScansAdapter } from './asurascans/adapter.js';
-import { consumetProviderAdapter } from './consumet/adapter.js';
 import { novelProviderAdapter } from './novel/adapter.js';
 import { narouProviderAdapter } from './narou/adapter.js';
 import { registerProvider } from './registry.js';
@@ -39,7 +38,6 @@ export function initializeBackendProviders(): void {
   registerProvider(mangaJinxAdapter);
   registerProvider(novelProviderAdapter);
   registerProvider(narouProviderAdapter);
-  registerProvider(consumetProviderAdapter);
   registerProvider(scraperProviderAdapter);
   registerProvider(asuraScansAdapter);
 

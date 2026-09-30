@@ -44,7 +44,8 @@ export default function DownloadsScreen() {
     return items
       .filter((item) => {
         if (activeTab === 'all') return true;
-        if (activeTab === 'active') return item.status === 'downloading' || item.status === 'paused';
+        if (activeTab === 'active')
+          return item.status === 'downloading' || item.status === 'paused';
         if (activeTab === 'queued') return item.status === 'queued';
         if (activeTab === 'completed') return item.status === 'completed';
         if (activeTab === 'failed') return item.status === 'failed';
@@ -86,17 +87,12 @@ export default function DownloadsScreen() {
       {/* Header & Storage Info */}
       <View className="gap-2 px-4 pt-2">
         <View className="flex-row items-center justify-between">
-          <View>
+          <View className="flex-1 pr-3">
             <Text variant="h1">Downloads</Text>
             <Text tone="muted">Manage your offline media and queues.</Text>
           </View>
           {counts.completed > 0 ? (
-            <Button
-              label="Clear Completed"
-              variant="ghost"
-              size="sm"
-              onPress={clearCompletedDownloads}
-            />
+            <Button label="Clear" variant="secondary" size="sm" onPress={clearCompletedDownloads} />
           ) : null}
         </View>
 
@@ -118,11 +114,7 @@ export default function DownloadsScreen() {
       </View>
 
       {/* Tabs */}
-      <DownloadSectionTabs
-        activeTab={activeTab}
-        counts={counts}
-        onSelectTab={setActiveTab}
-      />
+      <DownloadSectionTabs activeTab={activeTab} counts={counts} onSelectTab={setActiveTab} />
 
       {/* Swipe hint */}
       {filteredItems.length > 0 ? (

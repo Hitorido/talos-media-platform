@@ -1,12 +1,14 @@
 ﻿import { downloadFile, saveTextFile } from '@/services/storageService';
 
-async function playlist(url: string): Promise<string> {
+async function playlist(url: string): Promise<{ text: string; url: string }> {
+  if (!['https:', 'http:'].includes(new URL(url).protocol))
+    throw new Error('Unsupported playlist URL.');
   const response = await fetch(url, { signal: AbortSignal.timeout(20000) });
   if (!response.ok) throw new Error('Playlist download failed (' + response.status + ').');
   const text = await response.text();
   if (text.length > 2_000_000 || !text.trimStart().startsWith('#EXTM3U'))
     throw new Error('Invalid HLS playlist.');
-  return text;
+  return { text, url: response.url || url };
 }
 /** Downloads bounded, unencrypted VOD; never labels a remote playlist as an offline video. */
 export async function downloadHls(
@@ -15,8 +17,7 @@ export async function downloadHls(
   signal: { isAborted: boolean },
   progress: (done: number, total: number, bytes: number) => void,
 ) {
-  let text = await playlist(url),
-    base = url;
+  let { text, url: base } = await playlist(url);
   let subtitlePlaylist: string | undefined;
   if (text.includes('#EXT-X-STREAM-INF:')) {
     if (/#EXT-X-MEDIA:TYPE=AUDIO/.test(text))
@@ -30,24 +31,55 @@ export async function downloadHls(
           /(?:LANGUAGE="en(?:g)?"|NAME="English")/i.test(line),
       );
     const subtitleUri = subtitleLine?.match(/URI="([^"]+)"/)?.[1];
-    if (subtitleUri) subtitlePlaylist = new URL(subtitleUri, url).href;
+    if (subtitleUri) subtitlePlaylist = new URL(subtitleUri, base).href;
     const lines = text.split(/\r?\n/);
     const choices = lines.flatMap((line, i) =>
       line.startsWith('#EXT-X-STREAM-INF:') && lines[i + 1] && !lines[i + 1].startsWith('#')
         ? [
             {
               height: Number(line.match(/RESOLUTION=\d+x(\d+)/)?.[1] || 0),
-              url: new URL(lines[i + 1], url).href,
+              url: new URL(lines[i + 1].trim(), base).href,
             },
           ]
         : [],
     );
-    const selected =
-      choices.filter((c) => c.height <= 720).sort((a, b) => b.height - a.height)[0] ??
-      choices.sort((a, b) => a.height - b.height)[0];
-    if (!selected) throw new Error('No downloadable HLS variant.');
-    base = selected.url;
-    text = await playlist(base);
+    const preferred = choices.filter((c) => c.height <= 720).sort((a, b) => b.height - a.height);
+    const candidates = [
+      ...preferred,
+      ...choices.filter((c) => c.height > 720).sort((a, b) => a.height - b.height),
+    ];
+    if (!candidates.length) throw new Error('No downloadable HLS variant.');
+    let resolved = false;
+    let lastFailure: Error | undefined;
+    for (const candidate of candidates) {
+      if (signal.isAborted) throw new Error('Download paused.');
+      try {
+        const media = await playlist(candidate.url);
+        const firstSegment = media.text
+          .split(/\r?\n/)
+          .find((line) => line && !line.startsWith('#'));
+        if (firstSegment) {
+          const segmentUrl = new URL(firstSegment, media.url);
+          if (!['http:', 'https:'].includes(segmentUrl.protocol))
+            throw new Error('Unsupported media URL.');
+          const probe = await fetch(segmentUrl.href, { signal: AbortSignal.timeout(20000) });
+          await probe.body?.cancel();
+          if (!probe.ok) throw new Error('Playlist download failed (' + probe.status + ').');
+        }
+        text = media.text;
+        base = media.url;
+        resolved = true;
+        break;
+      } catch (error) {
+        if (
+          !(error instanceof Error) ||
+          !/Playlist download failed \((404|410|500|502|503|504)\)/.test(error.message)
+        )
+          throw error;
+        lastFailure = error;
+      }
+    }
+    if (!resolved) throw lastFailure ?? new Error('No available video variant for this episode.');
   }
   if (!text.includes('#EXT-X-ENDLIST') || text.includes('#EXT-X-STREAM-INF'))
     throw new Error('Only completed VOD playlists can be downloaded.');
@@ -73,22 +105,38 @@ export async function downloadHls(
   });
   if (!files.length || files.length > 2000)
     throw new Error('Episode exceeds the supported offline segment limit.');
-  let bytes = 0;
-  for (let i = 0; i < files.length; i++) {
-    if (signal.isAborted) throw new Error('Download paused.');
-    const file = files[i],
-      parsed = new URL(file.url);
-    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:')
-      throw new Error('Unsupported media URL.');
-    const result = await downloadFile(file.url, directory + file.name);
-    bytes += result.size;
-    if (bytes > 2 * 1024 * 1024 * 1024) throw new Error('Episode exceeds the 2 GB download limit.');
-    progress(i + 1, files.length, bytes);
-  }
+  let bytes = 0,
+    nextFile = 0,
+    completed = 0;
+  let failure: unknown;
+  // Bounded workers keep a whole episode practical without flooding the source.
+  await Promise.all(
+    Array.from({ length: Math.min(3, files.length) }, async () => {
+      try {
+        while (nextFile < files.length && !failure) {
+          if (signal.isAborted) throw new Error('Download paused.');
+          const file = files[nextFile++],
+            parsed = new URL(file.url);
+          if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:')
+            throw new Error('Unsupported media URL.');
+          const result = await downloadFile(file.url, directory + file.name);
+          bytes += result.size;
+          if (bytes > 2 * 1024 * 1024 * 1024)
+            throw new Error('Episode exceeds the 2 GB download limit.');
+          if (!signal.isAborted && !failure) progress(++completed, files.length, bytes);
+        }
+      } catch (error) {
+        failure ??= error;
+      }
+    }),
+  );
+  if (failure) throw failure;
   if (signal.isAborted) throw new Error('Download paused.');
   const localPath = directory + 'video.m3u8';
   if (subtitlePlaylist) {
-    const captions = await playlist(subtitlePlaylist);
+    const captionResponse = await playlist(subtitlePlaylist);
+    const captions = captionResponse.text;
+    subtitlePlaylist = captionResponse.url;
     if (
       !captions.includes('#EXT-X-ENDLIST') ||
       /#EXT-X-(?:KEY|MAP|BYTERANGE|STREAM-INF):/.test(captions)

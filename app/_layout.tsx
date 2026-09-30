@@ -8,14 +8,16 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
 import 'react-native-reanimated';
 
+import { UpdateModal } from '@/components/UpdateModal';
 import { useColorScheme } from '@/components/useColorScheme';
-import { bootstrapPersistence } from '@/services/persistenceBootstrap';
 import { AppThemeProvider } from '@/providers/ThemeProvider';
+import { bootstrapPersistence } from '@/services/persistenceBootstrap';
+import { checkForUpdate, type VersionManifest } from '@/services/updateService';
 import { getColors } from '@/theme';
 
 export {
-  // Catch any errors thrown by the Layout component.
-  ErrorBoundary,
+    // Catch any errors thrown by the Layout component.
+    ErrorBoundary
 } from 'expo-router';
 
 export const unstable_settings = {
@@ -30,6 +32,7 @@ export default function RootLayout() {
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
   const [hydrated, setHydrated] = useState(false);
+  const [updateManifest, setUpdateManifest] = useState<VersionManifest | null>(null);
 
   // Expo Router uses Error Boundaries to catch errors in the navigation tree.
   useEffect(() => {
@@ -60,10 +63,32 @@ export default function RootLayout() {
     }
   }, [loaded, hydrated]);
 
+  // Background update check — fires once after hydration, never blocks startup.
+  // The /api/version endpoint may not exist yet; failure is silenced gracefully.
+  useEffect(() => {
+    if (!hydrated) return;
+    let active = true;
+    checkForUpdate()
+      .then((manifest) => {
+        if (active && manifest) setUpdateManifest(manifest);
+      })
+      .catch(() => {
+        /* silently ignore network/endpoint failures */
+      });
+    return () => {
+      active = false;
+    };
+  }, [hydrated]);
+
   return (
-    <GestureHandlerRootView style={{flex:1}}><AppThemeProvider>
-      <RootLayoutNav />
-    </AppThemeProvider></GestureHandlerRootView>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AppThemeProvider>
+        <RootLayoutNav />
+        {updateManifest ? (
+          <UpdateModal manifest={updateManifest} onDismiss={() => setUpdateManifest(null)} />
+        ) : null}
+      </AppThemeProvider>
+    </GestureHandlerRootView>
   );
 }
 

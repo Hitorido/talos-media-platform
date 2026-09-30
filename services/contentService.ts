@@ -1,34 +1,39 @@
-import { loadOfflineCatalog } from '@/services/offlineCatalog';
-import { isActiveSource } from '@/utils/activeSource';
-import { settleProviderSearches, sameComicTitle, inSearchSlot, searchRequest } from '@/services/providerSearch';
+import { getApiBaseUrl } from '@/lib/apiConfig';
 import { initializeProviders, providerRegistry } from '@/providers';
 import {
-  resolveBuiltinMockAnime,
-  resolveBuiltinMockManga,
-  resolveBuiltinMockNovel,
+    resolveBuiltinMockAnime,
+    resolveBuiltinMockManga,
+    resolveBuiltinMockNovel,
 } from '@/providers/builtin-mock';
 import type { MediaProvider } from '@/providers/types';
 import { providerSupports } from '@/providers/types';
+import { loadOfflineCatalog } from '@/services/offlineCatalog';
+import { resolveAnimeSource, resolveNovelChapter } from '@/services/offlineResolver';
+import {
+    inSearchSlot,
+    sameComicTitle,
+    searchRequest,
+    settleProviderSearches,
+} from '@/services/providerSearch';
+import { useBackendConfigStore } from '@/stores/backendConfigStore';
 import { useProviderHealthStore } from '@/stores/providerHealthStore';
 import { useProviderStore } from '@/stores/providerStore';
 import type { AnimeDetails } from '@/types/anime';
 import type { MangaDetails, MangaPage } from '@/types/manga';
 import type { NovelChapter, NovelDetails } from '@/types/novel';
-import { resolveAnimeSource, resolveNovelChapter } from '@/services/offlineResolver';
 import {
-  decodeMediaRouteId,
-  encodeMediaRouteId,
-  type MediaRef,
-  type NormalizedChapter,
-  type NormalizedMedia,
-  type NormalizedNovelContent,
-  type NormalizedPlaybackSource,
+    decodeMediaRouteId,
+    encodeMediaRouteId,
+    type MediaRef,
+    type NormalizedChapter,
+    type NormalizedMedia,
+    type NormalizedNovelContent,
+    type NormalizedPlaybackSource,
 } from '@/types/provider';
 import type { SearchFilter, SearchResponse, SearchResult } from '@/types/search';
-import { getApiBaseUrl } from '@/lib/apiConfig';
-import { useBackendConfigStore } from '@/stores/backendConfigStore';
-import { providerNovelLanguage, type NovelLanguage } from '@/utils/novelLanguage';
+import { isActiveSource } from '@/utils/activeSource';
 import { isComicFormat } from '@/utils/comicFormat';
+import { providerNovelLanguage, type NovelLanguage } from '@/utils/novelLanguage';
 
 const TITLE_MATCH_THRESHOLD = 80;
 const searchCache = new Map<string, { expires: number; items: SearchResult[] }>();
@@ -39,6 +44,7 @@ export type ResolvedAnimePlaybackResult = {
   animeTitle: string;
   episodeNumber: number;
   episodeTitle: string;
+  episodeThumbnailUrl?: string;
   durationSeconds?: number;
 };
 
@@ -49,15 +55,21 @@ export type ResolvedNovelChapterResult = {
   isDemo: boolean;
 };
 
-async function withProviderHealth<T>(providerId: string, operation: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+async function withProviderHealth<T>(
+  providerId: string,
+  operation: () => Promise<T>,
+  signal?: AbortSignal,
+): Promise<T> {
   const startedAt = Date.now();
   try {
     const result = await operation();
-    if (!signal?.aborted) useProviderHealthStore.getState().recordSuccess(providerId, Date.now() - startedAt);
+    if (!signal?.aborted)
+      useProviderHealthStore.getState().recordSuccess(providerId, Date.now() - startedAt);
     return result;
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Provider request failed';
-    if (!signal?.aborted) useProviderHealthStore.getState().recordFailure(providerId, message, Date.now() - startedAt);
+    if (!signal?.aborted)
+      useProviderHealthStore.getState().recordFailure(providerId, message, Date.now() - startedAt);
     throw error;
   }
 }
@@ -65,7 +77,12 @@ async function withProviderHealth<T>(providerId: string, operation: () => Promis
 function getEnabledProviders() {
   initializeProviders();
   const { enabled } = useProviderStore.getState();
-  return providerRegistry.list().filter((provider) => enabled[provider.definition.id] === true && isActiveSource(provider.definition.status));
+  return providerRegistry
+    .list()
+    .filter(
+      (provider) =>
+        enabled[provider.definition.id] === true && isActiveSource(provider.definition.status),
+    );
 }
 
 function preferredProviderIdForFilter(filter: SearchFilter): string | undefined {
@@ -102,7 +119,8 @@ function orderProvidersForSearch(
       if (b.definition.id === preferredId && a.definition.id !== preferredId) return 1;
     }
     if (filter === 'novel') {
-      const rank = (id: string) => ['novelcodex','novelarrow'].includes(id) ? ['novelcodex','novelarrow'].indexOf(id) : 9;
+      const rank = (id: string) =>
+        ['novelcodex', 'novelarrow'].includes(id) ? ['novelcodex', 'novelarrow'].indexOf(id) : 9;
       const diff = rank(a.definition.id) - rank(b.definition.id);
       if (diff) return diff;
     }
@@ -161,7 +179,8 @@ function rankSearchResults(results: SearchResult[], filter: SearchFilter): Searc
       if (b.providerId === preferredId && a.providerId !== preferredId) return 1;
     }
     if (a.type === 'novel' && b.type === 'novel') {
-      const rank = (item: SearchResult) => (item.language ?? providerNovelLanguage(item.providerId)) === 'en' ? 0 : 1;
+      const rank = (item: SearchResult) =>
+        (item.language ?? providerNovelLanguage(item.providerId)) === 'en' ? 0 : 1;
       const diff = rank(a) - rank(b);
       if (diff) return diff;
     }
@@ -169,18 +188,33 @@ function rankSearchResults(results: SearchResult[], filter: SearchFilter): Searc
   });
 }
 
-export async function unifiedSearch(query: string, filter: SearchFilter, options: {
-  signal?: AbortSignal;
-  novelLanguage?: NovelLanguage;
-  onProgress?: (results: SearchResult[]) => void;
-} = {}): Promise<SearchResponse> {
+export async function unifiedSearch(
+  query: string,
+  filter: SearchFilter,
+  options: {
+    signal?: AbortSignal;
+    novelLanguage?: NovelLanguage;
+    onProgress?: (results: SearchResult[]) => void;
+  } = {},
+): Promise<SearchResponse> {
   const trimmedQuery = query.trim();
   if (!trimmedQuery) return { query: trimmedQuery, filter, results: [] };
 
   const novelLanguage: NovelLanguage = 'en';
-  const languageMatches = (item: SearchResult) => item.type !== 'novel' || (item.language ?? providerNovelLanguage(item.providerId)) === novelLanguage;
+  const languageMatches = (item: SearchResult) =>
+    item.type !== 'novel' ||
+    (item.language ?? providerNovelLanguage(item.providerId)) === novelLanguage;
   const providers = orderProvidersForSearch(
-    getEnabledProviders().filter((provider) => !['animeparadise','donghuastream','kitsu-anime','jikan-anime'].includes(provider.definition.id) && providerSupports(provider, 'search', filter === 'all' ? undefined : filter) && (!provider.definition.mediaTypes.every(type => type === 'novel') || !providerNovelLanguage(provider.definition.id) || providerNovelLanguage(provider.definition.id) === novelLanguage)),
+    getEnabledProviders().filter(
+      (provider) =>
+        !['animeparadise', 'donghuastream', 'kitsu-anime', 'jikan-anime'].includes(
+          provider.definition.id,
+        ) &&
+        providerSupports(provider, 'search', filter === 'all' ? undefined : filter) &&
+        (!provider.definition.mediaTypes.every((type) => type === 'novel') ||
+          !providerNovelLanguage(provider.definition.id) ||
+          providerNovelLanguage(provider.definition.id) === novelLanguage),
+    ),
     filter,
   );
 
@@ -188,32 +222,76 @@ export async function unifiedSearch(query: string, filter: SearchFilter, options
   let first = false;
   const scope = JSON.stringify([getApiBaseUrl(), useBackendConfigStore.getState().backendUrls]);
   const merged: SearchResult[] = [];
-  await settleProviderSearches(providers, (provider) => inSearchSlot(async () => {
-    if (options.signal?.aborted) return;
-    const key = JSON.stringify([scope, provider.definition.id, trimmedQuery, filter]);
-    const cached = searchCache.get(key);
-    const providerStarted = Date.now();
-    const results = cached && cached.expires > Date.now() ? cached.items :
-      await withProviderHealth(provider.definition.id, () =>
-        searchRequest(options.signal, signal => provider.search(trimmedQuery, { filter, limit: 12, signal })), options.signal);
-    if (!options.signal?.aborted) {
-      searchCache.delete(key);
-      searchCache.set(key, { expires: cached && cached.expires > Date.now() ? cached.expires : Date.now() + 60_000, items: results.slice(0, 12) });
-      while (searchCache.size > 100) searchCache.delete(searchCache.keys().next().value!);
-    }
-    if (typeof __DEV__ !== 'undefined' && __DEV__) console.debug('[search] provider', provider.definition.id, Date.now() - providerStarted, 'ms');
-    if (options.signal?.aborted) return;
-    merged.push(...results.slice(0, 12));
-    if (!first && merged.some(item => matchesSearchFilter(item, filter) && languageMatches(item) && !hasKnownEmptyChapters(item))) {
-      first = true;
-      if (typeof __DEV__ !== 'undefined' && __DEV__) console.debug('[search] first results', Date.now() - started, 'ms');
-    }
-    options.onProgress?.(rankSearchResults(dedupeSearchResults(
-      merged.filter((result) => matchesSearchFilter(result, filter) && languageMatches(result) && !hasKnownEmptyChapters(result)),
-    ), filter));
-  }));
-  if (typeof __DEV__ !== 'undefined' && __DEV__) console.debug('[search] total', Date.now() - started, 'ms');
-  const filtered = merged.filter((result) => matchesSearchFilter(result, filter) && languageMatches(result) && !hasKnownEmptyChapters(result));
+  await settleProviderSearches(providers, (provider) =>
+    inSearchSlot(async () => {
+      if (options.signal?.aborted) return;
+      const key = JSON.stringify([scope, provider.definition.id, trimmedQuery, filter]);
+      const cached = searchCache.get(key);
+      const providerStarted = Date.now();
+      const results =
+        cached && cached.expires > Date.now()
+          ? cached.items
+          : await withProviderHealth(
+              provider.definition.id,
+              () =>
+                searchRequest(options.signal, (signal) =>
+                  provider.search(trimmedQuery, { filter, limit: 12, signal }),
+                ),
+              options.signal,
+            );
+      if (!options.signal?.aborted) {
+        searchCache.delete(key);
+        searchCache.set(key, {
+          expires: cached && cached.expires > Date.now() ? cached.expires : Date.now() + 60_000,
+          items: results.slice(0, 12),
+        });
+        while (searchCache.size > 100) searchCache.delete(searchCache.keys().next().value!);
+      }
+      if (typeof __DEV__ !== 'undefined' && __DEV__)
+        console.debug(
+          '[search] provider',
+          provider.definition.id,
+          Date.now() - providerStarted,
+          'ms',
+        );
+      if (options.signal?.aborted) return;
+      merged.push(...results.slice(0, 12));
+      if (
+        !first &&
+        merged.some(
+          (item) =>
+            matchesSearchFilter(item, filter) &&
+            languageMatches(item) &&
+            !hasKnownEmptyChapters(item),
+        )
+      ) {
+        first = true;
+        if (typeof __DEV__ !== 'undefined' && __DEV__)
+          console.debug('[search] first results', Date.now() - started, 'ms');
+      }
+      options.onProgress?.(
+        rankSearchResults(
+          dedupeSearchResults(
+            merged.filter(
+              (result) =>
+                matchesSearchFilter(result, filter) &&
+                languageMatches(result) &&
+                !hasKnownEmptyChapters(result),
+            ),
+          ),
+          filter,
+        ),
+      );
+    }),
+  );
+  if (typeof __DEV__ !== 'undefined' && __DEV__)
+    console.debug('[search] total', Date.now() - started, 'ms');
+  const filtered = merged.filter(
+    (result) =>
+      matchesSearchFilter(result, filter) &&
+      languageMatches(result) &&
+      !hasKnownEmptyChapters(result),
+  );
 
   return {
     query: trimmedQuery,
@@ -254,12 +332,16 @@ export async function getMediaDetails(routeId: string): Promise<NormalizedMedia>
 
 // Only suppress a title after an actual empty chapter-list response, never a transport failure.
 const emptyChapterLists = new Map<string, number>();
-function chapterAvailabilityKey(routeId: string) { return getApiBaseUrl() + ':' + routeId; }
+function chapterAvailabilityKey(routeId: string) {
+  return getApiBaseUrl() + ':' + routeId;
+}
 function hasKnownEmptyChapters(item: SearchResult) {
   if (item.type !== 'manga') return false;
-  const key = chapterAvailabilityKey(item.id), until = emptyChapterLists.get(key);
+  const key = chapterAvailabilityKey(item.id),
+    until = emptyChapterLists.get(key);
   if (until && until > Date.now()) return true;
-  emptyChapterLists.delete(key); return false;
+  emptyChapterLists.delete(key);
+  return false;
 }
 
 export async function getMediaChapters(routeId: string): Promise<NormalizedChapter[]> {
@@ -274,7 +356,8 @@ export async function getMediaChapters(routeId: string): Promise<NormalizedChapt
   const key = chapterAvailabilityKey(routeId);
   if (chapters.length) emptyChapterLists.delete(key);
   else {
-    if (emptyChapterLists.size >= 200) emptyChapterLists.delete(emptyChapterLists.keys().next().value!);
+    if (emptyChapterLists.size >= 200)
+      emptyChapterLists.delete(emptyChapterLists.keys().next().value!);
     emptyChapterLists.set(key, Date.now() + 5 * 60_000);
   }
   return chapters;
@@ -303,7 +386,11 @@ export async function getMediaEpisodes(routeId: string) {
 }
 
 function normalizeTitle(value: string): string {
-  return value.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
+  return value
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function scoreTitleMatch(candidate: string, target: string): number {
@@ -320,7 +407,10 @@ function scoreTitleMatch(candidate: string, target: string): number {
   return Math.round((overlap / bTokens.length) * 70);
 }
 
-function orderStreamingProviders(providers: MediaProvider[], preferredId?: string): MediaProvider[] {
+function orderStreamingProviders(
+  providers: MediaProvider[],
+  preferredId?: string,
+): MediaProvider[] {
   const statusRank = (provider: MediaProvider) => {
     switch (provider.definition.status) {
       case 'working':
@@ -372,7 +462,11 @@ async function resolveCrossProviderPlayback(
     );
     for (const result of results) {
       if (result.type !== 'anime') continue;
-      const score = Math.max(...[result.title, ...(result.alternativeTitles ?? [])].map(candidate => scoreTitleMatch(candidate, title)));
+      const score = Math.max(
+        ...[result.title, ...(result.alternativeTitles ?? [])].map((candidate) =>
+          scoreTitleMatch(candidate, title),
+        ),
+      );
       if (score > bestScore) {
         bestScore = score;
         bestMatch = result;
@@ -422,7 +516,6 @@ export async function resolveAnimePlayback(
 ): Promise<ResolvedAnimePlaybackResult> {
   const ref = resolveMediaRef(routeId);
 
-
   const offline = await resolveAnimeSource(routeId, episodeId, '');
   if (offline.isOffline && offline.streamUrl) {
     let animeTitle = 'Anime';
@@ -431,7 +524,7 @@ export async function resolveAnimePlayback(
     let durationSeconds: number | undefined;
 
     const saved = await loadOfflineCatalog('anime', routeId);
-    const episode = saved?.episodes.find(entry => entry.id === episodeId);
+    const episode = saved?.episodes.find((entry) => entry.id === episodeId);
     animeTitle = saved?.title ?? animeTitle;
     episodeNumber = episode?.number ?? episodeNumber;
     episodeTitle = episode?.title ?? episodeTitle;
@@ -451,6 +544,7 @@ export async function resolveAnimePlayback(
       animeTitle,
       episodeNumber,
       episodeTitle,
+      episodeThumbnailUrl: episode?.thumbnailUrl,
       durationSeconds,
     };
   }
@@ -489,6 +583,7 @@ export async function resolveAnimePlayback(
         animeTitle: media.title,
         episodeNumber: episode.number,
         episodeTitle: episode.title,
+        episodeThumbnailUrl: episode.thumbnailUrl,
         durationSeconds: episode.durationSeconds,
       };
     } catch (error) {
@@ -514,6 +609,7 @@ export async function resolveAnimePlayback(
         animeTitle: media.title,
         episodeNumber: episode.number,
         episodeTitle: episode.title,
+        episodeThumbnailUrl: episode.thumbnailUrl,
         durationSeconds: episode.durationSeconds,
       };
     } catch (error) {
@@ -702,3 +798,4 @@ export function resolveComicFormatFromMedia(media: NormalizedMedia) {
 }
 
 export { resolveMediaRef };
+
