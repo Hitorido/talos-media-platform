@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+const require=createRequire(import.meta.url);
+const {animeXinAdapter:adapter,checkedEnglishFile,checkedDownloadUrl}=require('../backend/dist/providers/animexin/adapter.js');
+assert.equal(checkedEnglishFile('https://evil.invalid/file/a/show_eng.mp4/file'),undefined);
+assert.equal(checkedEnglishFile('https://www.mediafire.com/file/a/show_indo.mp4/file'),undefined);
+assert.throws(()=>checkedDownloadUrl('https://download1.mediafire.com.evil.invalid/movie.mp4'));
+assert.throws(()=>checkedDownloadUrl('http://download1.mediafire.com/movie.mp4'));
+await assert.rejects(()=>adapter.getDetails('../traversal'),/Invalid/);
+const results=await adapter.search('Soul Land');
+const title=results.find(item=>item.sourceId==='soul-land-2-the-peerless-tang-clan');assert.ok(title);
+const details=await adapter.getDetails(title.sourceId);assert.ok(details.alternativeTitles.includes('soul land 2 the peerless tang clan'));
+const episodes=await adapter.getEpisodes(title.sourceId);const first=episodes.find(ep=>ep.episodeNumber===1);assert.ok(first);
+await assert.rejects(()=>adapter.getPlaybackSource(title.sourceId,'unlisted-episode'),/not listed/);
+const playback=await adapter.getPlaybackSource(title.sourceId,first.id);assert.equal(playback.contentType,'progressive');
+const response=await fetch(playback.url,{headers:{Range:'bytes=0-1023'},signal:AbortSignal.timeout(20000)});
+assert.equal(response.status,206);const bytes=Buffer.from(await response.arrayBuffer());assert.equal(bytes.subarray(4,8).toString(),'ftyp');
+console.log('PASS AnimeXin local actual adapter: matching series,',episodes.length,'episodes, episode 1 English-labelled MP4 bytes, fixed origins and membership rejection');

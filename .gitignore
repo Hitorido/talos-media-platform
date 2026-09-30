@@ -45,5 +45,9 @@ backend/dist/
 /ios
 /android
 
+# local export / hosting scratch
+dist-web-test/
+web-build/
+
 .env.*
 !.env.example

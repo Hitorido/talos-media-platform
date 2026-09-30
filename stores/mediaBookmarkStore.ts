@@ -9,6 +9,7 @@ export type MediaBookmark = {
   unitTitle: string;
   position: number;
   previewUri?: string;
+  progress?: number;
   view?: { fraction: number; scale: number; pan: number; mode?: 'vertical' | 'horizontal' };
   createdAt: number;
 };

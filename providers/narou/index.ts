@@ -11,7 +11,6 @@ type NarouSearchResult = {
   title: string;
   coverUrl?: string;
   author?: string;
-  chapterCount?: number;
   description?: string;
   genres?: string[];
   status?: string;
@@ -32,8 +31,8 @@ type NarouContent = {
   language?: string;
 };
 
-async function narouRequest<T>(path: string, signal?: AbortSignal): Promise<T> {
-  return apiRequest<T>(`/api/content${path}`, {signal});
+async function narouRequest<T>(path: string): Promise<T> {
+  return apiRequest<T>(`/api/content${path}`);
 }
 
 export const narouProvider: MediaProvider = {
@@ -54,7 +53,7 @@ export const narouProvider: MediaProvider = {
 
   async search(query, context) {
     const data = await narouRequest<{ results: NarouSearchResult[] }>(
-      `/search?mediaType=novel&providerId=${PROVIDER_ID}&q=${encodeURIComponent(query)}`, context.signal,
+      `/search?mediaType=novel&providerId=${PROVIDER_ID}&q=${encodeURIComponent(query)}`,
     );
     return data.results.slice(0, context.limit ?? 12).map((item): SearchResult => ({
       id: encodeMediaRouteId(PROVIDER_ID, item.id),
@@ -63,8 +62,6 @@ export const narouProvider: MediaProvider = {
       title: item.title,
       coverUrl: item.coverUrl ?? 'https://placehold.co/400x600/1f2937/9ca3af?text=Novel',
       type: 'novel',
-      language: 'ja',
-      chapterCount: item.chapterCount,
       subtitle: item.author ? `${item.author} · Narou` : 'Narou',
       tags: ['Novel', 'Japanese', ...(item.genres ?? []).slice(0, 3)],
     }));
