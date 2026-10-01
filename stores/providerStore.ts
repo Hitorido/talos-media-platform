@@ -99,8 +99,11 @@ export const useProviderStore = create<ProviderStoreState>()(
       merge: (persisted, current) => {
         const saved = persisted as Partial<ProviderPreferences> | undefined;
         const enabled = mergeEnabledState(saved?.enabled);
-        if (!saved?.sourcesRestored) for (const id of RESTORED_SOURCE_IDS) enabled[id] = true;
-        for (const id of Object.keys(enabled)) if (id.includes("consumet")) delete enabled[id];
+        // Always re-enable restored scraper-backend adapters after upgrades.
+        for (const id of RESTORED_SOURCE_IDS) enabled[id] = true;
+        for (const id of Object.keys(enabled)) if (id.includes('consumet') || id.startsWith('stub-')) {
+          delete enabled[id];
+        }
         return {
           ...current,
           ...saved,
