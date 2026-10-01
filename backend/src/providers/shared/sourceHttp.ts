@@ -18,7 +18,18 @@ export async function sourceText(origin: string, path: string, method: 'GET' | '
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 20_000);
     try {
-      const response = await fetch(url.href, { method, redirect: 'error', signal: controller.signal, headers: { Accept: 'text/html,application/json', 'User-Agent': 'Talos/1.0' } });
+      const response = await fetch(url.href, {
+        method,
+        redirect: 'error',
+        signal: controller.signal,
+        headers: {
+          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9',
+          // Browser-like UA — some sources reject short bot identifiers from cloud IPs.
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+        },
+      });
       if (!response.ok) throw new ProviderGatewayError(`Source HTTP ${response.status}.`, response.status === 404 ? 404 : 502, 'UPSTREAM_FAILED');
       const reader = response.body?.getReader();
       if (!reader) throw new Error('Empty response');

@@ -221,7 +221,12 @@ export function SourcesContent() {
                       </Text>
                       {def.backendRequired ? (
                         <Text variant="caption" tone="muted">
-                          Backend: {backendConfigured ? 'Configured' : 'Not configured'}
+                          Backend:{' '}
+                          {def.backendKey
+                            ? backendConfigured
+                              ? 'Configured'
+                              : 'Uses Talos Render (optional custom URL unset)'
+                            : 'Talos Render'}
                         </Text>
                       ) : null}
                       {def.statusNote ? (

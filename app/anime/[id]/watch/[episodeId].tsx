@@ -4,7 +4,15 @@ import { useMediaBookmarkStore } from '@/stores/mediaBookmarkStore';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useVideoPlayer, VideoView, type SubtitleTrack } from 'expo-video';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, BackHandler, Pressable, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Animated,
+  BackHandler,
+  LayoutChangeEvent,
+  PanResponder,
+  Pressable,
+  View,
+} from 'react-native';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -51,6 +59,9 @@ export default function AnimePlayerScreen() {
   const [playhead, setPlayhead] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [scrubbing, setScrubbing] = useState(false);
+  const [scrubFraction, setScrubFraction] = useState(0);
+  const scrubberWidthRef = useRef(1);
   const [subtitlesEnabled, setSubtitlesEnabled] = useState(true);
   const [frameSource, setFrameSource] = useState('');
   const readyFrameRef = useRef('');
@@ -432,6 +443,73 @@ export default function AnimePlayerScreen() {
     return m + ':' + String(sec).padStart(2, '0');
   };
 
+  const seekToFraction = useCallback(
+    (fraction: number) => {
+      const dur = duration || playback?.durationSeconds || 0;
+      if (dur <= 0) return;
+      const next = Math.max(0, Math.min(dur, fraction * dur));
+      player.currentTime = next;
+      setPlayhead(next);
+      latestTimeRef.current = next;
+    },
+    [duration, playback?.durationSeconds, player],
+  );
+
+  const skipBy = useCallback(
+    (deltaSeconds: number) => {
+      const dur = duration || playback?.durationSeconds || 0;
+      const current = player.currentTime || 0;
+      const next =
+        dur > 0
+          ? Math.max(0, Math.min(dur, current + deltaSeconds))
+          : Math.max(0, current + deltaSeconds);
+      player.currentTime = next;
+      setPlayhead(next);
+      latestTimeRef.current = next;
+      showControls();
+    },
+    [duration, playback?.durationSeconds, player, showControls],
+  );
+
+  const scrubberPan = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: () => true,
+        onPanResponderTerminationRequest: () => false,
+        onPanResponderGrant: (event) => {
+          setScrubbing(true);
+          if (overlayTimerRef.current) clearTimeout(overlayTimerRef.current);
+          const fraction = Math.max(
+            0,
+            Math.min(1, event.nativeEvent.locationX / Math.max(1, scrubberWidthRef.current)),
+          );
+          setScrubFraction(fraction);
+        },
+        onPanResponderMove: (event) => {
+          const fraction = Math.max(
+            0,
+            Math.min(1, event.nativeEvent.locationX / Math.max(1, scrubberWidthRef.current)),
+          );
+          setScrubFraction(fraction);
+        },
+        onPanResponderRelease: (event) => {
+          const fraction = Math.max(
+            0,
+            Math.min(1, event.nativeEvent.locationX / Math.max(1, scrubberWidthRef.current)),
+          );
+          seekToFraction(fraction);
+          setScrubbing(false);
+          showControls();
+        },
+        onPanResponderTerminate: () => {
+          setScrubbing(false);
+          showControls();
+        },
+      }),
+    [seekToFraction, showControls],
+  );
+
   if (loading) {
     return (
       <View className="flex-1 items-center justify-center gap-3 bg-neutral-950 px-6">
@@ -484,6 +562,7 @@ export default function AnimePlayerScreen() {
     subtitlesEnabled && externalCues.length > 0 ? subtitleAt(externalCues, playhead) : '';
   const totalDuration = duration || playback.durationSeconds || 0;
   const progressFraction = totalDuration > 0 ? Math.min(1, playhead / totalDuration) : 0;
+  const displayFraction = scrubbing ? scrubFraction : progressFraction;
 
   return (
     <View className="flex-1 bg-black" style={{ paddingTop: fullscreen ? 0 : insets.top }}>
@@ -615,8 +694,16 @@ export default function AnimePlayerScreen() {
               </View>
             </View>
 
-            {/* Center: play/pause */}
-            <View style={{ alignItems: 'center' }}>
+            {/* Center: −10s / play-pause / +10s */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 28 }}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Rewind 10 seconds"
+                onPress={() => skipBy(-10)}
+                className="rounded-full bg-black/60 px-3 py-3"
+              >
+                <Text style={{ color: 'white', fontSize: 14, fontWeight: '700' }}>−10</Text>
+              </Pressable>
               <Pressable
                 onPress={() => {
                   if (player.playing) {
@@ -630,9 +717,7 @@ export default function AnimePlayerScreen() {
                 }}
                 className="rounded-full bg-black/60 p-4"
               >
-                {/* Play/pause icons — transparent style, no emoji */}
                 {isPlaying ? (
-                  // Pause: two vertical white bars
                   <View
                     style={{
                       width: 28,
@@ -661,7 +746,6 @@ export default function AnimePlayerScreen() {
                     />
                   </View>
                 ) : (
-                  // Play: right-pointing triangle
                   <View
                     style={{
                       width: 28,
@@ -686,9 +770,17 @@ export default function AnimePlayerScreen() {
                   </View>
                 )}
               </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Forward 10 seconds"
+                onPress={() => skipBy(10)}
+                className="rounded-full bg-black/60 px-3 py-3"
+              >
+                <Text style={{ color: 'white', fontSize: 14, fontWeight: '700' }}>+10</Text>
+              </Pressable>
             </View>
 
-            {/* Bottom bar: time + scrubber + fullscreen icon */}
+            {/* Bottom bar: scrubber + time + fullscreen */}
             <View
               style={{
                 backgroundColor: 'rgba(0,0,0,0.5)',
@@ -698,18 +790,25 @@ export default function AnimePlayerScreen() {
                 gap: 4,
               }}
             >
-              {/* Progress bar */}
               <View
-                style={{ height: 4, backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: 2 }}
+                onLayout={(event: LayoutChangeEvent) => {
+                  scrubberWidthRef.current = Math.max(1, event.nativeEvent.layout.width);
+                }}
+                {...scrubberPan.panHandlers}
+                style={{ height: 28, justifyContent: 'center' }}
               >
                 <View
-                  style={{
-                    height: '100%',
-                    width: `${progressFraction * 100}%`,
-                    backgroundColor: '#6366f1',
-                    borderRadius: 2,
-                  }}
-                />
+                  style={{ height: 4, backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: 2 }}
+                >
+                  <View
+                    style={{
+                      height: '100%',
+                      width: `${displayFraction * 100}%`,
+                      backgroundColor: '#6366f1',
+                      borderRadius: 2,
+                    }}
+                  />
+                </View>
               </View>
               <View
                 style={{
@@ -719,9 +818,9 @@ export default function AnimePlayerScreen() {
                 }}
               >
                 <Text style={{ color: 'white', fontSize: 12 }}>
-                  {formatTime(playhead)} / {formatTime(totalDuration)}
+                  {formatTime(scrubbing ? scrubFraction * totalDuration : playhead)} /{' '}
+                  {formatTime(totalDuration)}
                 </Text>
-                {/* Fullscreen toggle */}
                 <Pressable
                   onPress={() => {
                     if (fullscreen) leaveFullscreen();

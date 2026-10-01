@@ -55,7 +55,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   extra: {
     eas: {
-      projectId: process.env.EAS_PROJECT_ID ?? undefined,
+      projectId: '13f724ec-d641-44fc-a71a-9b4715c1b755',
     },
     apiUrl: process.env.EXPO_PUBLIC_API_URL ?? PRODUCTION_API_URL,
   },

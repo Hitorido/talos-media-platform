@@ -6,7 +6,7 @@ const PRODUCTION_API_URL = 'https://talos-media-platform.onrender.com';
 /**
  * Resolves the Talos backend base URL.
  * Release/preview builds use the Render production host unless EXPO_PUBLIC_API_URL overrides it.
- * Development keeps LAN / emulator / localhost fallbacks when the env var is unset.
+ * Web always prefers Render when no explicit override is set (browsers cannot use LAN emulator aliases).
  */
 export function getApiBaseUrl(): string {
   const configured = process.env.EXPO_PUBLIC_API_URL?.trim();
@@ -19,8 +19,8 @@ export function getApiBaseUrl(): string {
     return fromExtra.replace(/\/$/, '');
   }
 
-  // Release bundles must never fall back to a developer LAN host.
-  if (typeof __DEV__ !== 'undefined' && !__DEV__) {
+  // Release bundles and web must never fall back to a developer LAN host.
+  if ((typeof __DEV__ !== 'undefined' && !__DEV__) || Platform.OS === 'web') {
     return PRODUCTION_API_URL;
   }
 
@@ -45,5 +45,5 @@ export function getApiBaseUrl(): string {
     return 'http://10.0.2.2:5000';
   }
 
-  return 'http://localhost:5000';
+  return PRODUCTION_API_URL;
 }
