@@ -24,7 +24,7 @@ export async function bootstrapPersistence(): Promise<void> {
       .hydrate()
       .catch(() => {
         // Secure storage failure must not prevent offline media restoration.
-        console.warn('[auth] Secure session could not be restored. Please sign in again.');
+        // console.warn('[auth] Secure session could not be restored. Please sign in again.');
       }),
     useLibraryStore.persist.rehydrate(),
     useAnimeProgressStore.persist.rehydrate(),
