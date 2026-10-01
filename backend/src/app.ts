@@ -24,9 +24,22 @@ export function createApp() {
   app.use(
     cors({
       origin: (origin, callback) => {
+        // Non-browser clients (native apps, curl) send no Origin.
         if (!origin) return callback(null, true);
-        const allowedOrigins = ENV.CORS_ORIGIN.split(',').map((value) => value.trim());
-        callback(null, allowedOrigins.includes(origin));
+        const allowedOrigins = ENV.CORS_ORIGIN.split(',').map((value) => value.trim()).filter(Boolean);
+        if (allowedOrigins.includes(origin)) return callback(null, true);
+        try {
+          const { hostname } = new URL(origin);
+          // Expo web / Metro during local development.
+          if (hostname === 'localhost' || hostname === '127.0.0.1') return callback(null, true);
+          // EAS Hosting and Expo tunnel hosts.
+          if (hostname.endsWith('.expo.app') || hostname.endsWith('.exp.direct')) {
+            return callback(null, true);
+          }
+        } catch {
+          return callback(null, false);
+        }
+        return callback(null, false);
       },
     }),
   );

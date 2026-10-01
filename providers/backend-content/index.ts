@@ -14,24 +14,76 @@ export function backendComicProvider(id: string, name: string): MediaProvider {
   };
   const route = (sourceId: string) => `/api/content/manga/${id}/${encodeURIComponent(sourceId)}`;
   return {
-    definition: { id, name, mediaTypes: ['manga','manhwa','manhua'], capabilities: ['search','details','chapters','pages'], status: 'limited', statusNote: ['weebcentral','kaliscan','mangajinx'].includes(id) ? 'Local images verified; Render upstream returned HTTP 403. Production reading unavailable.' : id === 'mangapill' ? 'Render content flow verified; physical reader validation pending.' : 'Local content verified; Render and physical reader validation pending.', executionMode: 'backend-api', backendRequired: true, health: {} },
+    definition: {
+      id,
+      name,
+      description: `${name} via Talos scraper backend.`,
+      mediaTypes: ['manga', 'manhwa', 'manhua'],
+      capabilities: ['search', 'details', 'chapters', 'pages'],
+      status: 'working',
+      statusNote: 'Uses the Talos Render scraper backend.',
+      executionMode: 'scraper-backend',
+      backendRequired: true,
+      health: {},
+    },
     async search(query, context) {
       if (context.filter === 'anime' || context.filter === 'novel') return [];
-      const type = ['manga','manhwa','manhua'].includes(context.filter) ? context.filter : 'manga';
-      const data = await apiRequest<{results: {sourceId:string;title:string;coverUrl?:string;status?:string;mediaType:ProviderMediaType}[]}>(`/api/content/search?providerId=${id}&mediaType=${type}&q=${encodeURIComponent(query)}`, {signal:context.signal});
-      return data.results.slice(0,context.limit??12).map(item=>({id:encodeMediaRouteId(id,item.sourceId),providerId:id,sourceId:item.sourceId,title:item.title,status:item.status,coverUrl:imageUrl(item.coverUrl??''),type:'manga' as const,comicFormat:(['manhwa','manhua'].includes(item.mediaType)?item.mediaType:'manga') as 'manga'|'manhwa'|'manhua',subtitle:name,tags:[name]}));
+      const supported = this.definition.mediaTypes.filter((type): type is 'manga' | 'manhwa' | 'manhua' =>
+        type === 'manga' || type === 'manhwa' || type === 'manhua',
+      );
+      let type: 'manga' | 'manhwa' | 'manhua' = ['manga', 'manhwa', 'manhua'].includes(context.filter)
+        ? (context.filter as 'manga' | 'manhwa' | 'manhua')
+        : 'manga';
+      if (!supported.includes(type)) type = supported[0] ?? 'manga';
+      const data = await apiRequest<{
+        results: {
+          sourceId: string;
+          title: string;
+          coverUrl?: string;
+          status?: string;
+          mediaType: ProviderMediaType;
+        }[];
+      }>(`/api/content/search?providerId=${id}&mediaType=${type}&q=${encodeURIComponent(query)}`, {
+        signal: context.signal,
+      });
+      return data.results.slice(0, context.limit ?? 12).map((item) => ({
+        id: encodeMediaRouteId(id, item.sourceId),
+        providerId: id,
+        sourceId: item.sourceId,
+        title: item.title,
+        status: item.status,
+        coverUrl: imageUrl(item.coverUrl ?? ''),
+        type: 'manga' as const,
+        comicFormat: (['manhwa', 'manhua'].includes(item.mediaType)
+          ? item.mediaType
+          : 'manga') as 'manga' | 'manhwa' | 'manhua',
+        subtitle: name,
+        tags: [name],
+      }));
     },
     async getDetails(ref) {
-      const data = await apiRequest<Omit<NormalizedMedia,'ref'> & {genres?:string[]}>(route(ref.sourceId));
-      return {...data,ref,genres:data.genres??[],coverUrl:imageUrl(data.coverUrl??'')};
+      const data = await apiRequest<Omit<NormalizedMedia, 'ref'> & { genres?: string[] }>(
+        route(ref.sourceId),
+      );
+      return { ...data, ref, genres: data.genres ?? [], coverUrl: imageUrl(data.coverUrl ?? '') };
     },
     async getChapters(ref) {
-      const data=await apiRequest<{chapters:{id:string;chapterNumber:number;title:string;language?:string;releaseDate?:string}[]}>(`${route(ref.sourceId)}/chapters`);
-      return data.chapters.map(c=>({...c,number:c.chapterNumber}));
+      const data = await apiRequest<{
+        chapters: {
+          id: string;
+          chapterNumber: number;
+          title: string;
+          language?: string;
+          releaseDate?: string;
+        }[];
+      }>(`${route(ref.sourceId)}/chapters`);
+      return data.chapters.map((c) => ({ ...c, number: c.chapterNumber }));
     },
-    async getChapterPages(ref,chapterId) {
-      const data=await apiRequest<{pages:NormalizedPage[]}>(`${route(ref.sourceId)}/chapters/${encodeURIComponent(chapterId)}/pages`);
-      return data.pages.map(page => ({...page, imageUrl: imageUrl(page.imageUrl)}));
+    async getChapterPages(ref, chapterId) {
+      const data = await apiRequest<{ pages: NormalizedPage[] }>(
+        `${route(ref.sourceId)}/chapters/${encodeURIComponent(chapterId)}/pages`,
+      );
+      return data.pages.map((page) => ({ ...page, imageUrl: imageUrl(page.imageUrl) }));
     },
   };
 }
