@@ -37,7 +37,7 @@ export async function ensureDirectory(dirUri: string): Promise<void> {
       await FileSystem.makeDirectoryAsync(dirUri, { intermediates: true });
     }
   } catch (error) {
-    console.warn(`[storageService] Failed to ensure directory ${dirUri}:`, error);
+    // console.warn(`[storageService] Failed to ensure directory ${dirUri}:`, error);
   }
 }
 
@@ -86,7 +86,7 @@ export async function readJsonFile<T>(fileUri: string): Promise<T | null> {
     });
     return JSON.parse(content) as T;
   } catch (error) {
-    console.warn(`[storageService] Failed to read JSON from ${fileUri}:`, error);
+    // console.warn(`[storageService] Failed to read JSON from ${fileUri}:`, error);
     return null;
   }
 }
@@ -107,7 +107,7 @@ export async function deleteStoragePath(targetUri: string): Promise<void> {
       await FileSystem.deleteAsync(targetUri, { idempotent: true });
     }
   } catch (error) {
-    console.warn(`[storageService] Failed to delete storage path ${targetUri}:`, error);
+    // console.warn(`[storageService] Failed to delete storage path ${targetUri}:`, error);
   }
 }
 

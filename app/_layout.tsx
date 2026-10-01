@@ -44,7 +44,7 @@ export default function RootLayout() {
 
     Promise.all([bootstrapPersistence(), useMediaBookmarkStore.persist.rehydrate()])
       .catch((bootstrapError) => {
-        console.warn('[persistence] Failed to restore application state:', bootstrapError);
+        // console.warn('[persistence] Failed to restore application state:', bootstrapError);
       })
       .finally(() => {
         if (!cancelled) {
