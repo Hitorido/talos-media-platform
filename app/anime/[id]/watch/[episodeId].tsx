@@ -5,13 +5,13 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useVideoPlayer, VideoView, type SubtitleTrack } from 'expo-video';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  Animated,
-  BackHandler,
-  LayoutChangeEvent,
-  PanResponder,
-  Pressable,
-  View,
+    ActivityIndicator,
+    Animated,
+    BackHandler,
+    LayoutChangeEvent,
+    PanResponder,
+    Pressable,
+    View,
 } from 'react-native';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -367,24 +367,14 @@ export default function AnimePlayerScreen() {
           errorMessage.includes('404') || errorMessage.includes('Source error');
         if (is404OrSourceError) {
           if (!useDirectStream && fallbackToVideo()) {
-            if (__DEV__) console.warn('[player] 404/source error — falling back to direct stream');
             return;
           }
           if (retryResolvePlayback()) {
-            if (__DEV__) console.warn('[player] Retrying playback resolution');
             return;
           }
         }
         if (fallbackToVideo()) return;
         setError('The player could not load this stream. Retry or open the source website.');
-        if (__DEV__)
-          console.warn('[player]', {
-            status,
-            providerId: playback?.source.providerId,
-            error:
-              nativeError?.message?.replace(/https?:\/\/\S+/g, '[stream URL]').slice(0, 240) ||
-              'Unknown',
-          });
       }
     });
     const timeSub = player.addListener('timeUpdate', ({ currentTime }) => {
@@ -577,14 +567,14 @@ export default function AnimePlayerScreen() {
       {/* Back button — non-fullscreen, outside video */}
       {!fullscreen ? (
         <View className="px-4 py-2">
-          <Pressable
-            accessibilityRole="button"
+        <Pressable
+          accessibilityRole="button"
             onPress={handleBack}
             className="self-start rounded-full bg-neutral-800 px-3 py-2"
-          >
+        >
             <Text className="text-white">← Back</Text>
-          </Pressable>
-        </View>
+        </Pressable>
+      </View>
       ) : null}
 
       {/* Video container — tap to toggle controls */}
@@ -593,7 +583,7 @@ export default function AnimePlayerScreen() {
         onPress={toggleControls}
         style={fullscreen ? { flex: 1 } : { width: '100%', aspectRatio: 16 / 9 }}
       >
-        <VideoView
+      <VideoView
           ref={videoViewRef}
           onFirstFrameRender={() => {
             readyFrameRef.current = streamUrl;
@@ -601,9 +591,9 @@ export default function AnimePlayerScreen() {
             void enterFullscreen();
           }}
           fullscreenOptions={{ enable: false }}
-          player={player}
+        player={player}
           style={{ width: '100%', height: '100%' }}
-          contentFit="contain"
+        contentFit="contain"
           nativeControls={false}
         />
 
@@ -849,8 +839,8 @@ export default function AnimePlayerScreen() {
           </View>
         ) : null}
 
-        {/* Settings panel — shown above everything, not gated by overlayVisible */}
-        {settingsOpen ? (
+        {/* Settings panel — should hide with overlayVisible */}
+        {settingsOpen && overlayVisible ? (
           <View
             style={{
               position: 'absolute',
@@ -959,7 +949,7 @@ export default function AnimePlayerScreen() {
       {!fullscreen ? (
         <View style={{ paddingHorizontal: 16, paddingTop: 12, gap: 6 }}>
           <View className="flex-row items-center justify-between gap-2">
-            <Text variant="h3" className="flex-1 text-white">
+          <Text variant="h3" className="flex-1 text-white">
               {playback.animeTitle}
             </Text>
             {playback.isOffline ? <Badge label="Offline Playback" variant="secondary" /> : null}

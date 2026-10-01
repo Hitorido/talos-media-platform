@@ -105,15 +105,9 @@ Updates are optional. Talos can notify you in-app when a newer beta is published
 
 ## Web version
 
-Production web hosting via EAS Hosting:
+Talos is available on the web through EAS Hosting:
 
-> **TODO:** replace with the live EAS Hosting URL after first production deploy  
-> Example: `https://talos-media-platform.expo.app`
-
-```bash
-npx expo export --platform web
-eas deploy --prod
-```
+https://talos-media-platform--go1st4khak.expo.app
 
 ## Update manifest
 

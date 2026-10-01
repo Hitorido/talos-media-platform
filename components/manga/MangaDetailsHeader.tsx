@@ -40,9 +40,10 @@ export function MangaDetailsHeader({ manga }: MangaDetailsHeaderProps) {
           />
           <View className="absolute bottom-3 left-3 flex-row items-end gap-3">
             <Image
-              source={manga.coverUrl?.trim() ? { uri: manga.coverUrl } : undefined}
+              source={manga.coverUrl?.trim() ? { uri: manga.coverUrl } : (manga.bannerUrl?.trim() ? { uri: manga.bannerUrl } : undefined)}
               className="h-28 w-20 rounded-lg shadow-md"
               resizeMode="cover"
+              defaultSource={undefined}
             />
           </View>
         </View>
