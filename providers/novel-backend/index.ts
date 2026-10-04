@@ -86,9 +86,7 @@ async function novelGatewayFetch<T>(path: string, signal?: AbortSignal): Promise
     throw new Error(`Novel backend request failed (HTTP ${response.status}).`);
   }
 
-  const payload = (await response.json()) as
-    | { success?: boolean; data?: T; error?: string }
-    | T;
+  const payload = (await response.json()) as { success?: boolean; data?: T; error?: string } | T;
 
   if (payload && typeof payload === 'object' && 'success' in payload) {
     const enveloped = payload as { success?: boolean; data?: T; error?: string };
@@ -121,22 +119,23 @@ export const novelBackendProvider: MediaProvider = {
     id: PROVIDER_ID,
     name: 'Novel Backend Gateway',
     description:
-      'Routes novel search/details/chapters/text through a configured backend (Express /api/novels or a compatible self-hosted novel API).',
+      'Routes novel search/details/chapters/text through the Render gateway by default, or a compatible self-hosted novel API.',
     website: undefined,
     mediaTypes: ['novel'],
     capabilities: ['search', 'details', 'chapters', 'textContent', 'downloads'],
-    status: 'requires-configuration',
+    status: 'working',
     statusNote:
-      'Requires a configured novel backend URL (Sources → Novel Backend URL) or Express NOVEL_GATEWAY_URL pointing at a compatible lncrawl/novel-api-style service. Not scrapers in the Expo app.',
+      'Uses the Render novel gateway by default. A compatible self-hosted gateway can be configured in Sources.',
     executionMode: 'backend-api',
-    backendRequired: true,
+    backendRequired: false,
     backendKey: 'novel',
     health: {},
   },
 
   async search(query, context) {
     const data = await novelGatewayFetch<{ results?: NovelGatewaySearchItem[] }>(
-      `/search?q=${encodeURIComponent(query)}`, context.signal,
+      `/search?q=${encodeURIComponent(query)}`,
+      context.signal,
     );
     return (data.results ?? []).slice(0, context.limit ?? 12).map((item): SearchResult => ({
       id: encodeMediaRouteId(PROVIDER_ID, item.id),

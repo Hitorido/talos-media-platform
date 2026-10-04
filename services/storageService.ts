@@ -1,7 +1,6 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import { Platform } from 'react-native';
 
-
 const isWeb = Platform.OS === 'web';
 const memoryStorage = new Map<string, string>();
 
@@ -54,10 +53,11 @@ export async function checkFileExists(fileUri: string | null): Promise<boolean> 
   }
 }
 
-export async function saveTextFile(fileUri:string,content:string):Promise<void> {
- if(isWeb||!FileSystem.documentDirectory)throw new Error('Offline video downloads require Android or iOS.');
- await ensureDirectory(fileUri.slice(0,fileUri.lastIndexOf('/')+1));
- await FileSystem.writeAsStringAsync(fileUri,content);
+export async function saveTextFile(fileUri: string, content: string): Promise<void> {
+  if (isWeb || !FileSystem.documentDirectory)
+    throw new Error('Offline video downloads require Android or iOS.');
+  await ensureDirectory(fileUri.slice(0, fileUri.lastIndexOf('/') + 1));
+  await FileSystem.writeAsStringAsync(fileUri, content);
 }
 
 export async function saveJsonFile(fileUri: string, data: unknown): Promise<void> {

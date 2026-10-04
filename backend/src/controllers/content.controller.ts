@@ -12,9 +12,10 @@ function sendGatewayError(res: Response, error: unknown) {
     return;
   }
 
-  const status = (error as Error & { status?: number; statusCode?: number }).statusCode
-    ?? (error as Error & { status?: number }).status
-    ?? 502;
+  const status =
+    (error as Error & { status?: number; statusCode?: number }).statusCode ??
+    (error as Error & { status?: number }).status ??
+    502;
   res.status(status).json({
     success: false,
     error: error instanceof Error ? error.message : 'Content gateway request failed.',

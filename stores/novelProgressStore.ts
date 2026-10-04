@@ -43,7 +43,6 @@ type NovelProgressState = {
   removeNovelProgress: (novelId: string) => void;
 };
 
-
 const defaultSettings: ReaderSettings = {
   fontSize: 16,
   fontFamily: 'serif',
@@ -53,36 +52,28 @@ const defaultSettings: ReaderSettings = {
   scrollMode: 'continuous',
 };
 
-const seedProgress: Record<string, NovelReadingProgress> = {
-  'novel-t-1': {
-    novelId: 'novel-t-1',
-    chapterId: 'novel-t-1-ch-2',
-    chapterNumber: 2,
-    chapterTitle: 'Chapter 2: The Abyssal Breach',
-    scrollPercentage: 0.45,
-    paragraphIndex: 3,
-    updatedAt: Date.now(),
-  },
-};
+const seedProgress: Record<string, NovelReadingProgress> = {};
 
 export function buildContinueReadingNovels(
   progressByNovel: Record<string, NovelReadingProgress>,
+  mediaById = useLibraryStore.getState().media,
 ): ContinueReadingNovelEntry[] {
   return Object.values(progressByNovel)
     .sort((a, b) => b.updatedAt - a.updatedAt)
     .map((progress) => {
       const novel = getNovelById(progress.novelId);
-      const saved = useLibraryStore.getState().media[progress.novelId];
+      const saved = mediaById[progress.novelId];
       if (!novel && !saved) return null;
 
       return {
         novelId: novel?.id ?? saved!.id,
         title: novel?.title ?? saved!.title,
-        coverUrl: novel?.coverUrl ?? saved!.coverUrl,
+        coverUrl: saved?.customCoverUrl ?? novel?.coverUrl ?? saved!.coverUrl,
         chapterId: progress.chapterId,
         chapterNumber: progress.chapterNumber,
         chapterTitle:
-          novel?.chapters.find((ch) => ch.id === progress.chapterId)?.title ?? progress.chapterTitle,
+          novel?.chapters.find((ch) => ch.id === progress.chapterId)?.title ??
+          progress.chapterTitle,
         scrollPercentage: Math.min(Math.max(progress.scrollPercentage, 0), 1),
         totalChapters: novel?.chapters.length ?? saved?.chapterCount ?? 0,
         updatedAt: progress.updatedAt,
@@ -94,95 +85,95 @@ export function buildContinueReadingNovels(
 export const useNovelProgressStore = create<NovelProgressState>()(
   persist(
     (set, get) => ({
-  progressByNovel: seedProgress,
-  libraryNovelIds: ['novel-t-1'],
-  favoriteNovelIds: ['novel-t-1'],
-  bookmarks: [],
-  settings: defaultSettings,
+      progressByNovel: seedProgress,
+      libraryNovelIds: [],
+      favoriteNovelIds: [],
+      bookmarks: [],
+      settings: defaultSettings,
 
-  setChapterProgress: (progress) => {
-    set((state) => ({
-      progressByNovel: {
-        ...state.progressByNovel,
-        [progress.novelId]: progress,
+      setChapterProgress: (progress) => {
+        set((state) => ({
+          progressByNovel: {
+            ...state.progressByNovel,
+            [progress.novelId]: progress,
+          },
+        }));
       },
-    }));
-  },
 
-  getNovelProgress: (novelId) => get().progressByNovel[novelId],
+      getNovelProgress: (novelId) => get().progressByNovel[novelId],
 
-  getChapterProgress: (novelId, chapterId) => {
-    const latest = get().progressByNovel[novelId];
-    if (!latest || latest.chapterId !== chapterId) {
-      return undefined;
-    }
-    return latest;
-  },
+      getChapterProgress: (novelId, chapterId) => {
+        const latest = get().progressByNovel[novelId];
+        if (!latest || latest.chapterId !== chapterId) {
+          return undefined;
+        }
+        return latest;
+      },
 
-  toggleLibrary: (novelId) => {
-    set((state) => {
-      const exists = state.libraryNovelIds.includes(novelId);
-      return {
-        libraryNovelIds: exists
-          ? state.libraryNovelIds.filter((id) => id !== novelId)
-          : [...state.libraryNovelIds, novelId],
-      };
-    });
-  },
+      toggleLibrary: (novelId) => {
+        set((state) => {
+          const exists = state.libraryNovelIds.includes(novelId);
+          return {
+            libraryNovelIds: exists
+              ? state.libraryNovelIds.filter((id) => id !== novelId)
+              : [...state.libraryNovelIds, novelId],
+          };
+        });
+      },
 
-  toggleFavorite: (novelId) => {
-    set((state) => {
-      const exists = state.favoriteNovelIds.includes(novelId);
-      return {
-        favoriteNovelIds: exists
-          ? state.favoriteNovelIds.filter((id) => id !== novelId)
-          : [...state.favoriteNovelIds, novelId],
-      };
-    });
-  },
+      toggleFavorite: (novelId) => {
+        set((state) => {
+          const exists = state.favoriteNovelIds.includes(novelId);
+          return {
+            favoriteNovelIds: exists
+              ? state.favoriteNovelIds.filter((id) => id !== novelId)
+              : [...state.favoriteNovelIds, novelId],
+          };
+        });
+      },
 
-  isInLibrary: (novelId) => get().libraryNovelIds.includes(novelId),
-  isFavorite: (novelId) => get().favoriteNovelIds.includes(novelId),
+      isInLibrary: (novelId) => get().libraryNovelIds.includes(novelId),
+      isFavorite: (novelId) => get().favoriteNovelIds.includes(novelId),
 
-  addBookmark: (bookmark) => {
-    const newBookmark: NovelBookmark = {
-      ...bookmark,
-      id: `bm-${Date.now()}`,
-      createdAt: Date.now(),
-    };
-    set((state) => ({
-      bookmarks: [newBookmark, ...state.bookmarks],
-    }));
-  },
+      addBookmark: (bookmark) => {
+        const newBookmark: NovelBookmark = {
+          ...bookmark,
+          id: `bm-${Date.now()}`,
+          createdAt: Date.now(),
+        };
+        set((state) => ({
+          bookmarks: [newBookmark, ...state.bookmarks],
+        }));
+      },
 
-  removeBookmark: (bookmarkId) => {
-    set((state) => ({
-      bookmarks: state.bookmarks.filter((bm) => bm.id !== bookmarkId),
-    }));
-  },
+      removeBookmark: (bookmarkId) => {
+        set((state) => ({
+          bookmarks: state.bookmarks.filter((bm) => bm.id !== bookmarkId),
+        }));
+      },
 
-  isBookmarked: (novelId, chapterId, paragraphIndex) => {
-    return get().bookmarks.some(
-      (bm) =>
-        bm.novelId === novelId &&
-        bm.chapterId === chapterId &&
-        bm.paragraphIndex === paragraphIndex,
-    );
-  },
+      isBookmarked: (novelId, chapterId, paragraphIndex) => {
+        return get().bookmarks.some(
+          (bm) =>
+            bm.novelId === novelId &&
+            bm.chapterId === chapterId &&
+            bm.paragraphIndex === paragraphIndex,
+        );
+      },
 
-  updateSettings: (newSettings) => {
-    set((state) => ({
-      settings: { ...state.settings, ...newSettings },
-    }));
-  },
+      updateSettings: (newSettings) => {
+        set((state) => ({
+          settings: { ...state.settings, ...newSettings },
+        }));
+      },
 
-  removeNovelProgress: (novelId) => {
-    set((state) => {
-      const next = { ...state.progressByNovel };
-      delete next[novelId];
-      return { progressByNovel: next };
-    });
-  },
+      removeNovelProgress: (novelId) => {
+        set((state) => {
+          const next = { ...state.progressByNovel };
+          delete next[novelId];
+          return { progressByNovel: next };
+        });
+      },
     }),
     {
       name: 'novel-progress',
@@ -198,9 +189,11 @@ export const useNovelProgressStore = create<NovelProgressState>()(
   ),
 );
 
-
 export function useContinueReadingNovels(): ContinueReadingNovelEntry[] {
-  const media = useLibraryStore(state => state.media);
+  const media = useLibraryStore((state) => state.media);
   const progressByNovel = useNovelProgressStore((state) => state.progressByNovel);
-  return useMemo(() => buildContinueReadingNovels(progressByNovel), [progressByNovel, media]);
+  return useMemo(
+    () => buildContinueReadingNovels(progressByNovel, media),
+    [progressByNovel, media],
+  );
 }

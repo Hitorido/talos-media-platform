@@ -1,6 +1,11 @@
 import { apiRequest } from '@/services/api/client';
 import type { MediaProvider } from '@/providers/types';
-import type { MediaRef, NormalizedChapter, NormalizedMedia, NormalizedNovelContent } from '@/types/provider';
+import type {
+  MediaRef,
+  NormalizedChapter,
+  NormalizedMedia,
+  NormalizedNovelContent,
+} from '@/types/provider';
 import { encodeMediaRouteId } from '@/types/provider';
 import type { SearchResult } from '@/types/search';
 
@@ -14,6 +19,7 @@ type NarouSearchResult = {
   description?: string;
   genres?: string[];
   status?: string;
+  chapterCount?: number;
 };
 
 type NarouChapter = {
@@ -31,8 +37,8 @@ type NarouContent = {
   language?: string;
 };
 
-async function narouRequest<T>(path: string): Promise<T> {
-  return apiRequest<T>(`/api/content${path}`);
+async function narouRequest<T>(path: string, signal?: AbortSignal): Promise<T> {
+  return apiRequest<T>(`/api/content${path}`, { signal });
 }
 
 export const narouProvider: MediaProvider = {
@@ -44,7 +50,8 @@ export const narouProvider: MediaProvider = {
     mediaTypes: ['novel'],
     capabilities: ['search', 'details', 'chapters', 'textContent'],
     status: 'working',
-    statusNote: 'Search, chapter lists, and real Japanese chapter text use the Talos backend adapter.',
+    statusNote:
+      'Search, chapter lists, and real Japanese chapter text use the Talos backend adapter.',
     attribution: 'Source: Shosetsuka ni Narou. Service and content terms apply.',
     executionMode: 'backend-api',
     backendRequired: true,
@@ -54,6 +61,7 @@ export const narouProvider: MediaProvider = {
   async search(query, context) {
     const data = await narouRequest<{ results: NarouSearchResult[] }>(
       `/search?mediaType=novel&providerId=${PROVIDER_ID}&q=${encodeURIComponent(query)}`,
+      context.signal,
     );
     return data.results.slice(0, context.limit ?? 12).map((item): SearchResult => ({
       id: encodeMediaRouteId(PROVIDER_ID, item.id),
@@ -64,6 +72,7 @@ export const narouProvider: MediaProvider = {
       type: 'novel',
       subtitle: item.author ? `${item.author} · Narou` : 'Narou',
       tags: ['Novel', 'Japanese', ...(item.genres ?? []).slice(0, 3)],
+      chapterCount: item.chapterCount,
     }));
   },
 

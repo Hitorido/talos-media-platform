@@ -18,7 +18,9 @@ async function get(path) {
 
 async function main() {
   console.log('=== Phase 5.4 Narou Talos Flow ===');
-  const search = await get('/api/content/search?mediaType=novel&providerId=narou&q=%E8%BB%A2%E7%94%9F');
+  const search = await get(
+    '/api/content/search?mediaType=novel&providerId=narou&q=%E8%BB%A2%E7%94%9F',
+  );
   const result = search.results?.[0];
   assert(result?.sourceId, 'search returned no Narou source');
   console.log('Search: PASS', result.title, result.sourceId);
@@ -27,7 +29,9 @@ async function main() {
   assert(details.title && details.author, 'details missing title or author');
   console.log('Details: PASS', details.title, details.author);
 
-  const chapters = await get(`/api/content/novel/narou/${encodeURIComponent(result.sourceId)}/chapters`);
+  const chapters = await get(
+    `/api/content/novel/narou/${encodeURIComponent(result.sourceId)}/chapters`,
+  );
   const chapter = chapters.chapters?.[0];
   assert(chapter?.id, 'chapters returned no chapter');
   console.log('Chapters: PASS', chapters.chapters.length, chapter.id);

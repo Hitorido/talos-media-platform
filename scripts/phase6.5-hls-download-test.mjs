@@ -1,4 +1,4 @@
-﻿import assert from 'node:assert/strict';
+import assert from 'node:assert/strict';
 import { loadProviderTs } from './phase6.5-test-loader.mjs';
 const files = [],
   written = [];

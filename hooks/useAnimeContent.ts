@@ -1,6 +1,6 @@
 import { loadOfflineCatalog } from '@/services/offlineCatalog';
 import { useLibraryStore } from '@/stores/libraryStore';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import {
   getBuiltinAnimeDetails,
@@ -17,6 +17,7 @@ function toAnimeDetails(media: NormalizedMedia, episodes: NormalizedEpisode[]): 
   return {
     id: routeId,
     title: media.title,
+    altTitles: media.alternativeTitles,
     description: media.description ?? '',
     coverUrl: media.coverUrl,
     bannerUrl: media.bannerUrl ?? media.coverUrl,
@@ -41,30 +42,31 @@ type AnimeContentState = {
   isProviderContent: boolean;
 };
 
+const EMPTY_ANIME_STATE: AnimeContentState = {
+  anime: null,
+  loading: false,
+  error: null,
+  isProviderContent: false,
+};
+
+const PENDING_ANIME_STATE: AnimeContentState = {
+  anime: null,
+  loading: true,
+  error: null,
+  isProviderContent: true,
+};
+
 export function useAnimeContent(routeId: string | undefined): AnimeContentState {
-  const [state, setState] = useState<AnimeContentState>({
-    anime: routeId ? (getBuiltinAnimeDetails(routeId) ?? null) : null,
-    loading: Boolean(routeId && !getBuiltinAnimeDetails(routeId)),
-    error: null,
-    isProviderContent: Boolean(routeId && !getBuiltinAnimeDetails(routeId)),
-  });
+  const builtin = useMemo(() => (routeId ? getBuiltinAnimeDetails(routeId) : null), [routeId]);
+
+  // Resolved payloads are tagged with the route they belong to, so "no route",
+  // "builtin title" and "still loading" are all derived during render rather
+  // than cascading synchronous setState from the effect body.
+  const [resolved, setResolved] = useState<{ key: string; state: AnimeContentState } | null>(null);
 
   useEffect(() => {
-    if (!routeId) {
-      setState({ anime: null, loading: false, error: null, isProviderContent: false });
-      return;
-    }
-
-    const builtin = getBuiltinAnimeDetails(routeId);
-    if (builtin) {
-      setState({
-        anime: builtin,
-        loading: false,
-        error: null,
-        isProviderContent: false,
-      });
-      return;
-    }
+    if (!routeId || builtin) return;
+    const key = routeId;
 
     let cancelled = false;
     let fresh = false;
@@ -73,10 +75,12 @@ export function useAnimeContent(routeId: string | undefined): AnimeContentState 
       .then((saved) => {
         local = saved;
         if (saved && !cancelled && !fresh)
-          setState({ anime: saved, loading: false, error: null, isProviderContent: true });
+          setResolved({
+            key,
+            state: { anime: saved, loading: false, error: null, isProviderContent: true },
+          });
       })
       .catch(() => {});
-    setState((current) => ({ ...current, loading: true, error: null, isProviderContent: true }));
 
     Promise.all([getMediaDetails(routeId), getMediaEpisodes(routeId)])
       .then(([media, episodes]) => {
@@ -91,29 +95,40 @@ export function useAnimeContent(routeId: string | undefined): AnimeContentState 
           mediaType: 'anime',
           episodeCount: episodes.length,
         });
-        setState({
-          anime: toAnimeDetails(media, episodes),
-          loading: false,
-          error: null,
-          isProviderContent: true,
+        setResolved({
+          key,
+          state: {
+            anime: toAnimeDetails(media, episodes),
+            loading: false,
+            error: null,
+            isProviderContent: true,
+          },
         });
       })
       .catch(async (error: unknown) => {
         await localReady;
         if (cancelled) return;
         const message = error instanceof Error ? error.message : 'Failed to load anime details.';
-        setState({
-          anime: local,
-          loading: false,
-          error: local ? null : message,
-          isProviderContent: true,
+        setResolved({
+          key,
+          state: {
+            anime: local,
+            loading: false,
+            error: local ? null : message,
+            isProviderContent: true,
+          },
         });
       });
 
     return () => {
       cancelled = true;
     };
-  }, [routeId]);
+  }, [routeId, builtin]);
 
-  return state;
+  return useMemo(() => {
+    if (!routeId) return EMPTY_ANIME_STATE;
+    if (builtin) return { anime: builtin, loading: false, error: null, isProviderContent: false };
+    if (resolved?.key === routeId) return resolved.state;
+    return PENDING_ANIME_STATE;
+  }, [routeId, builtin, resolved]);
 }

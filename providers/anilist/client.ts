@@ -3,7 +3,8 @@ const ANILIST_GRAPHQL_ENDPOINT = 'https://graphql.anilist.co';
 const ANILIST_HEADERS: HeadersInit = {
   'Content-Type': 'application/json',
   Accept: 'application/json',
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+  'User-Agent':
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
 };
 
 const ANILIST_SEARCH_QUERY = `
@@ -90,7 +91,11 @@ export type AniListAnime = {
   };
 };
 
-async function anilistFetch<T>(query: string, variables: Record<string, unknown>, signal?: AbortSignal): Promise<T> {
+async function anilistFetch<T>(
+  query: string,
+  variables: Record<string, unknown>,
+  signal?: AbortSignal,
+): Promise<T> {
   const response = await fetch(ANILIST_GRAPHQL_ENDPOINT, {
     method: 'POST',
     signal,
@@ -110,11 +115,19 @@ async function anilistFetch<T>(query: string, variables: Record<string, unknown>
   return json.data as T;
 }
 
-export async function searchAniListAnime(query: string, limit = 12, signal?: AbortSignal): Promise<AniListAnime[]> {
-  const data = await anilistFetch<{ Page: { media: AniListAnime[] } }>(ANILIST_SEARCH_QUERY, {
-    search: query,
-    limit,
-  }, signal);
+export async function searchAniListAnime(
+  query: string,
+  limit = 12,
+  signal?: AbortSignal,
+): Promise<AniListAnime[]> {
+  const data = await anilistFetch<{ Page: { media: AniListAnime[] } }>(
+    ANILIST_SEARCH_QUERY,
+    {
+      search: query,
+      limit,
+    },
+    signal,
+  );
   return data.Page?.media ?? [];
 }
 

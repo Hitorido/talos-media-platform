@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
-import { PanResponder, ScrollView, TouchableOpacity, View } from 'react-native';
+import { PanResponder, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { PopPressable as TouchableOpacity } from '@/components/ui/PopPressable';
 
 import { Text } from '@/components/ui';
 import type {
-    NovelFontFamily,
-    NovelLineSpacing,
-    NovelMargin,
-    NovelTheme,
-    ReaderSettings,
+  NovelFontFamily,
+  NovelLineSpacing,
+  NovelMargin,
+  NovelTheme,
+  ReaderSettings,
 } from '@/types/novel';
 import { cn } from '@/utils/cn';
 
@@ -117,7 +118,11 @@ export function NovelReaderControls({
   const insets = useSafeAreaInsets();
   const activeTheme = settings.theme;
   const [progressWidth, setProgressWidth] = useState(0);
-  const gestureRef = useRef({ width: 0, start: 0, seek: onSeekProgress });
+  // While dragging, the thumb renders this local value instead of the prop:
+  // scroll-driven progress updates lag the finger and would otherwise yank
+  // the thumb backwards mid-drag.
+  const [dragProgress, setDragProgress] = useState<number | null>(null);
+  const gestureRef = useRef({ width: 0, start: 0, latest: 0, seek: onSeekProgress });
 
   useEffect(() => {
     gestureRef.current.width = progressWidth;
@@ -134,15 +139,26 @@ export function NovelReaderControls({
         const gesture = gestureRef.current;
         if (!gesture.width) return;
         gesture.start = Math.max(0, Math.min(1, event.nativeEvent.locationX / gesture.width));
-        gesture.seek(gesture.start);
+        setDragProgress(gesture.start);
+        gesture.latest = gesture.start;
       },
       onPanResponderMove: (_event, state) => {
         const gesture = gestureRef.current;
         if (!gesture.width) return;
-        gesture.seek(Math.max(0, Math.min(1, gesture.start + state.dx / gesture.width)));
+        const value = Math.max(0, Math.min(1, gesture.start + state.dx / gesture.width));
+        setDragProgress(value);
+        gesture.latest = value;
       },
+      onPanResponderRelease: () => {
+        if (gestureRef.current.width) gestureRef.current.seek(gestureRef.current.latest);
+        setDragProgress(null);
+      },
+      onPanResponderTerminate: () => setDragProgress(null),
     }),
   );
+
+  const displayProgress = dragProgress ?? progress;
+  const displayBounded = Math.max(0, Math.min(1, displayProgress));
 
   return (
     <View
@@ -167,7 +183,6 @@ export function NovelReaderControls({
             </Text>
             <View className={cn('flex-row rounded-lg p-1', themeInnerPillClasses[activeTheme])}>
               <TouchableOpacity
-                activeOpacity={0.7}
                 onPress={() => onUpdateSettings({ scrollMode: 'continuous' })}
                 className={cn(
                   'rounded px-3 py-1',
@@ -193,7 +208,6 @@ export function NovelReaderControls({
               </TouchableOpacity>
 
               <TouchableOpacity
-                activeOpacity={0.7}
                 onPress={() => onUpdateSettings({ scrollMode: 'normal' })}
                 className={cn(
                   'rounded px-3 py-1',
@@ -231,7 +245,6 @@ export function NovelReaderControls({
                 return (
                   <TouchableOpacity
                     key={tId}
-                    activeOpacity={0.7}
                     onPress={() => onUpdateSettings({ theme: tId })}
                     className={cn(
                       'rounded-lg border px-3 py-1 capitalize',
@@ -270,7 +283,6 @@ export function NovelReaderControls({
                 )}
               >
                 <TouchableOpacity
-                  activeOpacity={0.7}
                   onPress={() =>
                     onUpdateSettings({ fontSize: Math.max(12, settings.fontSize - 2) })
                   }
@@ -290,7 +302,6 @@ export function NovelReaderControls({
                   {settings.fontSize}pt
                 </Text>
                 <TouchableOpacity
-                  activeOpacity={0.7}
                   onPress={() =>
                     onUpdateSettings({ fontSize: Math.min(32, settings.fontSize + 2) })
                   }
@@ -310,7 +321,6 @@ export function NovelReaderControls({
                 {fontFamilies.map((f) => (
                   <TouchableOpacity
                     key={f.id}
-                    activeOpacity={0.7}
                     onPress={() => onUpdateSettings({ fontFamily: f.id })}
                     className={cn(
                       'rounded px-2.5 py-1',
@@ -348,7 +358,6 @@ export function NovelReaderControls({
                 {lineSpacings.map((s) => (
                   <TouchableOpacity
                     key={s.id}
-                    activeOpacity={0.7}
                     onPress={() => onUpdateSettings({ lineSpacing: s.id })}
                     className={cn(
                       'rounded px-2 py-0.5',
@@ -385,7 +394,6 @@ export function NovelReaderControls({
                 {margins.map((m) => (
                   <TouchableOpacity
                     key={m.id}
-                    activeOpacity={0.7}
                     onPress={() => onUpdateSettings({ margin: m.id })}
                     className={cn(
                       'rounded px-2 py-0.5',
@@ -423,13 +431,13 @@ export function NovelReaderControls({
             >
               <View
                 className="absolute left-0 h-full rounded-full bg-primary-500"
-                style={{ width: `${Math.max(0, Math.min(1, progress)) * 100}%` }}
+                style={{ width: `${displayBounded * 100}%` }}
                 pointerEvents="none"
               />
               <View
                 className="absolute -top-1.5 h-5 w-5 rounded-full border-2 border-white bg-primary-500"
                 style={{
-                  left: `${Math.max(0, Math.min(1, progress)) * 100}%`,
+                  left: `${displayBounded * 100}%`,
                   transform: [{ translateX: -10 }],
                 }}
                 pointerEvents="none"
@@ -440,7 +448,6 @@ export function NovelReaderControls({
           {/* Chapter Navigation Row */}
           <View className="flex-row items-center justify-between border-t border-neutral-500/20 pt-2">
             <TouchableOpacity
-              activeOpacity={0.7}
               onPress={(e) => {
                 e.stopPropagation();
                 onPrevChapter();
@@ -461,7 +468,6 @@ export function NovelReaderControls({
             </TouchableOpacity>
 
             <TouchableOpacity
-              activeOpacity={0.7}
               onPress={(e) => {
                 e.stopPropagation();
                 onNextChapter();

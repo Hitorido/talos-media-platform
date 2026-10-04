@@ -1,12 +1,16 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
-import { RESTORED_SOURCE_IDS, getDefaultProviderEnabledMap, initializeProviders, providerRegistry } from '@/providers';
+import {
+  getDefaultProviderEnabledMap,
+  initializeProviders,
+  providerRegistry,
+  RESTORED_SOURCE_IDS,
+} from '@/providers';
 import { appPersistStorage } from '@/stores/persistStorage';
 import type { ProviderStatus } from '@/types/provider';
 
 type ProviderPreferences = {
-  sourcesRestored?: boolean;
   enabled: Record<string, boolean>;
   preferredByMediaType: Partial<Record<string, string>>;
   statusOverrides: Record<string, ProviderStatus>;
@@ -21,9 +25,21 @@ type ProviderStoreState = ProviderPreferences & {
   getProviderStatus: (providerId: string) => ProviderStatus;
 };
 
-function mergeEnabledState(
-  persisted?: Record<string, boolean>,
-): Record<string, boolean> {
+/**
+ * Bumped whenever provider registration or defaults change so one-time
+ * migrations run exactly once. After migrating, persisted user enable/disable
+ * choices are preserved on every later launch.
+ */
+const PROVIDER_STATE_VERSION = 2;
+
+/** Consumet is excluded from active providers and must not appear in saved state. */
+const CONSUMET_ID_PATTERN = /consumet/i;
+
+function isConsumetId(value: string | undefined): boolean {
+  return Boolean(value && CONSUMET_ID_PATTERN.test(value));
+}
+
+function mergeEnabledState(persisted?: Record<string, boolean>): Record<string, boolean> {
   initializeProviders();
   const defaults = getDefaultProviderEnabledMap();
   return { ...defaults, ...persisted };
@@ -32,14 +48,13 @@ function mergeEnabledState(
 export const useProviderStore = create<ProviderStoreState>()(
   persist(
     (set, get) => ({
-      sourcesRestored: true,
       enabled: getDefaultProviderEnabledMap(),
       preferredByMediaType: {
         manga: 'mangadex',
         manhwa: 'mangadex',
         manhua: 'mangadex',
-        anime: 'anilist-anime',
-        novel: 'novelping',
+        anime: 'kitsu-anime',
+        novel: 'novelcodex',
       },
       statusOverrides: {},
 
@@ -89,26 +104,48 @@ export const useProviderStore = create<ProviderStoreState>()(
     }),
     {
       name: 'providers',
+      version: PROVIDER_STATE_VERSION,
       storage: createJSONStorage(() => appPersistStorage),
       partialize: (state) => ({
-        sourcesRestored: true,
         enabled: state.enabled,
         preferredByMediaType: state.preferredByMediaType,
         statusOverrides: state.statusOverrides,
       }),
+      migrate: (persisted, version) => {
+        const saved = persisted as Partial<ProviderPreferences> | undefined;
+        const enabled: Record<string, boolean> = { ...saved?.enabled };
+        const preferredByMediaType = { ...saved?.preferredByMediaType };
+        const statusOverrides: Record<string, ProviderStatus> = { ...saved?.statusOverrides };
+
+        // Drop stale/removed Consumet entries so they never reappear in Sources.
+        for (const id of Object.keys(enabled)) if (isConsumetId(id)) delete enabled[id];
+        for (const id of Object.keys(statusOverrides))
+          if (isConsumetId(id)) delete statusOverrides[id];
+        for (const [mediaType, providerId] of Object.entries(preferredByMediaType)) {
+          if (isConsumetId(providerId)) delete preferredByMediaType[mediaType];
+        }
+
+        // One-time restoration only: an earlier build disabled backend-backed sources
+        // while the Render gateway was temporarily unreachable. Re-enable them once,
+        // and clear stale failure overrides so they show as usable again.
+        if (version < PROVIDER_STATE_VERSION) {
+          for (const providerId of RESTORED_SOURCE_IDS) {
+            enabled[providerId] = true;
+            delete statusOverrides[providerId];
+          }
+          if (!preferredByMediaType.novel || preferredByMediaType.novel === 'builtin-mock') {
+            preferredByMediaType.novel = 'novelcodex';
+          }
+        }
+
+        return { ...saved, enabled, preferredByMediaType, statusOverrides };
+      },
       merge: (persisted, current) => {
         const saved = persisted as Partial<ProviderPreferences> | undefined;
-        const enabled = mergeEnabledState(saved?.enabled);
-        // Always re-enable restored scraper-backend adapters after upgrades.
-        for (const id of RESTORED_SOURCE_IDS) enabled[id] = true;
-        for (const id of Object.keys(enabled)) if (id.includes('consumet') || id.startsWith('stub-')) {
-          delete enabled[id];
-        }
         return {
           ...current,
           ...saved,
-          sourcesRestored: true,
-          enabled,
+          enabled: mergeEnabledState(saved?.enabled),
           preferredByMediaType: {
             ...current.preferredByMediaType,
             ...saved?.preferredByMediaType,

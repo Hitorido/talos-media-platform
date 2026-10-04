@@ -87,9 +87,15 @@ async function jikanFetch<T>(path: string, retries = 2, signal?: AbortSignal): P
   }
 }
 
-export async function searchJikanAnime(query: string, limit = 12, signal?: AbortSignal): Promise<JikanAnimeItem[]> {
+export async function searchJikanAnime(
+  query: string,
+  limit = 12,
+  signal?: AbortSignal,
+): Promise<JikanAnimeItem[]> {
   const payload = await jikanFetch<JikanResponse<JikanAnimeItem[]>>(
-    `/anime?q=${encodeURIComponent(query)}&limit=${limit}&sfw=true`, 0, signal,
+    `/anime?q=${encodeURIComponent(query)}&limit=${limit}&sfw=true`,
+    0,
+    signal,
   );
   return payload.data ?? [];
 }
@@ -101,7 +107,9 @@ export async function getJikanAnime(animeId: string): Promise<JikanAnimeItem> {
 
 export async function getJikanAnimeEpisodes(animeId: string): Promise<JikanEpisodeItem[]> {
   try {
-    const payload = await jikanFetch<JikanResponse<JikanEpisodeItem[]>>(`/anime/${animeId}/episodes`);
+    const payload = await jikanFetch<JikanResponse<JikanEpisodeItem[]>>(
+      `/anime/${animeId}/episodes`,
+    );
     return payload.data ?? [];
   } catch {
     // If episodes endpoint is rate-limited or unavailable, fallback gracefully

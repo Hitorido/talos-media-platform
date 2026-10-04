@@ -1,15 +1,15 @@
 import {
-    consumetAnimeInfo,
-    consumetAnimeSearch,
-    consumetAnimeWatch,
+  consumetAnimeInfo,
+  consumetAnimeSearch,
+  consumetAnimeWatch,
 } from '@/providers/consumet/client';
 import type { MediaProvider } from '@/providers/types';
 import type {
-    MediaRef,
-    NormalizedEpisode,
-    NormalizedMedia,
-    NormalizedPlaybackSource,
-    ProviderStatus,
+  MediaRef,
+  NormalizedEpisode,
+  NormalizedMedia,
+  NormalizedPlaybackSource,
+  ProviderStatus,
 } from '@/types/provider';
 import { encodeMediaRouteId } from '@/types/provider';
 import type { SearchResult } from '@/types/search';

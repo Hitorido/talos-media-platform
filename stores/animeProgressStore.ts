@@ -15,45 +15,17 @@ type AnimeProgressState = {
   removeEpisodeProgress: (animeId: string) => void;
 };
 
-
-const seedProgress: Record<string, EpisodeProgress> = {
-  'anime-cw-1': {
-    animeId: 'anime-cw-1',
-    episodeId: 'anime-cw-1-ep-8',
-    episodeNumber: 8,
-    episodeTitle: 'The Gate Beyond the Aurora',
-    positionSeconds: 370,
-    durationSeconds: 596,
-    updatedAt: Date.now(),
-  },
-  'anime-cw-2': {
-    animeId: 'anime-cw-2',
-    episodeId: 'anime-cw-2-ep-3',
-    episodeNumber: 3,
-    episodeTitle: 'Northern Wind Episode 3',
-    positionSeconds: 208,
-    durationSeconds: 596,
-    updatedAt: Date.now(),
-  },
-  'anime-cw-3': {
-    animeId: 'anime-cw-3',
-    episodeId: 'anime-cw-3-ep-15',
-    episodeNumber: 15,
-    episodeTitle: 'Echoes Episode 15',
-    positionSeconds: 465,
-    durationSeconds: 596,
-    updatedAt: Date.now(),
-  },
-};
+const seedProgress: Record<string, EpisodeProgress> = {};
 
 export function buildContinueWatching(
   progressByAnime: Record<string, EpisodeProgress>,
+  mediaById = useLibraryStore.getState().media,
 ): ContinueWatchingEntry[] {
   return Object.values(progressByAnime)
     .sort((a, b) => b.updatedAt - a.updatedAt)
     .map((progress) => {
       const anime = getAnimeById(progress.animeId);
-      const saved = useLibraryStore.getState().media[progress.animeId];
+      const saved = mediaById[progress.animeId];
       if (!anime && !saved) {
         return null;
       }
@@ -64,8 +36,8 @@ export function buildContinueWatching(
       return {
         animeId: anime?.id ?? saved!.id,
         title: anime?.title ?? saved!.title,
-        coverUrl: anime?.bannerUrl ?? saved!.bannerUrl ?? saved!.coverUrl,
-        bannerUrl: anime?.bannerUrl ?? saved!.bannerUrl ?? saved!.coverUrl,
+        coverUrl: saved?.customCoverUrl ?? anime?.bannerUrl ?? saved?.bannerUrl ?? saved!.coverUrl,
+        bannerUrl: saved?.customCoverUrl ?? anime?.bannerUrl ?? saved?.bannerUrl ?? saved!.coverUrl,
         episodeId: progress.episodeId,
         episodeNumber: progress.episodeNumber,
         episodeTitle:
@@ -81,34 +53,34 @@ export function buildContinueWatching(
 export const useAnimeProgressStore = create<AnimeProgressState>()(
   persist(
     (set, get) => ({
-  progressByAnime: seedProgress,
+      progressByAnime: seedProgress,
 
-  setEpisodeProgress: (progress) => {
-    set((state) => ({
-      progressByAnime: {
-        ...state.progressByAnime,
-        [progress.animeId]: progress,
+      setEpisodeProgress: (progress) => {
+        set((state) => ({
+          progressByAnime: {
+            ...state.progressByAnime,
+            [progress.animeId]: progress,
+          },
+        }));
       },
-    }));
-  },
 
-  getEpisodeProgress: (animeId, episodeId) => {
-    const latest = get().progressByAnime[animeId];
-    if (!latest || latest.episodeId !== episodeId) {
-      return undefined;
-    }
-    return latest;
-  },
+      getEpisodeProgress: (animeId, episodeId) => {
+        const latest = get().progressByAnime[animeId];
+        if (!latest || latest.episodeId !== episodeId) {
+          return undefined;
+        }
+        return latest;
+      },
 
-  getLatestProgress: (animeId) => get().progressByAnime[animeId],
+      getLatestProgress: (animeId) => get().progressByAnime[animeId],
 
-  removeEpisodeProgress: (animeId) => {
-    set((state) => {
-      const next = { ...state.progressByAnime };
-      delete next[animeId];
-      return { progressByAnime: next };
-    });
-  },
+      removeEpisodeProgress: (animeId) => {
+        set((state) => {
+          const next = { ...state.progressByAnime };
+          delete next[animeId];
+          return { progressByAnime: next };
+        });
+      },
     }),
     {
       name: 'anime-progress',
@@ -120,10 +92,9 @@ export const useAnimeProgressStore = create<AnimeProgressState>()(
   ),
 );
 
-
 export function useContinueWatching(): ContinueWatchingEntry[] {
-  const media = useLibraryStore(state => state.media);
+  const media = useLibraryStore((state) => state.media);
   const progressByAnime = useAnimeProgressStore((state) => state.progressByAnime);
 
-  return useMemo(() => buildContinueWatching(progressByAnime), [progressByAnime, media]);
+  return useMemo(() => buildContinueWatching(progressByAnime, media), [progressByAnime, media]);
 }

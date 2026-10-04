@@ -55,7 +55,9 @@ export default function SearchScreen() {
           {error ? <SearchErrorState message={error} onRetry={retry} /> : null}
 
           {!error && loading && !showResults ? <SearchLoadingState /> : null}
-          {!error && loading && showResults ? <Text className="px-4 py-2">Searching more sources...</Text> : null}
+          {!error && loading && showResults ? (
+            <Text className="px-4 py-2">Searching more sources...</Text>
+          ) : null}
 
           {!error && !loading && showEmpty ? <SearchEmptyState query={query.trim()} /> : null}
 

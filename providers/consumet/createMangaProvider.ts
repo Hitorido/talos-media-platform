@@ -1,19 +1,23 @@
 import {
-    consumetMangaInfo,
-    consumetMangaRead,
-    consumetMangaSearch,
+  consumetMangaInfo,
+  consumetMangaRead,
+  consumetMangaSearch,
 } from '@/providers/consumet/client';
 import type { MediaProvider } from '@/providers/types';
 import type {
-    MediaRef,
-    NormalizedChapter,
-    NormalizedMedia,
-    NormalizedPage,
-    ProviderStatus,
+  MediaRef,
+  NormalizedChapter,
+  NormalizedMedia,
+  NormalizedPage,
+  ProviderStatus,
 } from '@/types/provider';
 import { encodeMediaRouteId } from '@/types/provider';
 import type { SearchResult } from '@/types/search';
-import { comicFormatLabel, inferComicFormatFromGenres, type ComicFormat } from '@/utils/comicFormat';
+import {
+  comicFormatLabel,
+  inferComicFormatFromGenres,
+  type ComicFormat,
+} from '@/utils/comicFormat';
 
 export type ConsumetMangaProviderConfig = {
   id: string;
@@ -28,10 +32,7 @@ export type ConsumetMangaProviderConfig = {
   defaultComicFormat?: ComicFormat;
 };
 
-function resolveComicFormat(
-  config: ConsumetMangaProviderConfig,
-  genres?: string[],
-): ComicFormat {
+function resolveComicFormat(config: ConsumetMangaProviderConfig, genres?: string[]): ComicFormat {
   if (config.mediaTypes.length === 1) {
     return config.mediaTypes[0];
   }

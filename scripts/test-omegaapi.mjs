@@ -79,7 +79,6 @@ async function testOmegaAPI() {
     console.log('   - Adult/mature content warning');
     console.log('   - Unclear upstream authorization');
     console.log('   - MIT license applies to code, not service relationship');
-
   } catch (error) {
     console.error('❌ Test failed:', error.message);
   }

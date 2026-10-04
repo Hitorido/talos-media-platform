@@ -1,11 +1,13 @@
-﻿import { useEffect, useState } from 'react';
-import { Image, Pressable, ScrollView, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Image, ScrollView, View } from 'react-native';
+import { PopPressable as Pressable } from '@/components/ui/PopPressable';
 import { useRouter } from 'expo-router';
 import { Text } from '@/components/ui';
 import { getDiscovery, type DiscoveryItem } from '@/services/discoveryService';
 import { useProviderStore } from '@/stores/providerStore';
 import { animeDetailsHref, mangaDetailsHref, novelDetailsHref } from '@/lib/routes';
 import type { SearchFilter, SearchResult } from '@/types/search';
+import { useMediaCover } from '@/hooks/useMediaCover';
 
 export function selectSearchSuggestions(
   items: DiscoveryItem[],
@@ -68,10 +70,9 @@ export function SearchSuggestions({
           contentContainerStyle={{ gap: 8 }}
         >
           {suggestions.map((item) => (
-            <Pressable
+            <SuggestionCard
               key={item.id}
-              accessibilityRole="button"
-              className="w-44 flex-row items-center gap-2 rounded-xl bg-neutral-100 p-2 dark:bg-neutral-900"
+              item={item}
               onPress={() =>
                 router.push(
                   item.type === 'anime'
@@ -81,30 +82,7 @@ export function SearchSuggestions({
                       : mangaDetailsHref(item.id),
                 )
               }
-            >
-              {item.coverUrl?.trim() ? (
-                <Image
-                  source={{ uri: item.coverUrl }}
-                  style={{ width: 34, height: 48, borderRadius: 5 }}
-                />
-              ) : null}
-              <View className="flex-1">
-                <Text variant="caption" numberOfLines={2}>
-                  {item.title}
-                </Text>
-                <Text variant="caption" tone="muted">
-                  {
-                    {
-                      anime: 'Anime',
-                      manga: 'Manga',
-                      manhwa: 'Manhwa',
-                      manhua: 'Manhua',
-                      novel: 'Novel',
-                    }[item.type === 'manga' ? (item.comicFormat ?? 'manga') : item.type]
-                  }
-                </Text>
-              </View>
-            </Pressable>
+            />
           ))}
         </ScrollView>
       ) : (
@@ -113,5 +91,42 @@ export function SearchSuggestions({
         </Text>
       )}
     </View>
+  );
+}
+
+function SuggestionCard({
+  item,
+  onPress,
+}: {
+  item: DiscoveryItem | SearchResult;
+  onPress: () => void;
+}) {
+  const displayCover = useMediaCover(item.id, item.coverUrl ?? '');
+  return (
+    <Pressable
+      accessibilityRole="button"
+      className="w-44 flex-row items-center gap-2 rounded-xl bg-neutral-100 p-2 dark:bg-neutral-900"
+      onPress={onPress}
+    >
+      {displayCover ? (
+        <Image source={{ uri: displayCover }} style={{ width: 34, height: 48, borderRadius: 5 }} />
+      ) : null}
+      <View className="flex-1">
+        <Text variant="caption" numberOfLines={2}>
+          {item.title}
+        </Text>
+        <Text variant="caption" tone="muted">
+          {
+            {
+              anime: 'Anime',
+              manga: 'Manga',
+              manhwa: 'Manhwa',
+              manhua: 'Manhua',
+              novel: 'Novel',
+            }[item.type === 'manga' ? (item.comicFormat ?? 'manga') : item.type]
+          }
+        </Text>
+      </View>
+    </Pressable>
   );
 }

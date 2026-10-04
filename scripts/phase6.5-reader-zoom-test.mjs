@@ -1,5 +1,5 @@
-﻿import assert from 'node:assert/strict';
-import {loadProviderTs} from './phase6.5-test-loader.mjs';
+import assert from 'node:assert/strict';
+import { loadProviderTs } from './phase6.5-test-loader.mjs';
 
 const gestures = [];
 const timings = [];
@@ -106,6 +106,7 @@ const Gesture = {
 
 const { useReaderZoom } = loadProviderTs('components/manga/useReaderZoom.ts', {
   react: {
+    useEffect: (fn) => { fn(); },
     useMemo: (fn) => fn(),
     useRef: (value) => ({ current: value }),
     useCallback: (fn) => fn,
@@ -130,6 +131,7 @@ assert.equal(scrolls.at(-1), 1175, 'pinch preserves screen-center content point'
 
 double.onEndFn({ x: 300, y: 200 }, true);
 assert.equal(zoom.scale.value, 1, 'manual zoom first fits');
+await Promise.resolve();
 
 zoom.scrollHandler({ contentOffset: { y: 0 } });
 double.onEndFn({ x: 300, y: 200 }, true);
@@ -145,7 +147,9 @@ pinch.onStartFn({ focalX: 200, focalY: 350 });
 pinch.onUpdateFn({ scale: 0.01 });
 assert.equal(zoom.scale.value, 0.5);
 pinch.onFinalizeFn();
-assert.equal(zoom.scale.value, 1, 'pinch below fit rubber-bands back to fit');
+assert.equal(zoom.scale.value, 0.5, 'release preserves manual zoom-out without a surprise zoom');
+double.onEndFn({ x: 200, y: 200 }, true);
+assert.equal(zoom.scale.value, 1, 'double tap first restores fit from manual zoom-out');
 double.onEndFn({ x: 200, y: 200 }, true);
 assert.equal(zoom.scale.value, 2, 'double tap from fit zooms in');
 double.onEndFn({ x: 200, y: 200 }, true);
@@ -177,11 +181,32 @@ console.log(
 const pan = gestures.find((g) => g.kind === 'pan');
 zoom.scale.value = 1;
 let failed = 0;
-pan.onTouchesDownFn({ numberOfTouches: 1, allTouches: [{ x: 10, y: 10 }] }, { fail() { failed++; } });
+pan.onTouchesDownFn(
+  { numberOfTouches: 1, allTouches: [{ x: 10, y: 10 }] },
+  {
+    fail() {
+      failed++;
+    },
+  },
+);
 assert.equal(failed, 1, 'fit-size horizontal swipes must reach pager');
 
 let pinchTapRejected = 0;
-double.onTouchesDownFn({ numberOfTouches: 2 }, { fail() { pinchTapRejected++; } });
-tap.onTouchesDownFn({ numberOfTouches: 2 }, { fail() { pinchTapRejected++; } });
+double.onTouchesDownFn(
+  { numberOfTouches: 2 },
+  {
+    fail() {
+      pinchTapRejected++;
+    },
+  },
+);
+tap.onTouchesDownFn(
+  { numberOfTouches: 2 },
+  {
+    fail() {
+      pinchTapRejected++;
+    },
+  },
+);
 assert.equal(pinchTapRejected, 2, 'two-finger pinch must never become a double tap');
 console.log('PASS gesture arbitration keeps unzoomed paging and rejects multi-touch taps');

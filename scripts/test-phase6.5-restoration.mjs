@@ -27,17 +27,19 @@ for (const id of RESTORED_SOURCE_IDS) {
 }
 
 console.log('\n=== Checking no Consumet providers are active ===');
-const consumetProviders = allProviders.filter(p => p.definition.id.includes('consumet'));
+const consumetProviders = allProviders.filter((p) => p.definition.id.includes('consumet'));
 if (consumetProviders.length === 0) {
   console.log('✅ No Consumet providers found in registry');
 } else {
   console.log(`❌ Found ${consumetProviders.length} Consumet providers:`);
-  consumetProviders.forEach(p => console.log(`  - ${p.definition.id}`));
+  consumetProviders.forEach((p) => console.log(`  - ${p.definition.id}`));
 }
 
 console.log('\n=== Provider list ===');
-allProviders.forEach(p => {
-  console.log(`${p.definition.id}: ${p.definition.name} (${p.definition.mediaTypes.join(', ')}) - ${p.definition.status}`);
+allProviders.forEach((p) => {
+  console.log(
+    `${p.definition.id}: ${p.definition.name} (${p.definition.mediaTypes.join(', ')}) - ${p.definition.status}`,
+  );
 });
 
 console.log('\n=== Test Complete ===');

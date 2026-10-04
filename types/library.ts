@@ -17,7 +17,14 @@ export type LibraryView = 'library' | 'favorites' | 'history';
 
 /** Local display metadata; never chapter bodies or playback URLs. */
 export type LibraryMedia = {
-  id: string; title: string; coverUrl: string; bannerUrl?: string;
-  mediaType: LibraryMediaType; genres: string[];
-  chapterCount?: number; episodeCount?: number;
+  id: string;
+  title: string;
+  coverUrl: string;
+  bannerUrl?: string;
+  originalCoverUrl?: string;
+  customCoverUrl?: string;
+  mediaType: LibraryMediaType;
+  genres: string[];
+  chapterCount?: number;
+  episodeCount?: number;
 };

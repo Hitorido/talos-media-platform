@@ -1,11 +1,11 @@
-﻿import type { MangaPage } from '@/types/manga';
-import { useEffect, useState } from 'react';
+import type { MangaPage } from '@/types/manga';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Image, Text, View, useWindowDimensions } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
-    useAnimatedStyle,
-    useSharedValue,
-    type SharedValue,
+  useAnimatedStyle,
+  useSharedValue,
+  type SharedValue,
 } from 'react-native-reanimated';
 import { useReaderZoom } from './useReaderZoom';
 
@@ -120,20 +120,22 @@ export function ZoomablePage({
       pan: zoom.x.value / width,
     }));
   }, [onLocationReady, width]);
-  const [restored, setRestored] = useState(false);
   const [contentReady, setContentReady] = useState(false);
-  const restoreView = () => {
-    if (!initialView || restored || !contentReady) return;
-    setRestored(true);
+  // "Already restored" is a one-shot flag, not render data — a ref avoids the
+  // extra render the old state-based version caused on every page restore.
+  const restoredRef = useRef(false);
+  const restoreView = useCallback(() => {
+    if (!initialView || restoredRef.current || !contentReady) return;
+    restoredRef.current = true;
     zoom.scrollRef.current?.scrollTo({
       y: initialView.fraction * contentHeight.value,
       animated: false,
     });
     onGestureActive?.(initialView.scale > 1.01);
-  };
+  }, [initialView, contentReady, zoom.scrollRef, contentHeight, onGestureActive]);
   useEffect(() => {
     restoreView();
-  }, [contentReady, initialView]);
+  }, [contentReady, initialView, restoreView]);
   // Worklets must capture shared values, never the gesture-bearing hook result.
   const { scale } = zoom;
   const contentStyle = useAnimatedStyle(() => ({ minHeight: viewportHeight / scale.value }));
@@ -152,7 +154,11 @@ export function ZoomablePage({
               scrollEventThrottle={16}
               scrollEnabled={!gestureLock}
               decelerationRate={0.993}
-              contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center' }}
+              contentContainerStyle={{
+                flexGrow: 1,
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
               style={contentStyle}
               bounces={!gestureLock}
               overScrollMode={gestureLock ? 'never' : 'auto'}

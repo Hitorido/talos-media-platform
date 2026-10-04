@@ -1,4 +1,4 @@
-﻿import { downloadFile, saveTextFile } from '@/services/storageService';
+import { downloadFile, saveTextFile } from '@/services/storageService';
 
 async function playlist(url: string): Promise<{ text: string; url: string }> {
   if (!['https:', 'http:'].includes(new URL(url).protocol))

@@ -161,7 +161,9 @@ function normalizeContent(payload: unknown, chapterId: string): NovelGatewayCont
   const data = unwrapData<Record<string, unknown>>(payload);
   let paragraphs: string[] = [];
   if (Array.isArray(data.paragraphs)) {
-    paragraphs = data.paragraphs.filter((p): p is string => typeof p === 'string' && p.trim().length > 0);
+    paragraphs = data.paragraphs.filter(
+      (p): p is string => typeof p === 'string' && p.trim().length > 0,
+    );
   } else if (typeof data.content === 'string' && data.content.trim()) {
     paragraphs = data.content
       .split(/\n{2,}/)

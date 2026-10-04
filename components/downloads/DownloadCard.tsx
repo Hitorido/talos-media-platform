@@ -1,4 +1,4 @@
-import { Image, View } from 'react-native';
+import { View } from 'react-native';
 
 import { ProgressBar } from '@/components/home/ProgressBar';
 import { Badge, Button, Text } from '@/components/ui';
@@ -55,21 +55,15 @@ export function DownloadCard({
   const isPaused = item.status === 'paused';
   const isCompleted = item.status === 'completed';
   const isFailed = item.status === 'failed';
+  const isCancelled = item.status === 'cancelled';
 
   const progressPercent = Math.round(item.progress * 100);
 
   return (
     <View className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
       <View className="flex-row gap-3">
-        {/* Cover thumbnail */}
-        <View className="h-20 w-14 overflow-hidden rounded-lg bg-neutral-200 dark:bg-neutral-800">
-          {item.coverUrl ? (
-            <Image source={item.coverUrl?.trim() ? { uri: item.coverUrl } : undefined} className="h-full w-full" resizeMode="cover" />
-          ) : null}
-        </View>
-
         {/* Content Info */}
-        <View className="flex-1 justify-between">
+        <View className="flex-1">
           <View className="gap-1">
             <View className="flex-row items-center justify-between gap-2">
               <Text variant="label" numberOfLines={1} className="flex-1">
@@ -133,6 +127,7 @@ export function DownloadCard({
           <>
             <Button label="Pause" size="sm" variant="secondary" onPress={onPause} />
             <Button label="Cancel" size="sm" variant="ghost" onPress={onCancel} />
+            <Button label="Delete" size="sm" variant="ghost" onPress={onDelete} />
           </>
         ) : null}
 
@@ -140,12 +135,25 @@ export function DownloadCard({
           <>
             <Button label="Resume" size="sm" variant="primary" onPress={onResume} />
             <Button label="Cancel" size="sm" variant="ghost" onPress={onCancel} />
+            <Button label="Delete" size="sm" variant="ghost" onPress={onDelete} />
           </>
         ) : null}
 
-        {isQueued ? <Button label="Cancel" size="sm" variant="ghost" onPress={onCancel} /> : null}
+        {isQueued ? (
+          <>
+            <Button label="Cancel" size="sm" variant="ghost" onPress={onCancel} />
+            <Button label="Delete" size="sm" variant="ghost" onPress={onDelete} />
+          </>
+        ) : null}
 
         {isFailed ? (
+          <>
+            <Button label="Retry" size="sm" variant="primary" onPress={onRetry} />
+            <Button label="Delete" size="sm" variant="ghost" onPress={onDelete} />
+          </>
+        ) : null}
+
+        {isCancelled ? (
           <>
             <Button label="Retry" size="sm" variant="primary" onPress={onRetry} />
             <Button label="Delete" size="sm" variant="ghost" onPress={onDelete} />

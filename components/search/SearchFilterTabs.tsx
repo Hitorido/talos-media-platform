@@ -1,4 +1,5 @@
-import { Pressable, ScrollView } from 'react-native';
+import { ScrollView } from 'react-native';
+import { PopPressable as Pressable } from '@/components/ui/PopPressable';
 
 import { Text } from '@/components/ui';
 import type { SearchFilter } from '@/types/search';

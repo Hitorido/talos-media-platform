@@ -55,11 +55,7 @@ export async function fetchBackendMediaDetails(
   );
 }
 
-export async function fetchBackendChapters(
-  mediaType: string,
-  providerId: string,
-  mediaId: string,
-) {
+export async function fetchBackendChapters(mediaType: string, providerId: string, mediaId: string) {
   return apiRequest<{ chapters: unknown[] }>(
     `/api/content/${encodeURIComponent(mediaType)}/${encodeURIComponent(providerId)}/${encodeURIComponent(mediaId)}/chapters`,
   );

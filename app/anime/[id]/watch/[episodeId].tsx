@@ -2,29 +2,33 @@ import { SourceWebsiteButton } from '@/components/content/SourceWebsiteButton';
 import { parseSubtitleCues, subtitleAt, type SubtitleCue } from '@/services/subtitleCues';
 import { useMediaBookmarkStore } from '@/stores/mediaBookmarkStore';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useVideoPlayer, VideoView, type SubtitleTrack } from 'expo-video';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useVideoPlayer, VideoView, type VideoPlayer, type SubtitleTrack } from 'expo-video';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    Animated,
-    BackHandler,
-    LayoutChangeEvent,
-    PanResponder,
-    Pressable,
-    View,
+  ActivityIndicator,
+  Animated,
+  BackHandler,
+  LayoutChangeEvent,
+  PanResponder,
+  View,
 } from 'react-native';
+import { PopPressable as Pressable } from '@/components/ui/PopPressable';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Badge, Button, Text } from '@/components/ui';
 import { animeDetailsHref } from '@/lib/routes';
 import {
-    getProviderDisplayName,
-    resolveAnimePlayback,
-    type ResolvedAnimePlaybackResult,
+  getProviderDisplayName,
+  resolveAnimePlayback,
+  type ResolvedAnimePlaybackResult,
 } from '@/services/contentService';
 import { useAnimeProgressStore } from '@/stores/animeProgressStore';
 import { useSubtitlePreferencesStore } from '@/stores/subtitlePreferencesStore';
+
+// Stable empty array so derived "no cues" states never change identity and
+// cannot trigger downstream re-renders.
+const EMPTY_CUES: SubtitleCue[] = [];
 
 export default function AnimePlayerScreen() {
   const router = useRouter();
@@ -54,19 +58,21 @@ export default function AnimePlayerScreen() {
   const [overlayVisible, setOverlayVisible] = useState(true);
   const overlayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [externalCues, setExternalCues] = useState<SubtitleCue[]>([]);
-  const [externalError, setExternalError] = useState('');
   const [playhead, setPlayhead] = useState(0);
+  const overlayVisibleRef = useRef(overlayVisible);
+  overlayVisibleRef.current = overlayVisible;
+  const lastClockUpdate = useRef(0);
   const [duration, setDuration] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [scrubbing, setScrubbing] = useState(false);
   const [scrubFraction, setScrubFraction] = useState(0);
-  const scrubberWidthRef = useRef(1);
+  // Track width lives in state (not a ref) so the memoized pan responder can
+  // read it during render without violating the refs-during-render rule.
+  // onLayout only fires on mount/rotation, so this is not a hot path.
+  const [scrubberWidth, setScrubberWidth] = useState(1);
   const [subtitlesEnabled, setSubtitlesEnabled] = useState(true);
-  const [frameSource, setFrameSource] = useState('');
   const readyFrameRef = useRef('');
   const [bookmarkToastVisible, setBookmarkToastVisible] = useState(false);
-  const [subtitleLabel, setSubtitleLabel] = useState('Checking English subtitles...');
   const resumedSourceRef = useRef<string | null>(null);
   const fallbackPositionRef = useRef<number | null>(null);
   const fallbackAttemptedRef = useRef(false);
@@ -74,16 +80,42 @@ export default function AnimePlayerScreen() {
   const latestTimeRef = useRef(0);
   const [qualityUrl, setQualityUrl] = useState<string | null>(null);
   const [useDirectStream, setUseDirectStream] = useState(false);
-  const [playback, setPlayback] = useState<ResolvedAnimePlaybackResult | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [resolvedPlayback, setResolvedPlayback] = useState<ResolvedAnimePlaybackResult | null>(
+    null,
+  );
+  const [settledKey, setSettledKey] = useState<string | null>(null);
+  const [errorState, setErrorState] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
   const [resolveRetryCount, setResolveRetryCount] = useState(0);
-  const [playerStatus, setPlayerStatus] = useState('idle');
-  const [error, setError] = useState<string | null>(null);
   const subtitlePrefs = useSubtitlePreferencesStore();
 
+  // Everything below is derived from the current route key. While a resolution
+  // is in flight the screen renders as "loading" without a synchronous
+  // setState cascade, so switching episodes costs no extra render pass and
+  // never flashes the previous episode's data.
+  const resolveKey = `${id ?? ''}|${episodeId ?? ''}|${retry}`;
+  const settled = settledKey === resolveKey;
+  const playback = settled ? resolvedPlayback : null;
+  const error = !id || !episodeId ? 'Missing anime or episode id.' : settled ? errorState : null;
+  const loading = Boolean(id && episodeId) && !settled;
+
+  // Reset the per-episode UI state during render (React's documented "adjust
+  // state when a prop changes" pattern) rather than cascading it from an
+  // effect after the fact.
+  const [syncedKey, setSyncedKey] = useState(resolveKey);
+  if (syncedKey !== resolveKey) {
+    setSyncedKey(resolveKey);
+    setUseDirectStream(false);
+    setQualityUrl(null);
+    setBookmarkToastVisible(false);
+    setPlayhead(0);
+    setResolveRetryCount(0);
+  }
+
   // Animated opacity for the controls overlay — fades in/out smoothly.
-  const overlayOpacity = useRef(new Animated.Value(1)).current;
+  // Lazy state init keeps a single stable Animated.Value without reading a
+  // ref during render.
+  const [overlayOpacity] = useState(() => new Animated.Value(1));
 
   /** Show controls and restart the auto-hide timer. */
   const showControls = useCallback(() => {
@@ -127,43 +159,38 @@ export default function AnimePlayerScreen() {
   );
 
   useEffect(() => {
-    if (!id || !episodeId) {
-      setLoading(false);
-      setError('Missing anime or episode id.');
-      return;
-    }
+    if (!id || !episodeId) return;
     let cancelled = false;
-    setLoading(true);
-    setError(null);
-    setPlayback(null);
-    setUseDirectStream(false);
-    setQualityUrl(null);
-    setFrameSource('');
-    readyFrameRef.current = '';
-    fullscreenSourceRef.current = '';
-    setBookmarkToastVisible(false);
-    setPlayhead(0);
-    latestTimeRef.current = 0;
-    fallbackPositionRef.current = null;
-    fallbackAttemptedRef.current = false;
-    setResolveRetryCount(0);
+    const key = `${id}|${episodeId}|${retry}`;
     resolveAnimePlayback(id, episodeId)
       .then((resolved) => {
         if (cancelled) return;
-        setPlayback(resolved);
-        setLoading(false);
+        setResolvedPlayback(resolved);
+        setErrorState(null);
+        setSettledKey(key);
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        setError(
+        setResolvedPlayback(null);
+        setErrorState(
           err instanceof Error ? err.message : 'Unable to resolve playback for this episode.',
         );
-        setLoading(false);
+        setSettledKey(key);
       });
     return () => {
       cancelled = true;
     };
   }, [id, episodeId, retry]);
+
+  // Transient per-episode bookkeeping. Ref writes belong in an effect, so this
+  // reset stays out of the render body.
+  useEffect(() => {
+    readyFrameRef.current = '';
+    fullscreenSourceRef.current = '';
+    latestTimeRef.current = 0;
+    fallbackPositionRef.current = null;
+    fallbackAttemptedRef.current = false;
+  }, [resolveKey]);
 
   const saveProgress = useCallback(
     (positionSeconds: number, durationSeconds: number) => {
@@ -186,7 +213,6 @@ export default function AnimePlayerScreen() {
 
   useEffect(() => {
     readyFrameRef.current = '';
-    setFrameSource('');
   }, [streamUrl]);
 
   const videoSource = useMemo(
@@ -216,7 +242,7 @@ export default function AnimePlayerScreen() {
       latestTimeRef.current,
       player.currentTime || 0,
     );
-    setError(null);
+    setErrorState(null);
     setUseDirectStream(true);
     return true;
   }, [playback?.source.fallbackUrl, player, resumeSeconds]);
@@ -230,7 +256,7 @@ export default function AnimePlayerScreen() {
       latestTimeRef.current,
       player.currentTime || 0,
     );
-    setError(null);
+    setErrorState(null);
     return true;
   }, [resolveRetryCount, resumeSeconds]);
 
@@ -279,32 +305,51 @@ export default function AnimePlayerScreen() {
       return;
     }
     if (router.canGoBack()) router.back();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     else router.replace(animeDetailsHref(id) as any);
   }, [router, id, fullscreen, leaveFullscreen]);
 
   const englishUrl = playback?.source.subtitles?.find((track) =>
     /^en(?:g|[-_].*)?$/i.test(track.language),
   )?.url;
+
+  // Cue state is keyed by the subtitle URL so switching episodes resets it
+  // during render instead of through a synchronous effect-body setState.
+  const cueKey = englishUrl ?? null;
+  const [cueState, setCueState] = useState<{
+    key: string | null;
+    cues: SubtitleCue[];
+    error: string;
+  }>({ key: null, cues: EMPTY_CUES, error: '' });
+  const externalCues = cueState.key === cueKey ? cueState.cues : EMPTY_CUES;
+  const externalError = cueState.key === cueKey ? cueState.error : '';
+
   useEffect(() => {
-    setExternalCues([]);
-    setExternalError('');
     if (!englishUrl) return;
+    const url = englishUrl;
     const controller = new AbortController();
     const timer = setTimeout(() => {
       controller.abort();
-      setExternalError('English captions timed out. Video can continue.');
+      setCueState({
+        key: url,
+        cues: EMPTY_CUES,
+        error: 'English captions timed out. Video can continue.',
+      });
     }, 15000);
-    fetch(englishUrl, { signal: controller.signal })
+    fetch(url, { signal: controller.signal })
       .then(async (response) => {
         if (!response.ok)
           throw new Error('English captions unavailable (' + response.status + ').');
         const cues = parseSubtitleCues(await response.text());
         if (!cues.length) throw new Error('No readable English caption cues.');
-        if (!controller.signal.aborted) setExternalCues(cues);
+        if (!controller.signal.aborted) setCueState({ key: url, cues, error: '' });
       })
       .catch(() => {
-        if (!controller.signal.aborted) setExternalError('English captions could not be loaded.');
+        if (!controller.signal.aborted)
+          setCueState({
+            key: url,
+            cues: EMPTY_CUES,
+            error: 'English captions could not be loaded.',
+          });
       })
       .finally(() => clearTimeout(timer));
     return () => {
@@ -313,22 +358,35 @@ export default function AnimePlayerScreen() {
     };
   }, [englishUrl]);
 
+  // Subtitle status label is keyed the same way so the "Checking…" placeholder
+  // is derived, not pushed by a synchronous setState.
+  const subtitleKey = `${streamUrl}|${useDirectStream ? 1 : 0}|${
+    subtitlesEnabled ? 1 : 0
+  }|${externalCues.length}`;
+  const [subtitleState, setSubtitleState] = useState<{ key: string; label: string }>({
+    key: '',
+    label: 'Checking English subtitles...',
+  });
+  const subtitleLabel =
+    subtitleState.key === subtitleKey ? subtitleState.label : 'Checking English subtitles...';
+
   useEffect(() => {
     if (!streamUrl) return;
-    setSubtitleLabel('Checking English subtitles...');
+    const key = subtitleKey;
     const selectEnglish = (tracks: SubtitleTrack[]) => {
       const english = tracks.find(
         (track) =>
           /^en(?:g|[-_].*)?$/i.test(track.language ?? '') || /english/i.test(track.label ?? ''),
       );
       player.subtitleTrack = subtitlesEnabled && !externalCues.length ? (english ?? null) : null;
-      setSubtitleLabel(
-        !subtitlesEnabled
+      setSubtitleState({
+        key,
+        label: !subtitlesEnabled
           ? 'Subtitle tracks off. Captions embedded in the picture remain visible.'
           : english
             ? 'English subtitles on'
             : 'No selectable English track. This video may have captions embedded in the picture.',
-      );
+      });
     };
     selectEnglish(player.availableSubtitleTracks ?? []);
     const tracksSub = player.addListener(
@@ -355,7 +413,6 @@ export default function AnimePlayerScreen() {
       player.play();
     };
     const statusSub = player.addListener('statusChange', ({ status, error: nativeError }) => {
-      setPlayerStatus(status);
       if (status === 'readyToPlay') {
         setIsPlaying(true);
         resumeOnce();
@@ -374,12 +431,15 @@ export default function AnimePlayerScreen() {
           }
         }
         if (fallbackToVideo()) return;
-        setError('The player could not load this stream. Retry or open the source website.');
+        setErrorState('The player could not load this stream. Retry or open the source website.');
       }
     });
     const timeSub = player.addListener('timeUpdate', ({ currentTime }) => {
       latestTimeRef.current = currentTime;
-      setPlayhead(currentTime);
+      if (overlayVisibleRef.current && Date.now() - lastClockUpdate.current >= 1000) {
+        lastClockUpdate.current = Date.now();
+        setPlayhead(currentTime);
+      }
       const dur = player.duration || playback?.durationSeconds || 0;
       setDuration(dur);
       const now = Date.now();
@@ -461,6 +521,11 @@ export default function AnimePlayerScreen() {
     [duration, playback?.durationSeconds, player, showControls],
   );
 
+  // Stable callbacks so the memoized pan responder never touches a ref during render.
+  const clearOverlayTimer = useCallback(() => {
+    if (overlayTimerRef.current) clearTimeout(overlayTimerRef.current);
+  }, []);
+
   const scrubberPan = useMemo(
     () =>
       PanResponder.create({
@@ -469,25 +534,16 @@ export default function AnimePlayerScreen() {
         onPanResponderTerminationRequest: () => false,
         onPanResponderGrant: (event) => {
           setScrubbing(true);
-          if (overlayTimerRef.current) clearTimeout(overlayTimerRef.current);
-          const fraction = Math.max(
-            0,
-            Math.min(1, event.nativeEvent.locationX / Math.max(1, scrubberWidthRef.current)),
-          );
+          clearOverlayTimer();
+          const fraction = Math.max(0, Math.min(1, event.nativeEvent.locationX / scrubberWidth));
           setScrubFraction(fraction);
         },
         onPanResponderMove: (event) => {
-          const fraction = Math.max(
-            0,
-            Math.min(1, event.nativeEvent.locationX / Math.max(1, scrubberWidthRef.current)),
-          );
+          const fraction = Math.max(0, Math.min(1, event.nativeEvent.locationX / scrubberWidth));
           setScrubFraction(fraction);
         },
         onPanResponderRelease: (event) => {
-          const fraction = Math.max(
-            0,
-            Math.min(1, event.nativeEvent.locationX / Math.max(1, scrubberWidthRef.current)),
-          );
+          const fraction = Math.max(0, Math.min(1, event.nativeEvent.locationX / scrubberWidth));
           seekToFraction(fraction);
           setScrubbing(false);
           showControls();
@@ -497,7 +553,7 @@ export default function AnimePlayerScreen() {
           showControls();
         },
       }),
-    [seekToFraction, showControls],
+    [seekToFraction, showControls, scrubberWidth, clearOverlayTimer],
   );
 
   if (loading) {
@@ -548,8 +604,6 @@ export default function AnimePlayerScreen() {
   }
 
   const providerLabel = getProviderDisplayName(playback.source.providerId);
-  const activeSubtitleText =
-    subtitlesEnabled && externalCues.length > 0 ? subtitleAt(externalCues, playhead) : '';
   const totalDuration = duration || playback.durationSeconds || 0;
   const progressFraction = totalDuration > 0 ? Math.min(1, playhead / totalDuration) : 0;
   const displayFraction = scrubbing ? scrubFraction : progressFraction;
@@ -567,70 +621,47 @@ export default function AnimePlayerScreen() {
       {/* Back button — non-fullscreen, outside video */}
       {!fullscreen ? (
         <View className="px-4 py-2">
-        <Pressable
-          accessibilityRole="button"
+          <Pressable
+            accessibilityRole="button"
             onPress={handleBack}
             className="self-start rounded-full bg-neutral-800 px-3 py-2"
-        >
+          >
             <Text className="text-white">← Back</Text>
-        </Pressable>
-      </View>
+          </Pressable>
+        </View>
       ) : null}
 
-      {/* Video container — tap to toggle controls */}
+      {/* Video container — tap to toggle controls. zIndex keeps overflowing
+          overlays (the settings panel) painting above the info section that
+          follows as a later sibling. */}
       <Pressable
         accessible={false}
         onPress={toggleControls}
-        style={fullscreen ? { flex: 1 } : { width: '100%', aspectRatio: 16 / 9 }}
+        style={
+          fullscreen ? { flex: 1, zIndex: 1 } : { width: '100%', maxWidth: 1100, alignSelf: 'center', aspectRatio: 16 / 9, zIndex: 1 }
+        }
       >
-      <VideoView
+        <VideoView
           ref={videoViewRef}
           onFirstFrameRender={() => {
             readyFrameRef.current = streamUrl;
-            setFrameSource(streamUrl);
             void enterFullscreen();
           }}
           fullscreenOptions={{ enable: false }}
-        player={player}
+          player={player}
           style={{ width: '100%', height: '100%' }}
-        contentFit="contain"
+          contentFit="contain"
           nativeControls={false}
         />
 
         {/* External subtitle overlay */}
-        {activeSubtitleText ? (
-          <View
-            pointerEvents="none"
-            style={{
-              position: 'absolute',
-              bottom: overlayVisible ? 72 : 16,
-              left: 20,
-              right: 20,
-              alignItems: 'center',
-            }}
-          >
-            <Text
-              style={{
-                color: subtitlePrefs.color,
-                fontSize: fullscreen ? subtitlePrefs.fontSize + 4 : subtitlePrefs.fontSize,
-                textShadowColor: subtitlePrefs.outline ? 'rgba(0,0,0,0.9)' : 'transparent',
-                textShadowOffset: { width: 1, height: 1 },
-                textShadowRadius: subtitlePrefs.outline ? 3 : 0,
-                backgroundColor: subtitlePrefs.background
-                  ? `rgba(0,0,0,${subtitlePrefs.backgroundOpacity})`
-                  : 'transparent',
-                paddingHorizontal: subtitlePrefs.background ? 6 : 0,
-                paddingVertical: subtitlePrefs.background ? 2 : 0,
-                borderRadius: 4,
-                textAlign: 'center',
-                lineHeight:
-                  (fullscreen ? subtitlePrefs.fontSize + 4 : subtitlePrefs.fontSize) * 1.4,
-              }}
-            >
-              {activeSubtitleText}
-            </Text>
-          </View>
-        ) : null}
+        <TimedCaptions
+          player={player}
+          cues={externalCues}
+          enabled={subtitlesEnabled}
+          fullscreen={fullscreen}
+          overlayVisible={overlayVisible}
+        />
 
         {/* Controls overlay — fades in/out with overlayVisible */}
         {overlayVisible ? (
@@ -685,7 +716,14 @@ export default function AnimePlayerScreen() {
             </View>
 
             {/* Center: −10s / play-pause / +10s */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 28 }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 28,
+              }}
+            >
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Rewind 10 seconds"
@@ -782,7 +820,8 @@ export default function AnimePlayerScreen() {
             >
               <View
                 onLayout={(event: LayoutChangeEvent) => {
-                  scrubberWidthRef.current = Math.max(1, event.nativeEvent.layout.width);
+                  const next = Math.max(1, event.nativeEvent.layout.width);
+                  setScrubberWidth((current) => (current === next ? current : next));
                 }}
                 {...scrubberPan.panHandlers}
                 style={{ height: 28, justifyContent: 'center' }}
@@ -926,7 +965,7 @@ export default function AnimePlayerScreen() {
                   onPress={() => {
                     fallbackPositionRef.current = player.currentTime;
                     fallbackAttemptedRef.current = false;
-                    setError(null);
+                    setErrorState(null);
                     resumedSourceRef.current = null;
                     setUseDirectStream(false);
                     setQualityUrl(option.url);
@@ -949,7 +988,7 @@ export default function AnimePlayerScreen() {
       {!fullscreen ? (
         <View style={{ paddingHorizontal: 16, paddingTop: 12, gap: 6 }}>
           <View className="flex-row items-center justify-between gap-2">
-          <Text variant="h3" className="flex-1 text-white">
+            <Text variant="h3" className="flex-1 text-white">
               {playback.animeTitle}
             </Text>
             {playback.isOffline ? <Badge label="Offline Playback" variant="secondary" /> : null}
@@ -980,3 +1019,58 @@ export default function AnimePlayerScreen() {
     </View>
   );
 }
+
+const TimedCaptions = memo(function TimedCaptions({
+  player,
+  cues,
+  enabled,
+  fullscreen,
+  overlayVisible,
+}: {
+  player: VideoPlayer;
+  cues: SubtitleCue[];
+  enabled: boolean;
+  fullscreen: boolean;
+  overlayVisible: boolean;
+}) {
+  const subtitlePrefs = useSubtitlePreferencesStore();
+  const [activeSubtitleText, setText] = useState('');
+  useEffect(() => {
+    const update = () => setText(subtitleAt(cues, player.currentTime));
+    update();
+    const listener = player.addListener('timeUpdate', update);
+    return () => listener.remove();
+  }, [player, cues, enabled]);
+  return enabled && activeSubtitleText ? (
+    <View
+      pointerEvents="none"
+      style={{
+        position: 'absolute',
+        bottom: overlayVisible ? 72 : 16,
+        left: 20,
+        right: 20,
+        alignItems: 'center',
+      }}
+    >
+      <Text
+        style={{
+          color: subtitlePrefs.color,
+          fontSize: fullscreen ? subtitlePrefs.fontSize + 4 : subtitlePrefs.fontSize,
+          textShadowColor: subtitlePrefs.outline ? 'rgba(0,0,0,0.9)' : 'transparent',
+          textShadowOffset: { width: 1, height: 1 },
+          textShadowRadius: subtitlePrefs.outline ? 3 : 0,
+          backgroundColor: subtitlePrefs.background
+            ? `rgba(0,0,0,${subtitlePrefs.backgroundOpacity})`
+            : 'transparent',
+          paddingHorizontal: subtitlePrefs.background ? 6 : 0,
+          paddingVertical: subtitlePrefs.background ? 2 : 0,
+          borderRadius: 4,
+          textAlign: 'center',
+          lineHeight: (fullscreen ? subtitlePrefs.fontSize + 4 : subtitlePrefs.fontSize) * 1.4,
+        }}
+      >
+        {activeSubtitleText}
+      </Text>
+    </View>
+  ) : null;
+});

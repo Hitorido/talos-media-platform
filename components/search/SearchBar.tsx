@@ -1,4 +1,5 @@
-import { Pressable, TextInput, View } from 'react-native';
+import { TextInput, View } from 'react-native';
+import { PopPressable as Pressable } from '@/components/ui/PopPressable';
 
 import { Text } from '@/components/ui/Text';
 import { useAppTheme } from '@/providers/ThemeProvider';
