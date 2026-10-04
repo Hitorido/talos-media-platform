@@ -67,4 +67,3 @@ export type {
   BackendProviderStatus,
   ContentProviderAdapter,
 } from './types.js';
-

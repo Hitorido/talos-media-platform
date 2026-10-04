@@ -1,4 +1,5 @@
-import { Pressable, View } from 'react-native';
+import { View } from 'react-native';
+import { PopPressable as Pressable } from '@/components/ui/PopPressable';
 import { Ionicons } from '@expo/vector-icons';
 
 import { ProgressBar } from '@/components/home/ProgressBar';
@@ -44,9 +45,7 @@ export function NovelChapterListItem({
         <View className="flex-1 gap-1">
           <View className="flex-row items-center gap-2">
             <Text variant="label">{chapter.title}</Text>
-            {isDownloaded ? (
-              <Badge label="Offline" variant="secondary" />
-            ) : null}
+            {isDownloaded ? <Badge label="Offline" variant="secondary" /> : null}
           </View>
 
           <Text variant="caption" tone="muted">

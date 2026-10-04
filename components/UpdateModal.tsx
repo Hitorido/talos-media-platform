@@ -1,6 +1,7 @@
 import { Text } from '@/components/ui';
 import { openDownload, type VersionManifest } from '@/services/updateService';
-import { Modal, Pressable, View } from 'react-native';
+import { Modal, View } from 'react-native';
+import { PopPressable as Pressable } from '@/components/ui/PopPressable';
 
 type Props = {
   manifest: VersionManifest;

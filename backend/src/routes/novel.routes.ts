@@ -1,10 +1,7 @@
 import { Router, type Response } from 'express';
 
 import { contentGateway } from '../providers/contentGateway.js';
-import {
-  getNovelGatewayUrl,
-  isNovelGatewayConfigured,
-} from '../providers/novel/gateway.js';
+import { getNovelGatewayUrl, isNovelGatewayConfigured } from '../providers/novel/gateway.js';
 import { ProviderGatewayError } from '../providers/types.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
@@ -149,11 +146,7 @@ novelRouter.get(
   '/:novelId',
   asyncHandler(async (req, res) => {
     try {
-      const novel = await contentGateway.getDetails(
-        'novel',
-        NOVEL_PROVIDER_ID,
-        req.params.novelId,
-      );
+      const novel = await contentGateway.getDetails('novel', NOVEL_PROVIDER_ID, req.params.novelId);
       res.json({
         success: true,
         data: {

@@ -1,11 +1,11 @@
 import { loadOfflineCatalog } from '@/services/offlineCatalog';
 import { useLibraryStore } from '@/stores/libraryStore';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import {
-    getBuiltinNovelDetails,
-    getMediaChapters,
-    getMediaDetails,
+  getBuiltinNovelDetails,
+  getMediaChapters,
+  getMediaDetails,
 } from '@/services/contentService';
 import type { NovelChapter, NovelDetails } from '@/types/novel';
 import type { NormalizedChapter, NormalizedMedia } from '@/types/provider';
@@ -44,30 +44,31 @@ type NovelContentState = {
   isProviderContent: boolean;
 };
 
+const EMPTY_NOVEL_STATE: NovelContentState = {
+  novel: null,
+  loading: false,
+  error: null,
+  isProviderContent: false,
+};
+
+const PENDING_NOVEL_STATE: NovelContentState = {
+  novel: null,
+  loading: true,
+  error: null,
+  isProviderContent: true,
+};
+
 export function useNovelContent(routeId: string | undefined): NovelContentState {
-  const [state, setState] = useState<NovelContentState>({
-    novel: routeId ? (getBuiltinNovelDetails(routeId) ?? null) : null,
-    loading: Boolean(routeId && !getBuiltinNovelDetails(routeId)),
-    error: null,
-    isProviderContent: Boolean(routeId && !getBuiltinNovelDetails(routeId)),
-  });
+  const builtin = useMemo(() => (routeId ? getBuiltinNovelDetails(routeId) : null), [routeId]);
+
+  // Resolved payloads are tagged with the route they belong to, so "no route",
+  // "builtin title" and "still loading" are all derived during render rather
+  // than cascading synchronous setState from the effect body.
+  const [resolved, setResolved] = useState<{ key: string; state: NovelContentState } | null>(null);
 
   useEffect(() => {
-    if (!routeId) {
-      setState({ novel: null, loading: false, error: null, isProviderContent: false });
-      return;
-    }
-
-    const builtin = getBuiltinNovelDetails(routeId);
-    if (builtin) {
-      setState({
-        novel: builtin,
-        loading: false,
-        error: null,
-        isProviderContent: false,
-      });
-      return;
-    }
+    if (!routeId || builtin) return;
+    const key = routeId;
 
     let cancelled = false;
     let fresh = false;
@@ -76,10 +77,12 @@ export function useNovelContent(routeId: string | undefined): NovelContentState 
       .then((saved) => {
         local = saved;
         if (saved && !cancelled && !fresh)
-          setState({ novel: saved, loading: false, error: null, isProviderContent: true });
+          setResolved({
+            key,
+            state: { novel: saved, loading: false, error: null, isProviderContent: true },
+          });
       })
       .catch(() => {});
-    setState((current) => ({ ...current, loading: true, error: null, isProviderContent: true }));
 
     Promise.all([getMediaDetails(routeId), getMediaChapters(routeId)])
       .then(([media, chapters]) => {
@@ -106,32 +109,43 @@ export function useNovelContent(routeId: string | undefined): NovelContentState 
           mediaType: 'novel',
           chapterCount: chapters.length,
         });
-        setState({
-          novel: toNovelDetails(
-            { ...media, coverUrl: resolvedCoverUrl, bannerUrl: resolvedBannerUrl },
-            chapters,
-          ),
-          loading: false,
-          error: null,
-          isProviderContent: true,
+        setResolved({
+          key,
+          state: {
+            novel: toNovelDetails(
+              { ...media, coverUrl: resolvedCoverUrl, bannerUrl: resolvedBannerUrl },
+              chapters,
+            ),
+            loading: false,
+            error: null,
+            isProviderContent: true,
+          },
         });
       })
       .catch(async (error: unknown) => {
         await localReady;
         if (cancelled) return;
         const message = error instanceof Error ? error.message : 'Failed to load novel details.';
-        setState({
-          novel: local,
-          loading: false,
-          error: local ? null : message,
-          isProviderContent: true,
+        setResolved({
+          key,
+          state: {
+            novel: local,
+            loading: false,
+            error: local ? null : message,
+            isProviderContent: true,
+          },
         });
       });
 
     return () => {
       cancelled = true;
     };
-  }, [routeId]);
+  }, [routeId, builtin]);
 
-  return state;
+  return useMemo(() => {
+    if (!routeId) return EMPTY_NOVEL_STATE;
+    if (builtin) return { novel: builtin, loading: false, error: null, isProviderContent: false };
+    if (resolved?.key === routeId) return resolved.state;
+    return PENDING_NOVEL_STATE;
+  }, [routeId, builtin, resolved]);
 }

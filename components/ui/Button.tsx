@@ -1,6 +1,7 @@
-import { ActivityIndicator, Pressable, type PressableProps } from 'react-native';
+import { ActivityIndicator, type PressableProps } from 'react-native';
 
 import { Text } from '@/components/ui/Text';
+import { PopPressable } from '@/components/ui/PopPressable';
 import { cn } from '@/utils/cn';
 
 type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'destructive';
@@ -59,7 +60,7 @@ export function Button({
   const isDisabled = disabled || loading;
 
   return (
-    <Pressable
+    <PopPressable
       accessibilityRole="button"
       disabled={isDisabled}
       className={cn(
@@ -84,6 +85,6 @@ export function Button({
           {label}
         </Text>
       )}
-    </Pressable>
+    </PopPressable>
   );
 }

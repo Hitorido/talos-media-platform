@@ -124,9 +124,10 @@ let cursor = 0,
   effects = [];
 const same = (a, b) => a && b && a.length === b.length && a.every((v, i) => v === b[i]);
 const React = {
+  memo: (fn) => fn,
   useState(initial) {
     const i = cursor++;
-    if (!(i in slots)) slots[i] = initial;
+    if (!(i in slots)) slots[i] = typeof initial === "function" ? initial() : initial;
     return [
       slots[i],
       (v) => {
@@ -230,6 +231,9 @@ const Player = loadComponent('app/anime/[id]/watch/[episodeId].tsx', {
         },
       }),
     },
+    PanResponder: {
+      create: () => ({ panHandlers: {} }),
+    },
     Pressable: 'Button',
     View: 'View',
     ScrollView: 'ScrollView',
@@ -248,6 +252,7 @@ const Player = loadComponent('app/anime/[id]/watch/[episodeId].tsx', {
   },
   'react-native-safe-area-context': { useSafeAreaInsets: () => ({ top: 0 }) },
   '@/components/ui': { Badge: 'Badge', Text: 'Text', Button: 'ControlButton' },
+  '@/components/ui/PopPressable': { PopPressable: 'Button' },
   '@/components/content/SourceWebsiteButton': { SourceWebsiteButton: 'Website' },
   '@/services/subtitleCues': loadProviderTs('services/subtitleCues.ts'),
   '@/stores/mediaBookmarkStore': { useMediaBookmarkStore: (fn) => fn({ save() {} }) },
@@ -283,6 +288,17 @@ let playerTree;
 function render() {
   cursor = 0;
   playerTree = Player();
+  const expandCaptions = (node) => {
+    if (!node) return node;
+    if (Array.isArray(node)) return node.map(expandCaptions);
+    if (node.type?.name === 'TimedCaptions') {
+      cursor = 500;
+      return node.type(node.props);
+    }
+    if (node.props?.children) node.props.children = expandCaptions(node.props.children);
+    return node;
+  };
+  playerTree = expandCaptions(playerTree);
   const pending = effects;
   effects = [];
   pending.forEach((fn) => fn());
@@ -476,6 +492,7 @@ const Novel = loadComponent('app/novel/[id]/read/[chapterId].tsx', {
     },
   },
   '@/components/ui': { Badge: 'Badge', Text: 'Text' },
+  '@/components/ui/PopPressable': { PopPressable: 'Button' },
   '@/components/content/SourceWebsiteButton': { SourceWebsiteButton: 'Website' },
   '@/components/novel': {
     NovelReaderText: 'Reader',
@@ -484,6 +501,12 @@ const Novel = loadComponent('app/novel/[id]/read/[chapterId].tsx', {
   },
   '@/hooks/useNovelContent': { useNovelContent: () => ({ novel, loading: false, error: null }) },
   '@/stores/novelProgressStore': { useNovelProgressStore: novelStore },
+  '@/stores/rollingDownloadSettingsStore': {
+    useRollingDownloadSettingsStore: (selector) => selector({ enabled: false, windowSize: 5 }),
+  },
+  '@/services/rollingDownloadService': {
+    maintainNovelDownloadWindow: async () => {},
+  },
   '@/utils/cn': { cn: (...v) => v.filter(Boolean).join(' ') },
   '@/lib/routes': loadProviderTs('lib/routes.ts'),
   '@/services/contentService': {
@@ -688,10 +711,67 @@ for (const [kind, storeFile, mockPath, mockFunction, builder, progressField, pro
     ['@/services/mock/' + mockPath]: { [mockFunction]: () => undefined },
   });
   assert.equal(loaded[builder]({ [id]: progressValue })[0].title, 'Real ' + kind);
+  const refreshed = loaded[builder](
+    { [id]: progressValue },
+    {
+      [id]: {
+        ...media,
+        id,
+        mediaType: kind,
+        title: 'Refreshed ' + kind,
+        customCoverUrl: 'file:///custom-cover.jpg',
+      },
+    },
+  )[0];
+  assert.equal(refreshed.title, 'Refreshed ' + kind);
+  assert.equal(refreshed.coverUrl, 'file:///custom-cover.jpg');
 }
 console.log(
-  'PASS real-source continue-reading/watching cards for comic, novel and anime without mock catalog entries',
+  'PASS continue-reading/watching refreshes real-source metadata and custom covers without mock catalog entries',
 );
+
+const rollingSettings = { enabled: true, windowSize: 5 };
+const rollingItems = {
+  previous: { id: 'previous', mediaId: 'rolling-novel', unitId: 'chapter-2' },
+  current: { id: 'current', mediaId: 'rolling-novel', unitId: 'chapter-4' },
+  beyondWindow: { id: 'beyondWindow', mediaId: 'rolling-novel', unitId: 'chapter-10' },
+  otherTitle: { id: 'otherTitle', mediaId: 'another-novel', unitId: 'chapter-1' },
+};
+const deletedRollingIds = [];
+const queuedRollingChapters = [];
+const rollingDownloads = loadProviderTs('services/rollingDownloadService.ts', {
+  '@/stores/downloadStore': { useDownloadStore: { getState: () => ({ items: rollingItems }) } },
+  '@/stores/rollingDownloadSettingsStore': {
+    useRollingDownloadSettingsStore: { getState: () => rollingSettings },
+  },
+  '@/services/downloadService': {
+    deleteDownload: async (downloadId) => deletedRollingIds.push(downloadId),
+    downloadMangaChapter: (_title, chapter) => queuedRollingChapters.push(chapter.id),
+    downloadNovelChapter: (_title, chapter) => queuedRollingChapters.push(chapter.id),
+  },
+});
+const rollingNovel = {
+  id: 'rolling-novel',
+  chapters: Array.from({ length: 12 }, (_, index) => ({
+    id: `chapter-${index + 1}`,
+    number: index + 1,
+    title: `Chapter ${index + 1}`,
+    paragraphs: [],
+  })),
+};
+await rollingDownloads.maintainNovelDownloadWindow(rollingNovel, 'chapter-4');
+assert.deepEqual(deletedRollingIds, ['previous', 'beyondWindow']);
+assert.deepEqual(queuedRollingChapters, [
+  'chapter-4',
+  'chapter-5',
+  'chapter-6',
+  'chapter-7',
+  'chapter-8',
+]);
+console.log(
+  'PASS rolling chapter downloads prune read/out-of-window files and queue the selected window',
+);
+
 const discovery = loadProviderTs('services/discoveryService.ts', {
   '@/lib/apiConfig': { getApiBaseUrl: () => 'https://gateway.invalid' },
   '@/providers/mangadex/client': {},

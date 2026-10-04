@@ -2,27 +2,40 @@ import { SourceWebsiteButton } from '@/components/content/SourceWebsiteButton';
 import { mangaDetailsHref } from '@/lib/routes';
 import { captureBookmarkPreview } from '@/services/bookmarkPreview';
 import { useMediaBookmarkStore } from '@/stores/mediaBookmarkStore';
+import { useLibraryStore } from '@/stores/libraryStore';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Modal, Pressable, ScrollView, View } from 'react-native';
+import { AppState, Modal, ScrollView, View } from 'react-native';
+import { PopPressable as Pressable } from '@/components/ui/PopPressable';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
-    HorizontalReader,
-    HorizontalReaderRef,
-    MangaReaderControls,
-    MangaReaderHeader,
-    VerticalReader,
-    VerticalReaderRef,
+  HorizontalReader,
+  HorizontalReaderRef,
+  MangaReaderControls,
+  MangaReaderHeader,
+  ReaderPressable,
+  VerticalReader,
+  VerticalReaderRef,
 } from '@/components/manga';
 import { Text } from '@/components/ui';
 import { useMangaContent } from '@/hooks/useMangaContent';
 import { getMangaChapterPages } from '@/services/contentService';
 import { resolveMangaPages } from '@/services/offlineResolver';
+import { maintainMangaDownloadWindow } from '@/services/rollingDownloadService';
 import { useMangaProgressStore } from '@/stores/mangaProgressStore';
+import { useRollingDownloadSettingsStore } from '@/stores/rollingDownloadSettingsStore';
 import type { MangaChapter, MangaPage, ReadingDirection, ReadingMode } from '@/types/manga';
 import { cn } from '@/utils/cn';
+
+/**
+ * Continuous scrolling reports every page crossed. Persist the first change
+ * immediately, then coalesce bursts so a long fling cannot spam storage on
+ * every frame while the on-screen page indicator still updates instantly.
+ */
+const PROGRESS_SAVE_THROTTLE_MS = 400;
 
 export default function MangaReaderScreen() {
   const router = useRouter();
@@ -34,6 +47,7 @@ export default function MangaReaderScreen() {
     bookmark?: string;
   }>();
   const saveBookmark = useMediaBookmarkStore((state) => state.save);
+  const setCoverOverride = useLibraryStore((state) => state.setCoverOverride);
   const savedView = useMediaBookmarkStore(
     (state) =>
       state.bookmarks.find((b) => b.id === bookmark && b.mediaId === id && b.unitId === chapterId)
@@ -45,6 +59,8 @@ export default function MangaReaderScreen() {
 
   const { manga, loading: mangaLoading, error: mangaError } = useMangaContent(id);
   const setChapterProgress = useMangaProgressStore((state) => state.setChapterProgress);
+  const rollingDownloadsEnabled = useRollingDownloadSettingsStore((state) => state.enabled);
+  const rollingDownloadWindow = useRollingDownloadSettingsStore((state) => state.windowSize);
 
   // Safe back navigation — falls back to details screen on deep-link entry.
   const handleBack = useCallback(() => {
@@ -52,7 +68,7 @@ export default function MangaReaderScreen() {
       router.back();
     } else {
       // Cast needed: typed routes require literal path strings; our helper returns a cast Href.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       router.replace(mangaDetailsHref(id) as any);
     }
   }, [router, id]);
@@ -71,6 +87,15 @@ export default function MangaReaderScreen() {
   );
   const [readingDirection, setReadingDirection] = useState<ReadingDirection>('rtl');
   const [overlayVisible, setOverlayVisible] = useState<boolean>(true);
+  const overlayProgress = useSharedValue(1);
+  const headerOverlayStyle = useAnimatedStyle(() => ({
+    opacity: overlayProgress.value,
+    transform: [{ translateY: (overlayProgress.value - 1) * 20 }],
+  }));
+  const controlsOverlayStyle = useAnimatedStyle(() => ({
+    opacity: overlayProgress.value,
+    transform: [{ translateY: (1 - overlayProgress.value) * 20 }],
+  }));
   const [showModeOptions, setShowModeOptions] = useState<boolean>(false);
   const [showChapterPicker, setShowChapterPicker] = useState<boolean>(false);
   const [chapterToast, setChapterToast] = useState<{ visible: boolean; title: string }>({
@@ -83,8 +108,9 @@ export default function MangaReaderScreen() {
   const [providerPagesByChapter, setProviderPagesByChapter] = useState<Record<string, MangaPage[]>>(
     {},
   );
-  const [pagesLoading, setPagesLoading] = useState(false);
-  const [pagesError, setPagesError] = useState<string | null>(null);
+  // Errors are scoped per chapter so switching chapters never needs a synchronous
+  // reset, and loading is derived from whether the chapter has pages yet.
+  const [pagesErrorByChapter, setPagesErrorByChapter] = useState<Record<string, string>>({});
 
   const verticalRef = useRef<VerticalReaderRef>(null);
   const horizontalRef = useRef<HorizontalReaderRef>(null);
@@ -117,46 +143,8 @@ export default function MangaReaderScreen() {
     };
   }, [manga]);
 
-  useEffect(() => {
-    if (!manga) return;
-
-    const chapter = manga.chapters.find((entry) => entry.id === chapterId);
-    if (!chapter) return;
-    if (chapter.pages.length > 0 || offlinePagesByChapter[chapterId]?.length) return;
-    if (providerPagesByChapter[chapterId]?.length) return;
-
-    let cancelled = false;
-    setPagesLoading(true);
-    setPagesError(null);
-
-    resolveMangaPages(id, chapterId, chapter.pages)
-      .then((local) => (local.isOffline ? local.pages : getMangaChapterPages(id, chapterId)))
-      .then((pages) => {
-        if (cancelled) return;
-        if (pages.length === 0) {
-          setPagesError('No pages were returned for this chapter.');
-          return;
-        }
-        setProviderPagesByChapter((current) => ({
-          ...current,
-          [chapterId]: pages,
-        }));
-      })
-      .catch((error: unknown) => {
-        if (cancelled) return;
-        const message = error instanceof Error ? error.message : 'Failed to load chapter pages.';
-        setPagesError(message);
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setPagesLoading(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [chapterId, id, manga, offlinePagesByChapter, providerPagesByChapter]);
+  // Provider page loading is handled below, keyed on the active chapter so
+  // prev/next navigation and continuous scrolling fetch what they display.
 
   // Determine active language of the currently opened chapter
   const currentChapterLanguage = useMemo(() => {
@@ -190,8 +178,33 @@ export default function MangaReaderScreen() {
       };
     });
   }, [manga, languageChapters, offlinePagesByChapter, providerPagesByChapter]);
+  const horizontalPages = useMemo(
+    () =>
+      chaptersToLoad.flatMap((chapter) =>
+        chapter.pages.map((chapterPage) => ({
+          ...chapterPage,
+          chapterId: chapter.id,
+          chapterNumber: chapter.number,
+        })),
+      ),
+    [chaptersToLoad],
+  );
 
   const activeChapter = chaptersToLoad.find((ch) => ch.id === activeChapterId) ?? chaptersToLoad[0];
+
+  // Derived (not effect-driven): the active chapter is "loading" while it still
+  // has no pages and no error has been recorded for it. Scoped to the active
+  // chapter so prev/next jumps surface their own loading/error states.
+  const pagesError = pagesErrorByChapter[activeChapterId] ?? null;
+  const pagesLoading = Boolean(
+    manga && activeChapter && activeChapter.pages.length === 0 && !pagesError,
+  );
+
+  useEffect(() => {
+    if (rollingDownloadsEnabled && manga) {
+      void maintainMangaDownloadWindow({ ...manga, chapters: chaptersToLoad }, activeChapterId);
+    }
+  }, [activeChapterId, chaptersToLoad, manga, rollingDownloadsEnabled, rollingDownloadWindow]);
   const prevChapter = useMemo(() => {
     if (!chaptersToLoad.length) return undefined;
     const idx = chaptersToLoad.findIndex((ch) => ch.id === activeChapterId);
@@ -202,6 +215,72 @@ export default function MangaReaderScreen() {
     const idx = chaptersToLoad.findIndex((ch) => ch.id === activeChapterId);
     return idx >= 0 && idx < chaptersToLoad.length - 1 ? chaptersToLoad[idx + 1] : undefined;
   }, [activeChapterId, chaptersToLoad]);
+
+  // Fetch pages for the active chapter plus its neighbours so chapter jumps and
+  // continuous scrolling never reach a chapter whose pages are not loaded yet.
+  const chapterIdsToLoad = useMemo(() => {
+    const idx = chaptersToLoad.findIndex((ch) => ch.id === activeChapterId);
+    if (idx < 0) return [];
+    const ids: string[] = [];
+    const prev = chaptersToLoad[idx - 1];
+    if (prev) ids.push(prev.id);
+    ids.push(chaptersToLoad[idx].id);
+    const next = chaptersToLoad[idx + 1];
+    if (next) ids.push(next.id);
+    return ids;
+  }, [activeChapterId, chaptersToLoad]);
+
+  useEffect(() => {
+    if (!manga) return;
+    const pending = chapterIdsToLoad.filter((chId) => {
+      const chapter = manga.chapters.find((entry) => entry.id === chId);
+      if (!chapter) return false;
+      if (chapter.pages.length > 0) return false;
+      if (offlinePagesByChapter[chId]?.length) return false;
+      if (providerPagesByChapter[chId]?.length) return false;
+      // Failed chapters need an explicit retry (error cleared) to re-run.
+      if (pagesErrorByChapter[chId]) return false;
+      return true;
+    });
+    if (pending.length === 0) return;
+
+    let cancelled = false;
+    void Promise.all(
+      pending.map(async (chId) => {
+        const chapter = manga.chapters.find((entry) => entry.id === chId);
+        if (!chapter) return;
+        try {
+          const local = await resolveMangaPages(id, chId, chapter.pages);
+          const pages = local.isOffline ? local.pages : await getMangaChapterPages(id, chId);
+          if (cancelled) return;
+          if (pages.length === 0) {
+            setPagesErrorByChapter((current) => ({
+              ...current,
+              [chId]: 'No pages were returned for this chapter.',
+            }));
+            return;
+          }
+          setProviderPagesByChapter((current) => ({ ...current, [chId]: pages }));
+        } catch (error) {
+          if (cancelled) return;
+          const message = error instanceof Error ? error.message : 'Failed to load chapter pages.';
+          setPagesErrorByChapter((current) => ({ ...current, [chId]: message }));
+        }
+      }),
+    );
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    activeChapterId,
+    chapterIdsToLoad,
+    id,
+    manga,
+    offlinePagesByChapter,
+    pagesErrorByChapter,
+    providerPagesByChapter,
+  ]);
 
   const saveProgress = useCallback(
     (chId: string, page: number) => {
@@ -223,15 +302,59 @@ export default function MangaReaderScreen() {
     [manga, chaptersToLoad, setChapterProgress],
   );
 
+  // Continuous scroll: coalesce bursts of page changes so storage writes do not
+  // compete with the reader. Discrete actions (seek, prev/next) still save at once.
+  const saveProgressRef = useRef(saveProgress);
+  const pendingProgressRef = useRef<{ chapterId: string; page: number } | null>(null);
+  const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastPersistAtRef = useRef(0);
+
+  useEffect(() => {
+    saveProgressRef.current = saveProgress;
+  }, [saveProgress]);
+
+  const scheduleProgressSave = useCallback((chId: string, page: number) => {
+    const now = Date.now();
+    const elapsed = now - lastPersistAtRef.current;
+    pendingProgressRef.current = { chapterId: chId, page };
+    if (persistTimerRef.current) return;
+    persistTimerRef.current = setTimeout(
+      () => {
+        persistTimerRef.current = null;
+        const pending = pendingProgressRef.current;
+        pendingProgressRef.current = null;
+        if (!pending) return;
+        lastPersistAtRef.current = Date.now();
+        saveProgressRef.current(pending.chapterId, pending.page);
+      },
+      Math.max(16, PROGRESS_SAVE_THROTTLE_MS - elapsed),
+    );
+  }, []);
+
+  // Persist the latest page when leaving or backgrounding without delaying a gesture.
+  useEffect(() => {
+    const flush = () => {
+      if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
+      persistTimerRef.current = null;
+      const pending = pendingProgressRef.current;
+      pendingProgressRef.current = null;
+      if (pending) saveProgressRef.current(pending.chapterId, pending.page);
+    };
+    const listener = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') flush();
+    });
+    return () => { listener.remove(); flush(); };
+  }, []);
+
   const handlePageChange = useCallback(
     (chId: string, page: number) => {
       if (chId !== activeChapterId) {
         setActiveChapterId(chId);
       }
       setCurrentPage(page);
-      saveProgress(chId, page);
+      scheduleProgressSave(chId, page);
     },
-    [activeChapterId, saveProgress],
+    [activeChapterId, scheduleProgressSave],
   );
 
   const handleChapterChange = useCallback((chId: string) => {
@@ -255,108 +378,110 @@ export default function MangaReaderScreen() {
   }, [activeChapterId, activeChapter]);
 
   // Tap on reader: toggle overlay (header + bottom bar)
-  const toggleOverlay = () => setOverlayVisible((prev) => !prev);
+  const toggleOverlay = useCallback(() => {
+    const next = overlayProgress.value < 0.5 ? 1 : 0;
+    // Shared-value updates run on the UI thread in response to reader taps.
+    // eslint-disable-next-line react-hooks/immutability
+    overlayProgress.value = withTiming(next, { duration: 100 });
+    setOverlayVisible(next === 1);
+  }, [overlayProgress]);
 
   // Options button: keep overlay visible, toggle mode options row
-  const handleToggleOptions = () => {
+  const handleToggleOptions = useCallback(() => {
+    // eslint-disable-next-line react-hooks/immutability
+    overlayProgress.value = withTiming(1, { duration: 100 });
     setOverlayVisible(true);
     setShowModeOptions((prev) => !prev);
-  };
+  }, [overlayProgress]);
 
-  const handlePrevPage = () => {
-    if (readingMode === 'horizontal') {
-      if (currentPage > 1) {
-        const targetPage = currentPage - 1;
-        setCurrentPage(targetPage);
-        saveProgress(activeChapterId, targetPage);
-        horizontalRef.current?.scrollToPage(targetPage);
-        return;
+  // State writes do not re-render the reader before the imperative call runs,
+  // so chapter-relative scroll helpers would still resolve against the
+  // outgoing chapter. Every jump therefore names its destination explicitly.
+  const jumpToChapterPage = useCallback(
+    (targetChapter: MangaChapter, targetPage: number) => {
+      setActiveChapterId(targetChapter.id);
+      setCurrentPage(targetPage);
+      saveProgress(targetChapter.id, targetPage);
+      if (readingMode === 'horizontal') {
+        horizontalRef.current?.scrollToChapterPage(targetChapter.id, targetPage);
+      } else {
+        verticalRef.current?.scrollToChapterPage(targetChapter.id, targetPage);
       }
+    },
+    [readingMode, saveProgress],
+  );
 
-      if (prevChapter) {
-        setActiveChapterId(prevChapter.id);
-        setCurrentPage(prevChapter.pageCount);
-        saveProgress(prevChapter.id, prevChapter.pageCount);
-        return;
-      }
-      return;
-    }
-
+  const handlePrevPage = useCallback(() => {
     if (currentPage > 1) {
       const targetPage = currentPage - 1;
       setCurrentPage(targetPage);
       saveProgress(activeChapterId, targetPage);
-      verticalRef.current?.scrollToPage(targetPage);
-    }
-  };
-
-  const handleNextPage = () => {
-    if (readingMode === 'horizontal') {
-      if (activeChapter && currentPage < activeChapter.pageCount) {
-        const targetPage = currentPage + 1;
-        setCurrentPage(targetPage);
-        saveProgress(activeChapterId, targetPage);
-        horizontalRef.current?.scrollToPage(targetPage);
-        return;
-      }
-
-      if (nextChapter) {
-        setActiveChapterId(nextChapter.id);
-        setCurrentPage(1);
-        saveProgress(nextChapter.id, 1);
-        return;
-      }
+      if (readingMode === 'horizontal') horizontalRef.current?.scrollToPage(targetPage);
+      else verticalRef.current?.scrollToPage(targetPage);
       return;
     }
 
+    // The page directly above a chapter's first page is the previous chapter's
+    // last page — the boundary-adjacent page in both modes.
+    if (prevChapter) jumpToChapterPage(prevChapter, Math.max(1, prevChapter.pageCount));
+  }, [activeChapterId, currentPage, jumpToChapterPage, prevChapter, readingMode, saveProgress]);
+
+  const handleNextPage = useCallback(() => {
     if (activeChapter && currentPage < activeChapter.pageCount) {
       const targetPage = currentPage + 1;
       setCurrentPage(targetPage);
       saveProgress(activeChapterId, targetPage);
-      verticalRef.current?.scrollToPage(targetPage);
-    } else if (nextChapter) {
-      setActiveChapterId(nextChapter.id);
-      verticalRef.current?.scrollToPage(1);
+      if (readingMode === 'horizontal') horizontalRef.current?.scrollToPage(targetPage);
+      else verticalRef.current?.scrollToPage(targetPage);
+      return;
     }
-  };
 
-  const handleSeekPage = (page: number, animated = true) => {
-    const targetPage = Math.max(1, Math.min(page, activeChapter?.pageCount ?? page));
-    setCurrentPage(targetPage);
-    saveProgress(activeChapterId, targetPage);
-
-    if (readingMode === 'horizontal') {
-      horizontalRef.current?.scrollToPage(targetPage, animated);
-    } else {
-      verticalRef.current?.scrollToPage(targetPage, animated);
-    }
-  };
-
-  const handlePrevChapter = () => {
-    if (prevChapter) {
-      if (readingMode === 'vertical') {
-        setActiveChapterId(prevChapter.id);
-        verticalRef.current?.scrollToPage(1);
-      } else {
-        setActiveChapterId(prevChapter.id);
-        setCurrentPage(prevChapter.pageCount);
-        saveProgress(prevChapter.id, prevChapter.pageCount);
-      }
-    }
-  };
-
-  const handleNextChapter = () => {
     if (nextChapter) {
-      if (readingMode === 'vertical') {
-        setActiveChapterId(nextChapter.id);
-        verticalRef.current?.scrollToPage(1);
-      } else {
-        setActiveChapterId(nextChapter.id);
-        setCurrentPage(1);
-        saveProgress(nextChapter.id, 1);
+      if (readingMode === 'horizontal') {
+        jumpToChapterPage(nextChapter, 1);
       }
+      // Vertical mode is continuous: once prefetched, the next chapter already
+      // flows below the current one, so the boundary press just keeps scrolling.
     }
-  };
+  }, [
+    activeChapter,
+    activeChapterId,
+    currentPage,
+    jumpToChapterPage,
+    nextChapter,
+    readingMode,
+    saveProgress,
+  ]);
+
+  const handleSeekPage = useCallback(
+    (page: number, animated = true) => {
+      const targetPage = Math.max(1, Math.min(page, activeChapter?.pageCount ?? page));
+      setCurrentPage(targetPage);
+      scheduleProgressSave(activeChapterId, targetPage);
+
+      if (readingMode === 'horizontal') {
+        horizontalRef.current?.scrollToPage(targetPage, animated);
+      } else {
+        verticalRef.current?.scrollToPage(targetPage, animated);
+      }
+    },
+    [activeChapter, activeChapterId, readingMode, scheduleProgressSave],
+  );
+
+  const handlePrevChapter = useCallback(() => {
+    if (!prevChapter) return;
+    if (readingMode === 'horizontal') {
+      // Both reading directions end a chapter on its final page, so backward
+      // entry lands there and the next swipe forward re-enters current content.
+      jumpToChapterPage(prevChapter, Math.max(1, prevChapter.pageCount));
+    } else {
+      jumpToChapterPage(prevChapter, 1);
+    }
+  }, [jumpToChapterPage, prevChapter, readingMode]);
+
+  const handleNextChapter = useCallback(() => {
+    if (nextChapter) jumpToChapterPage(nextChapter, 1);
+  }, [jumpToChapterPage, nextChapter]);
 
   const bookmarkView = async () => {
     if (savingBookmark.current || !activeChapter || !manga) return;
@@ -400,7 +525,35 @@ export default function MangaReaderScreen() {
     savingBookmark.current = false;
   };
 
-  const openChapterPicker = () => setShowChapterPicker(true);
+  const openChapterPicker = useCallback(() => setShowChapterPicker(true), []);
+
+  const setCurrentPageAsCover = useCallback(() => {
+    const pageToUse = activeChapter?.pages.find(
+      (chapterPage) => chapterPage.pageNumber === currentPage,
+    );
+    if (!manga || !activeChapter || !pageToUse) {
+      setBookmarkNotice('This page is not available as a cover yet');
+      return;
+    }
+    const mediaType = manga.genres.includes('Manhwa')
+      ? 'manhwa'
+      : manga.genres.includes('Manhua')
+        ? 'manhua'
+        : 'manga';
+    setCoverOverride(
+      {
+        id: manga.id,
+        title: manga.title,
+        coverUrl: manga.coverUrl,
+        bannerUrl: manga.bannerUrl,
+        mediaType,
+        genres: manga.genres,
+        chapterCount: manga.chapters.length,
+      },
+      pageToUse.imageUrl,
+    );
+    setBookmarkNotice(`Cover set to page ${currentPage}`);
+  }, [activeChapter, currentPage, manga, setCoverOverride]);
 
   const selectChapter = (chapterIdToOpen: string) => {
     setShowChapterPicker(false);
@@ -419,11 +572,49 @@ export default function MangaReaderScreen() {
     }
   };
 
-  useEffect(() => {
+  // Route params own the chapter/page. Adjust state during render (React's
+  // documented "adjust state when a prop changes" pattern) instead of a
+  // synchronous effect, which would cascade an extra render per navigation.
+  const routeKey = `${chapterId}:${initialPage}`;
+  const [syncedRouteKey, setSyncedRouteKey] = useState(routeKey);
+  if (syncedRouteKey !== routeKey) {
+    setSyncedRouteKey(routeKey);
     setActiveChapterId(chapterId);
     setCurrentPage(initialPage);
-    lastSavedRef.current = { chapterId, page: initialPage };
-  }, [chapterId, initialPage]);
+  }
+
+  // Stable identities keep the memoized reader/controls from re-rendering on
+  // unrelated parent state (overlay visibility, toasts, chapter picker).
+  const handleSelectMode = useCallback(
+    (mode: ReadingMode) => {
+      setReadingMode(mode);
+      useMangaProgressStore.getState().setReadingMode(id, mode);
+    },
+    [id],
+  );
+
+  const handleSelectDirection = useCallback((next: ReadingDirection) => {
+    setReadingDirection(next);
+  }, []);
+
+  const bookmarkViewRef = useRef(bookmarkView);
+  useEffect(() => {
+    bookmarkViewRef.current = bookmarkView;
+  });
+
+  const handleBookmarkPress = useCallback(() => {
+    void bookmarkViewRef.current();
+  }, []);
+
+  const handleNavigateLeft = useCallback(() => {
+    if (readingDirection === 'rtl') handlePrevChapter();
+    else handleNextChapter();
+  }, [readingDirection, handleNextChapter, handlePrevChapter]);
+
+  const handleNavigateRight = useCallback(() => {
+    if (readingDirection === 'rtl') handleNextChapter();
+    else handlePrevChapter();
+  }, [readingDirection, handleNextChapter, handlePrevChapter]);
 
   if (mangaLoading || pagesLoading) {
     return (
@@ -439,7 +630,20 @@ export default function MangaReaderScreen() {
       <View className="flex-1 items-center justify-center bg-black px-6">
         <Stack.Screen options={{ headerShown: false }} />
         <Text className="text-center text-white">{pagesError}</Text>
-        <SourceWebsiteButton routeId={id} chapterId={chapterId} />
+        <SourceWebsiteButton routeId={id} chapterId={activeChapterId} />
+        <Pressable
+          onPress={() =>
+            setPagesErrorByChapter((current) => {
+              if (!current[activeChapterId]) return current;
+              const nextErrors = { ...current };
+              delete nextErrors[activeChapterId];
+              return nextErrors;
+            })
+          }
+          className="mt-4"
+        >
+          <Text tone="primary">Try again</Text>
+        </Pressable>
         <Pressable onPress={handleBack} className="mt-4">
           <Text tone="primary">Go back</Text>
         </Pressable>
@@ -465,18 +669,25 @@ export default function MangaReaderScreen() {
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* Top Header */}
-      {overlayVisible ? (
+      <Animated.View
+        pointerEvents={overlayVisible ? 'box-none' : 'none'}
+        accessibilityElementsHidden={!overlayVisible}
+        importantForAccessibility={overlayVisible ? 'auto' : 'no-hide-descendants'}
+        style={[
+          { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 20 },
+          headerOverlayStyle,
+        ]}
+      >
         <MangaReaderHeader
-          onBookmark={() => {
-            void bookmarkView();
-          }}
+          onBookmark={handleBookmarkPress}
           mangaTitle={manga.title}
           chapterTitle={activeChapter.title}
           onBack={handleBack}
           onToggleControls={handleToggleOptions}
           onOpenChapterList={openChapterPicker}
+          onSetCover={setCurrentPageAsCover}
         />
-      ) : null}
+      </Animated.View>
 
       {bookmarkNotice ? (
         <Text
@@ -495,40 +706,43 @@ export default function MangaReaderScreen() {
       >
         {readingMode === 'vertical' ? (
           <VerticalReader
-            key={(bookmark ?? 'webtoon-reader') + '-' + readingMode}
+            key={(bookmark ?? 'webtoon-reader') + '-' + chapterId + '-' + readingMode}
             initialView={savedView}
             ref={verticalRef}
             chapters={chaptersToLoad}
             activeChapterId={activeChapterId}
-            initialPage={initialPage}
+            initialPage={currentPage}
             onPageChange={handlePageChange}
             onChapterChange={handleChapterChange}
             onTapScreen={toggleOverlay}
           />
         ) : (
           <HorizontalReader
+            key={'page-reader-' + chapterId}
             initialView={savedView}
             ref={horizontalRef}
-            pages={chaptersToLoad.flatMap((chapter) =>
-              chapter.pages.map((page) => ({
-                ...page,
-                chapterId: chapter.id,
-                chapterNumber: chapter.number,
-              })),
-            )}
+            pages={horizontalPages}
             activeChapterId={activeChapterId}
             direction={readingDirection}
             initialPage={currentPage}
             onPageChange={handlePageChange}
             onTapScreen={toggleOverlay}
-            onNavigateLeft={readingDirection === 'rtl' ? handlePrevChapter : handleNextChapter}
-            onNavigateRight={readingDirection === 'rtl' ? handleNextChapter : handlePrevChapter}
+            onNavigateLeft={handleNavigateLeft}
+            onNavigateRight={handleNavigateRight}
           />
         )}
       </View>
 
       {/* Always-visible bottom bar + optional mode switcher */}
-      {overlayVisible ? (
+      <Animated.View
+        pointerEvents={overlayVisible ? 'box-none' : 'none'}
+        accessibilityElementsHidden={!overlayVisible}
+        importantForAccessibility={overlayVisible ? 'auto' : 'no-hide-descendants'}
+        style={[
+          { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 20 },
+          controlsOverlayStyle,
+        ]}
+      >
         <MangaReaderControls
           currentPage={currentPage}
           totalPages={activeChapter.pageCount}
@@ -537,18 +751,15 @@ export default function MangaReaderScreen() {
           hasPrevChapter={Boolean(prevChapter)}
           hasNextChapter={Boolean(nextChapter)}
           showModeOptions={showModeOptions}
-          onSelectMode={(mode) => {
-            setReadingMode(mode);
-            useMangaProgressStore.getState().setReadingMode(id, mode);
-          }}
-          onSelectDirection={setReadingDirection}
+          onSelectMode={handleSelectMode}
+          onSelectDirection={handleSelectDirection}
           onPrevPage={handlePrevPage}
           onNextPage={handleNextPage}
           onPrevChapter={handlePrevChapter}
           onNextChapter={handleNextChapter}
           onSeekPage={handleSeekPage}
         />
-      ) : null}
+      </Animated.View>
 
       <View
         pointerEvents="none"
@@ -564,23 +775,26 @@ export default function MangaReaderScreen() {
         animationType="fade"
         onRequestClose={() => setShowChapterPicker(false)}
       >
-        <Pressable
+        <ReaderPressable
           className="flex-1 justify-end bg-black/35"
           onPress={() => setShowChapterPicker(false)}
         >
-          <Pressable className="rounded-t-3xl bg-neutral-950 p-4 pb-8" onPress={() => undefined}>
+          <ReaderPressable
+            className="rounded-t-3xl bg-neutral-950 p-4 pb-8"
+            onPress={() => undefined}
+          >
             <View className="mb-3 flex-row items-center justify-between">
               <Text className="text-lg font-bold text-white">Chapters</Text>
-              <Pressable
+              <ReaderPressable
                 onPress={() => setShowChapterPicker(false)}
                 className="rounded-full bg-neutral-800 px-3 py-1"
               >
                 <Text className="text-sm text-white">Close</Text>
-              </Pressable>
+              </ReaderPressable>
             </View>
             <ScrollView className="max-h-80">
               {chaptersToLoad.map((chapter) => (
-                <Pressable
+                <ReaderPressable
                   key={chapter.id}
                   onPress={() => selectChapter(chapter.id)}
                   className={cn(
@@ -605,11 +819,11 @@ export default function MangaReaderScreen() {
                       </Text>
                     </View>
                   ) : null}
-                </Pressable>
+                </ReaderPressable>
               ))}
             </ScrollView>
-          </Pressable>
-        </Pressable>
+          </ReaderPressable>
+        </ReaderPressable>
       </Modal>
     </GestureHandlerRootView>
   );

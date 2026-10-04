@@ -1,4 +1,5 @@
-import { Pressable, ScrollView, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
+import { PopPressable as Pressable } from '@/components/ui/PopPressable';
 
 import { Text } from '@/components/ui';
 import type { DownloadSectionTab } from '@/types/download';

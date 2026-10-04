@@ -39,7 +39,11 @@ function assertMediaType(mediaType: string): BackendMediaType {
     'tv',
   ];
   if (!allowed.includes(mediaType as BackendMediaType)) {
-    throw new ProviderGatewayError(`Unsupported media type "${mediaType}".`, 400, 'INVALID_MEDIA_TYPE');
+    throw new ProviderGatewayError(
+      `Unsupported media type "${mediaType}".`,
+      400,
+      'INVALID_MEDIA_TYPE',
+    );
   }
   return mediaType as BackendMediaType;
 }

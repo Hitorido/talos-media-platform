@@ -23,44 +23,17 @@ type MangaProgressState = {
   removeMangaProgress: (mangaId: string) => void;
 };
 
-const seedProgress: Record<string, ChapterReadingProgress> = {
-  'manga-cw-1': {
-    mangaId: 'manga-cw-1',
-    chapterId: 'manga-cw-1-ch-4',
-    chapterNumber: 4,
-    chapterTitle: 'Chapter 4',
-    pageNumber: 5,
-    totalPages: 8,
-    updatedAt: Date.now(),
-  },
-  'manga-cw-2': {
-    mangaId: 'manga-cw-2',
-    chapterId: 'manga-cw-2-ch-12',
-    chapterNumber: 12,
-    chapterTitle: 'Chapter 12',
-    pageNumber: 8,
-    totalPages: 10,
-    updatedAt: Date.now() - 3600000,
-  },
-  'manga-cw-3': {
-    mangaId: 'manga-cw-3',
-    chapterId: 'manga-cw-3-ch-1',
-    chapterNumber: 1,
-    chapterTitle: 'Chapter 1',
-    pageNumber: 3,
-    totalPages: 6,
-    updatedAt: Date.now() - 7200000,
-  },
-};
+const seedProgress: Record<string, ChapterReadingProgress> = {};
 
 export function buildContinueReading(
   progressByManga: Record<string, ChapterReadingProgress>,
+  mediaById = useLibraryStore.getState().media,
 ): ContinueReadingEntry[] {
   return Object.values(progressByManga)
     .sort((a, b) => b.updatedAt - a.updatedAt)
     .map((progress) => {
       const manga = getMangaById(progress.mangaId);
-      const saved = useLibraryStore.getState().media[progress.mangaId];
+      const saved = mediaById[progress.mangaId];
       if (!manga && !saved) {
         return null;
       }
@@ -70,7 +43,7 @@ export function buildContinueReading(
       return {
         mangaId: manga?.id ?? saved!.id,
         title: manga?.title ?? saved!.title,
-        coverUrl: manga?.coverUrl ?? saved!.coverUrl,
+        coverUrl: saved?.customCoverUrl ?? manga?.coverUrl ?? saved!.coverUrl,
         chapterId: progress.chapterId,
         chapterNumber: progress.chapterNumber,
         chapterTitle:
@@ -92,8 +65,8 @@ export const useMangaProgressStore = create<MangaProgressState>()(
       readingModes: {},
       setReadingMode: (id, mode) =>
         set((state) => ({ readingModes: { ...state.readingModes, [id]: mode } })),
-      libraryMangaIds: ['manga-cw-1', 'manga-cw-2'],
-      favoriteMangaIds: ['manga-cw-1'],
+      libraryMangaIds: [],
+      favoriteMangaIds: [],
 
       setChapterProgress: (progress) => {
         set((state) => ({
@@ -163,5 +136,5 @@ export const useMangaProgressStore = create<MangaProgressState>()(
 export function useContinueReading(): ContinueReadingEntry[] {
   const media = useLibraryStore((state) => state.media);
   const progressByManga = useMangaProgressStore((state) => state.progressByManga);
-  return useMemo(() => buildContinueReading(progressByManga), [progressByManga, media]);
+  return useMemo(() => buildContinueReading(progressByManga, media), [progressByManga, media]);
 }

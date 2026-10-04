@@ -1,4 +1,4 @@
-import { Pressable } from 'react-native';
+import { PopPressable as Pressable } from '@/components/ui/PopPressable';
 
 import { Button, Text } from '@/components/ui';
 import { cn } from '@/utils/cn';

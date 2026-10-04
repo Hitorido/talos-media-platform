@@ -1,4 +1,4 @@
-﻿import { apiRequest } from '@/services/api/client';
+import { apiRequestWithWake as apiRequest } from '@/services/api/client';
 import type { MediaProvider } from '@/providers/types';
 import {
   encodeMediaRouteId,

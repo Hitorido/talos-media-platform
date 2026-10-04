@@ -1,10 +1,6 @@
 import { getAniListAnime, searchAniListAnime } from '@/providers/anilist/client';
 import type { MediaProvider } from '@/providers/types';
-import type {
-  MediaRef,
-  NormalizedEpisode,
-  NormalizedMedia,
-} from '@/types/provider';
+import type { MediaRef, NormalizedEpisode, NormalizedMedia } from '@/types/provider';
 import { encodeMediaRouteId } from '@/types/provider';
 import type { SearchResult } from '@/types/search';
 
@@ -12,7 +8,10 @@ const PROVIDER_ID = 'anilist-anime';
 
 function cleanHtmlDescription(raw?: string): string {
   if (!raw) return '';
-  return raw.replace(/<br\s*\/?>/gi, '\n').replace(/<\/?[^>]+(>|$)/g, '').trim();
+  return raw
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/?[^>]+(>|$)/g, '')
+    .trim();
 }
 
 export const aniListAnimeProvider: MediaProvider = {
@@ -52,7 +51,10 @@ export const aniListAnimeProvider: MediaProvider = {
         coverUrl,
         type: 'anime',
         status: item.status,
-        episodeCount: Number.isSafeInteger(item.episodes) && (item.episodes ?? 0) > 0 ? item.episodes : undefined,
+        episodeCount:
+          Number.isSafeInteger(item.episodes) && (item.episodes ?? 0) > 0
+            ? item.episodes
+            : undefined,
         subtitle,
         tags: ['Anime', ...(item.genres ?? []).slice(0, 2)],
       };

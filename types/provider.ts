@@ -1,11 +1,4 @@
-export type ProviderMediaType =
-  | 'anime'
-  | 'manga'
-  | 'manhwa'
-  | 'manhua'
-  | 'novel'
-  | 'movie'
-  | 'tv';
+export type ProviderMediaType = 'anime' | 'manga' | 'manhwa' | 'manhua' | 'novel' | 'movie' | 'tv';
 
 export type ProviderCapability =
   | 'search'
@@ -93,7 +86,7 @@ export type NormalizedPlaybackSource = {
   /** Original stream for an explicit fallback when subtitle delivery is unavailable. */
   fallbackUrl?: string;
   quality?: string;
-  qualityOptions?: {label:string;url:string}[];
+  qualityOptions?: { label: string; url: string }[];
   audioLanguage?: string;
   subtitles?: { language: string; url: string }[];
   isDirectStream?: boolean;

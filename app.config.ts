@@ -48,6 +48,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       },
     ],
     'expo-video',
+    [
+      'expo-image-picker',
+      {
+        photosPermission: 'Allow Talos to use a photo as a title cover.',
+        microphonePermission: false,
+      },
+    ],
     'expo-secure-store',
   ],
   experiments: {

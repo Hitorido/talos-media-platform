@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Modal, Pressable, ScrollView, View } from 'react-native';
+import { Modal, ScrollView, View } from 'react-native';
+import { PopPressable as Pressable } from '@/components/ui/PopPressable';
 import { Ionicons } from '@expo/vector-icons';
 
 import { Text } from '@/components/ui';

@@ -10,7 +10,9 @@ async function request(label, url, options) {
     console.log(`${label}: HTTP ${response.status} (${text.length} bytes)`);
     return { response, text };
   } catch (error) {
-    console.log(`${label}: REQUEST_FAILED (${error instanceof Error ? error.message : 'unknown error'})`);
+    console.log(
+      `${label}: REQUEST_FAILED (${error instanceof Error ? error.message : 'unknown error'})`,
+    );
     return null;
   }
 }
@@ -18,7 +20,10 @@ async function request(label, url, options) {
 async function main() {
   console.log('=== Phase 5.3 Anime Source Evidence ===');
 
-  const consumet = await request('Public Consumet', 'https://api.consumet.org/anime/gogoanime/naruto');
+  const consumet = await request(
+    'Public Consumet',
+    'https://api.consumet.org/anime/gogoanime/naruto',
+  );
   if (consumet?.response.status === 451) {
     console.log('Public Consumet status: REQUIRES CONFIGURATION / UNAVAILABLE');
   }
@@ -42,7 +47,9 @@ async function main() {
   });
   if (anilist?.response.ok) console.log('AniList capability: metadata only; no playback contract');
 
-  console.log('Playback verification: NOT VERIFIED without a configured, reachable Consumet-compatible endpoint.');
+  console.log(
+    'Playback verification: NOT VERIFIED without a configured, reachable Consumet-compatible endpoint.',
+  );
   console.log('PHASE5.3_EVIDENCE_COMPLETE');
 }
 

@@ -1,4 +1,4 @@
-﻿import { checkedId, sourceText } from '../shared/sourceHttp.js';
+import { checkedId, sourceText } from '../shared/sourceHttp.js';
 import { ProviderGatewayError } from '../types.js';
 
 const api = 'https://api.animeparadise.moe';

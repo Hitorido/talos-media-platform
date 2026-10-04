@@ -1,10 +1,5 @@
 export type DownloadStatus =
-  | 'queued'
-  | 'downloading'
-  | 'paused'
-  | 'completed'
-  | 'failed'
-  | 'cancelled';
+  'queued' | 'downloading' | 'paused' | 'completed' | 'failed' | 'cancelled';
 
 export type DownloadMediaType = 'anime' | 'manga' | 'manhwa' | 'manhua' | 'novel';
 

@@ -17,14 +17,38 @@ function assertIncludes(filePath, snippets, label) {
 
 async function main() {
   console.log('Checking unified gateway files...');
-  assertIncludes('backend/src/providers/contentGateway.ts', ['contentGateway', 'UNSUPPORTED_CAPABILITY'], 'gateway');
-  assertIncludes('backend/src/providers/registry.ts', ['registerProvider', 'findProvidersByCapability'], 'registry');
-  assertIncludes('backend/src/routes/content.routes.ts', ['contentController', '/search'], 'content routes');
-  assertIncludes('backend/src/app.ts', ["/api/content", 'initializeBackendProviders'], 'app mounts gateway');
-  assertIncludes('backend/src/routes/novel.routes.ts', ['contentGateway', 'proxy-novel'], 'novel via gateway');
+  assertIncludes(
+    'backend/src/providers/contentGateway.ts',
+    ['contentGateway', 'UNSUPPORTED_CAPABILITY'],
+    'gateway',
+  );
+  assertIncludes(
+    'backend/src/providers/registry.ts',
+    ['registerProvider', 'findProvidersByCapability'],
+    'registry',
+  );
+  assertIncludes(
+    'backend/src/routes/content.routes.ts',
+    ['contentController', '/search'],
+    'content routes',
+  );
+  assertIncludes(
+    'backend/src/app.ts',
+    ['/api/content', 'initializeBackendProviders'],
+    'app mounts gateway',
+  );
+  assertIncludes(
+    'backend/src/routes/novel.routes.ts',
+    ['contentGateway', 'proxy-novel'],
+    'novel via gateway',
+  );
   assertIncludes('backend/prisma/schema.prisma', ['provider = "sqlite"'], 'sqlite preserved');
   assertIncludes('providers/mangadex/index.ts', ['mangaDexProvider'], 'mangadex preserved');
-  assertIncludes('services/contentService.ts', ['resolveAnimePlayback', 'resolveNovelChapterContent'], 'expo resolvers preserved');
+  assertIncludes(
+    'services/contentService.ts',
+    ['resolveAnimePlayback', 'resolveNovelChapterContent'],
+    'expo resolvers preserved',
+  );
 
   console.log('Checking live backend if available...');
   try {

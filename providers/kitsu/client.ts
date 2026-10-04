@@ -57,7 +57,11 @@ async function kitsuFetch<T>(path: string, signal?: AbortSignal): Promise<T> {
   return (await response.json()) as T;
 }
 
-export async function searchKitsuAnime(query: string, limit = 12, signal?: AbortSignal): Promise<KitsuAnimeItem[]> {
+export async function searchKitsuAnime(
+  query: string,
+  limit = 12,
+  signal?: AbortSignal,
+): Promise<KitsuAnimeItem[]> {
   const payload = await kitsuFetch<KitsuResponse<KitsuAnimeItem[]>>(
     `/anime?filter[text]=${encodeURIComponent(query)}&page[limit]=${limit}`,
     signal,
@@ -70,11 +74,15 @@ export async function getKitsuAnime(animeId: string): Promise<KitsuAnimeItem> {
   return payload.data;
 }
 
-export async function getKitsuEpisodes(animeId: string): Promise<{ id: string; number: number; title: string; synopsis?: string }[]> {
+export async function getKitsuEpisodes(
+  animeId: string,
+): Promise<{ id: string; number: number; title: string; synopsis?: string }[]> {
   try {
-    const payload = await kitsuFetch<KitsuResponse<{ id: string; attributes: { number: number; canonicalTitle?: string; synopsis?: string } }[]>>(
-      `/anime/${animeId}/episodes?page[limit]=50`,
-    );
+    const payload = await kitsuFetch<
+      KitsuResponse<
+        { id: string; attributes: { number: number; canonicalTitle?: string; synopsis?: string } }[]
+      >
+    >(`/anime/${animeId}/episodes?page[limit]=50`);
     return (payload.data ?? []).map((ep) => ({
       id: ep.id,
       number: ep.attributes.number,

@@ -1,10 +1,6 @@
 import { getKitsuAnime, getKitsuEpisodes, searchKitsuAnime } from '@/providers/kitsu/client';
 import type { MediaProvider } from '@/providers/types';
-import type {
-  MediaRef,
-  NormalizedEpisode,
-  NormalizedMedia,
-} from '@/types/provider';
+import type { MediaRef, NormalizedEpisode, NormalizedMedia } from '@/types/provider';
 import { encodeMediaRouteId } from '@/types/provider';
 import type { SearchResult } from '@/types/search';
 
@@ -44,7 +40,10 @@ export const kitsuAnimeProvider: MediaProvider = {
         title,
         coverUrl,
         type: 'anime',
-        episodeCount: Number.isSafeInteger(attr.episodeCount) && (attr.episodeCount ?? 0) > 0 ? attr.episodeCount : undefined,
+        episodeCount:
+          Number.isSafeInteger(attr.episodeCount) && (attr.episodeCount ?? 0) > 0
+            ? attr.episodeCount
+            : undefined,
         subtitle: `${showType} · ${epCount}`,
         tags: ['Anime', showType],
       };
@@ -92,7 +91,10 @@ export const kitsuAnimeProvider: MediaProvider = {
     }
 
     const item = await getKitsuAnime(ref.sourceId);
-    const count = item.attributes.episodeCount && item.attributes.episodeCount > 0 ? item.attributes.episodeCount : 12;
+    const count =
+      item.attributes.episodeCount && item.attributes.episodeCount > 0
+        ? item.attributes.episodeCount
+        : 12;
 
     return Array.from({ length: count }, (_, i) => ({
       id: String(i + 1),

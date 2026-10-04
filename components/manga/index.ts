@@ -4,4 +4,5 @@ export { LanguageSelector } from './LanguageSelector';
 export { MangaDetailsHeader } from './MangaDetailsHeader';
 export { MangaReaderControls } from './MangaReaderControls';
 export { MangaReaderHeader } from './MangaReaderHeader';
+export { ReaderPressable } from './ReaderPressable';
 export { VerticalReader, type VerticalReaderRef } from './VerticalReader';

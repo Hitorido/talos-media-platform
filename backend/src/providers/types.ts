@@ -3,14 +3,7 @@
  * Kept as backend equivalents of the Expo normalized models (not a second frontend registry).
  */
 
-export type BackendMediaType =
-  | 'manga'
-  | 'manhwa'
-  | 'manhua'
-  | 'anime'
-  | 'novel'
-  | 'movie'
-  | 'tv';
+export type BackendMediaType = 'manga' | 'manhwa' | 'manhua' | 'anime' | 'novel' | 'movie' | 'tv';
 
 export type BackendProviderCapability =
   | 'search'
@@ -152,10 +145,7 @@ export type ContentProviderAdapter = {
   getPages?(sourceId: string, chapterId: string): Promise<BackendNormalizedPage[]>;
   getEpisodes?(sourceId: string): Promise<BackendNormalizedEpisode[]>;
   getNovelContent?(sourceId: string, chapterId: string): Promise<BackendNormalizedNovelContent>;
-  getPlaybackSource?(
-    sourceId: string,
-    episodeId: string,
-  ): Promise<BackendNormalizedPlaybackSource>;
+  getPlaybackSource?(sourceId: string, episodeId: string): Promise<BackendNormalizedPlaybackSource>;
 };
 
 export class ProviderGatewayError extends Error {

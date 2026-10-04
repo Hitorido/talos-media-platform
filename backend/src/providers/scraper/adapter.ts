@@ -9,8 +9,7 @@ export const scraperProviderAdapter: ContentProviderAdapter = {
   definition: {
     id: 'proxy-scraper',
     name: 'Scraper Backend Proxy',
-    description:
-      'Placeholder for a controlled scraper backend.',
+    description: 'Placeholder for a controlled scraper backend.',
     mediaTypes: ['manga', 'manhwa', 'manhua'],
     capabilities: ['search', 'details', 'chapters', 'pages'],
     status: 'planned',

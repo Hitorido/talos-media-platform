@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getEnglishChapterCount } from '@/services/englishChapterCount';
-import { FlatList, View } from 'react-native';
+import { FlatList, View, useWindowDimensions } from 'react-native';
 
 import { SearchResultItem } from '@/components/search/SearchResultItem';
 import { Text } from '@/components/ui';
@@ -13,23 +13,41 @@ type SearchResultsListProps = {
 };
 
 export function SearchResultsList({ results, query, onResultPress }: SearchResultsListProps) {
+  const { width } = useWindowDimensions();
+  const columns = width >= 1200 ? 3 : width >= 760 ? 2 : 1;
   const [counts, setCounts] = useState<Record<string, number>>({});
   useEffect(() => {
     const controller = new AbortController();
     for (const item of results) {
       if (item.type === 'anime' || item.chapterCount !== undefined) continue;
-      getEnglishChapterCount(item.id, controller.signal).then(count => {
-        if (!controller.signal.aborted) setCounts(previous => previous[item.id] === count ? previous : { ...previous, [item.id]: count });
-      }, () => {});
+      getEnglishChapterCount(item.id, controller.signal).then(
+        (count) => {
+          if (!controller.signal.aborted)
+            setCounts((previous) =>
+              previous[item.id] === count ? previous : { ...previous, [item.id]: count },
+            );
+        },
+        () => {},
+      );
     }
     return () => controller.abort();
   }, [results]);
-  const sortedResults = useMemo(() => [...results].sort((a, b) => {
-    const count = (item: SearchResult) => item.type === 'anime' ? item.episodeCount ?? -1 : counts[item.id] ?? item.chapterCount ?? -1;
-    return count(b) - count(a);
-  }), [results, counts]);
+  const sortedResults = useMemo(
+    () =>
+      [...results].sort((a, b) => {
+        const count = (item: SearchResult) =>
+          item.type === 'anime'
+            ? (item.episodeCount ?? -1)
+            : (counts[item.id] ?? item.chapterCount ?? -1);
+        return count(b) - count(a);
+      }),
+    [results, counts],
+  );
   return (
     <FlatList
+      key={columns}
+      numColumns={columns}
+      columnWrapperStyle={columns > 1 ? { gap: 12 } : undefined}
       data={sortedResults}
       keyExtractor={(item) => item.id}
       keyboardShouldPersistTaps="handled"
@@ -40,7 +58,9 @@ export function SearchResultsList({ results, query, onResultPress }: SearchResul
         </Text>
       }
       renderItem={({ item }) => (
-        <SearchResultItem item={item} onPress={() => onResultPress?.(item)} />
+        <View style={{ width: `${100 / columns}%`, flexShrink: 1 }}>
+          <SearchResultItem item={item} onPress={() => onResultPress?.(item)} />
+        </View>
       )}
       ItemSeparatorComponent={() => <View className="h-0" />}
     />

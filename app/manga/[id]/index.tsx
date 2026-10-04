@@ -1,9 +1,11 @@
+import { AlternateSourcesModal } from '@/components/content/AlternateSourcesModal';
 import { ChapterRangePicker, chapterRange } from '@/components/content/SelectionModal';
 import { MediaBookmarks } from '@/components/content/MediaBookmarks';
 import { SourceWebsiteButton } from '@/components/content/SourceWebsiteButton';
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
+import { PopPressable as Pressable } from '@/components/ui/PopPressable';
 import { Ionicons } from '@expo/vector-icons';
 
 import { BulkDownloadModal } from '@/components/downloads';
@@ -28,8 +30,9 @@ export default function MangaDetailsScreen() {
     manga ? state.getMangaProgress(manga.id) : undefined,
   );
   const [range, setRange] = useState(0);
-  const [showBookmarks,setShowBookmarks]=useState(false);
+  const [showBookmarks, setShowBookmarks] = useState(false);
   const [bulkModalOpen, setBulkModalOpen] = useState(false);
+  const [alternateSourcesVisible, setAlternateSourcesVisible] = useState(false);
   const [selectedLanguageOverride, setSelectedLanguageOverride] = useState<string | null>(null);
 
   const mediaRef = useMemo(() => (id ? resolveMediaRef(id) : null), [id]);
@@ -123,30 +126,34 @@ export default function MangaDetailsScreen() {
 
   return (
     <Screen scrollable contentContainerClassName="gap-6 pb-8">
-      <Stack.Screen options={{title:manga.title}} />
       <MangaDetailsHeader manga={manga} />
 
       <View className="flex-row flex-wrap items-center gap-2">
         <Badge label={`Source: ${sourceName}`} variant="secondary" />
         <Pressable
-          onPress={() =>
-            router.push({
-              pathname: '/(tabs)/search',
-              params: { q: manga.title },
-            })
-          }
+          accessibilityRole="button"
+          accessibilityLabel="Find other sources for this title"
+          onPress={() => setAlternateSourcesVisible(true)}
           className="rounded-full border border-neutral-200 px-3 py-1.5 dark:border-neutral-700"
         >
           <Text variant="caption">Find other sources</Text>
         </Pressable>
       </View>
+      <AlternateSourcesModal
+        visible={alternateSourcesVisible}
+        title={manga.title}
+        alternativeTitles={manga.altTitles}
+        mediaType="manga"
+        currentMediaId={manga.id}
+        onClose={() => setAlternateSourcesVisible(false)}
+      />
 
       {isProviderContent ? (
         <View className="rounded-xl border border-primary-500/30 bg-primary-500/10 px-3 py-2">
           <Text variant="caption" className="text-primary-600 dark:text-primary-400">
             Loaded from {sourceName}. Downloads may be unavailable depending on provider
             permissions. Use Find other sources to compare enabled providers without changing this
-            entry's progress.
+            entry&apos;s progress.
           </Text>
         </View>
       ) : null}
@@ -197,36 +204,44 @@ export default function MangaDetailsScreen() {
 
             <ChapterRangePicker count={filteredChapters.length} value={range} onChange={setRange} />
             <Pressable
-                onPress={() => setBulkModalOpen(true)}
-                className="flex-row items-center gap-1.5 rounded-full bg-primary-50 px-3 py-1.5 dark:bg-primary-950"
-              >
-                <Ionicons name="cloud-download-outline" size={16} color="#6366f1" />
-                <Text className="text-xs font-semibold text-primary-600 dark:text-primary-400">
-                  Download All
-                </Text>
-              </Pressable>
+              onPress={() => setBulkModalOpen(true)}
+              className="flex-row items-center gap-1.5 rounded-full bg-primary-50 px-3 py-1.5 dark:bg-primary-950"
+            >
+              <Ionicons name="cloud-download-outline" size={16} color="#6366f1" />
+              <Text className="text-xs font-semibold text-primary-600 dark:text-primary-400">
+                Download All
+              </Text>
+            </Pressable>
           </View>
         </View>
 
-        <Pressable accessibilityRole="button" onPress={()=>setShowBookmarks(value=>!value)} className="self-start rounded-full bg-primary-100 px-4 py-2 dark:bg-primary-950"><Text tone="primary">{showBookmarks?'Show chapters':'Bookmarks'}</Text></Pressable>
-        {showBookmarks ? <MediaBookmarks mediaId={manga.id} kind="manga" /> : <ChapterList
-          mangaId={manga.id}
-          chapters={chapterRange(filteredChapters, range)}
-          activeChapterId={latestProgress?.chapterId}
-          showLanguageBadge={activeLanguage === 'all' || availableLanguages.length > 1}
-          getChapterProgress={getChapterProgress}
-          onChapterPress={(chapter) => openChapter(chapter.id)}
-          onDownloadChapter={
-            (chapter) => downloadMangaChapter(manga, chapter)
-          }
-        />}
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => setShowBookmarks((value) => !value)}
+          className="self-start rounded-full bg-primary-100 px-4 py-2 dark:bg-primary-950"
+        >
+          <Text tone="primary">{showBookmarks ? 'Show chapters' : 'Bookmarks'}</Text>
+        </Pressable>
+        {showBookmarks ? (
+          <MediaBookmarks mediaId={manga.id} kind="manga" />
+        ) : (
+          <ChapterList
+            mangaId={manga.id}
+            chapters={chapterRange(filteredChapters, range)}
+            activeChapterId={latestProgress?.chapterId}
+            showLanguageBadge={activeLanguage === 'all' || availableLanguages.length > 1}
+            getChapterProgress={getChapterProgress}
+            onChapterPress={(chapter) => openChapter(chapter.id)}
+            onDownloadChapter={(chapter) => downloadMangaChapter(manga, chapter)}
+          />
+        )}
       </View>
 
       <BulkDownloadModal
-          visible={bulkModalOpen}
-          target={manga ? { kind: 'manga', manga, chapters: filteredChapters } : null}
-          onClose={() => setBulkModalOpen(false)}
-        />
+        visible={bulkModalOpen}
+        target={manga ? { kind: 'manga', manga, chapters: filteredChapters } : null}
+        onClose={() => setBulkModalOpen(false)}
+      />
     </Screen>
   );
 }

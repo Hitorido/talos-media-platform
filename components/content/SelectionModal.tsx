@@ -1,5 +1,7 @@
-﻿import { useState } from 'react';
-import { Modal, Pressable, ScrollView, View } from 'react-native';
+import { useDialogEscape } from '@/hooks/useDialogEscape';
+import { useState } from 'react';
+import { Modal, ScrollView, View } from 'react-native';
+import { PopPressable as Pressable } from '@/components/ui/PopPressable';
 import { Text } from '@/components/ui';
 
 export type SelectionOption = { value: string; label: string };
@@ -20,6 +22,7 @@ export function SelectionModal({
   onSelect: (value: string) => void;
   onClose: () => void;
 }) {
+  useDialogEscape(visible, onClose);
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View className="flex-1 justify-center bg-black/60 px-6">
@@ -28,7 +31,7 @@ export function SelectionModal({
           className="absolute inset-0"
           onPress={onClose}
         />
-        <View className="max-h-[70%] rounded-2xl bg-white p-4 dark:bg-neutral-900">
+        <View className="max-h-[70%] w-full max-w-lg self-center rounded-2xl bg-white p-4 dark:bg-neutral-900">
           <Text variant="h3" className="mb-3">
             {title}
           </Text>

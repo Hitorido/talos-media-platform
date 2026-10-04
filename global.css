@@ -1,3 +1,12 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@media (hover: hover) {
+  [role="button"] { cursor: pointer; }
+  [role="button"]:hover { filter: brightness(1.04); }
+}
+[role="button"]:focus-visible, [role="radio"]:focus-visible, button:focus-visible {
+  outline: 2px solid #818cf8;
+  outline-offset: 3px;
+}

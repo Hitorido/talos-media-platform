@@ -57,4 +57,3 @@ export type ContinueReadingEntry = {
   progress: number;
   updatedAt: number;
 };
-

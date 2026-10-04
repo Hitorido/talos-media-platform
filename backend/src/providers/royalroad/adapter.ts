@@ -1,4 +1,4 @@
-﻿import { load } from 'cheerio';
+import { load } from 'cheerio';
 import { checkedId, sourceText } from '../shared/sourceHttp.js';
 import { ProviderGatewayError, type ContentProviderAdapter } from '../types.js';
 

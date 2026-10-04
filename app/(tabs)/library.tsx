@@ -2,14 +2,12 @@ import { SelectionModal } from '@/components/content/SelectionModal';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
+import { PopPressable as Pressable } from '@/components/ui/PopPressable';
 
 import { LibraryCard } from '@/components/library';
 import { Screen, SwipeableRow, Text } from '@/components/ui';
 import { animeDetailsHref, mangaDetailsHref, novelDetailsHref } from '@/lib/routes';
-import { animeCatalog } from '@/services/mock/animeData';
-import { mangaCatalog } from '@/services/mock/mangaData';
-import { novelCatalog } from '@/services/mock/novelData';
 import { useAnimeProgressStore } from '@/stores/animeProgressStore';
 import { useDownloadStore } from '@/stores/downloadStore';
 import { useLibraryStore } from '@/stores/libraryStore';
@@ -62,7 +60,7 @@ function getMangaMediaType(genres: string[]): 'manga' | 'manhwa' | 'manhua' {
 
 export default function LibraryScreen() {
   const router = useRouter();
-  const realMedia = useLibraryStore(state => state.media);
+  const realMedia = useLibraryStore((state) => state.media);
   const entries = useLibraryStore((state) => state.entries);
   const removeFromLibrary = useLibraryStore((state) => state.removeFromLibrary);
   const toggleFavorite = useLibraryStore((state) => state.toggleFavorite);
@@ -91,15 +89,16 @@ export default function LibraryScreen() {
     return ids;
   }, [downloadItems]);
 
-  const catalog = useMemo(
-    () => [
-      ...Object.values(realMedia),
-      ...animeCatalog.map((item) => ({ ...item, mediaType: 'anime' as const })),
-      ...mangaCatalog.map((item) => ({ ...item, mediaType: getMangaMediaType(item.genres) })),
-      ...novelCatalog.map((item) => ({ ...item, mediaType: 'novel' as const })),
-    ],
-    [realMedia],
-  );
+  const latestDownloadAtByMediaId = useMemo(() => {
+    const timestamps = new Map<string, number>();
+    for (const item of Object.values(downloadItems)) {
+      if (item.status !== 'completed') continue;
+      timestamps.set(item.mediaId, Math.max(timestamps.get(item.mediaId) ?? 0, item.updatedAt));
+    }
+    return timestamps;
+  }, [downloadItems]);
+
+  const catalog = useMemo(() => Object.values(realMedia), [realMedia]);
 
   const rows = useMemo(() => {
     const historyEntries: LibraryEntry[] = [
@@ -121,9 +120,7 @@ export default function LibraryScreen() {
       })),
       ...Object.values(mangaProgress).map((progress) => ({
         mediaId: progress.mangaId,
-        mediaType: getMangaMediaType(
-          realMedia[progress.mangaId]?.genres ?? mangaCatalog.find((item) => item.id === progress.mangaId)?.genres ?? [],
-        ),
+        mediaType: getMangaMediaType(realMedia[progress.mangaId]?.genres ?? []),
         status:
           progress.pageNumber >= progress.totalPages
             ? ('completed' as const)
@@ -152,11 +149,9 @@ export default function LibraryScreen() {
     // For 'downloaded' view, build synthetic entries from download store
     const downloadedEntries: LibraryEntry[] = Array.from(downloadedMediaIds).flatMap((mediaId) => {
       const found =
-        catalog.find((c) => c.id === mediaId) ??
-        entries.find((e) => e.mediaId === mediaId);
+        catalog.find((c) => c.id === mediaId) ?? entries.find((e) => e.mediaId === mediaId);
       if (!found) return [];
       const mediaType = (found as { mediaType?: LibraryMediaType }).mediaType ?? 'manga';
-      const now = Date.now();
       return [
         {
           mediaId,
@@ -164,18 +159,14 @@ export default function LibraryScreen() {
           status: (mediaType === 'anime' ? 'watching' : 'reading') as LibraryStatus,
           isFavorite: entries.find((e) => e.mediaId === mediaId)?.isFavorite ?? false,
           tags: entries.find((e) => e.mediaId === mediaId)?.tags ?? [],
-          addedAt: now,
-          updatedAt: now,
+          addedAt: latestDownloadAtByMediaId.get(mediaId) ?? 0,
+          updatedAt: latestDownloadAtByMediaId.get(mediaId) ?? 0,
         },
       ];
     });
 
     const source =
-      view === 'history'
-        ? historyEntries
-        : view === 'downloaded'
-          ? downloadedEntries
-          : entries;
+      view === 'history' ? historyEntries : view === 'downloaded' ? downloadedEntries : entries;
 
     const unique = new Map(source.map((entry) => [`${entry.mediaType}:${entry.mediaId}`, entry]));
 
@@ -194,7 +185,13 @@ export default function LibraryScreen() {
       .flatMap((entry) => {
         const item = catalog.find(
           (candidate) => candidate.id === entry.mediaId && candidate.mediaType === entry.mediaType,
-        ) ?? {id:entry.mediaId,title:'Saved title - open to refresh',coverUrl:'',mediaType:entry.mediaType,genres:[]};
+        ) ?? {
+          id: entry.mediaId,
+          title: 'Saved title - open to refresh',
+          coverUrl: '',
+          mediaType: entry.mediaType,
+          genres: [],
+        };
         const anime = entry.mediaType === 'anime' ? animeProgress[entry.mediaId] : undefined;
         const manga =
           entry.mediaType !== 'anime' && entry.mediaType !== 'novel'
@@ -236,6 +233,7 @@ export default function LibraryScreen() {
     realMedia,
     catalog,
     downloadedMediaIds,
+    latestDownloadAtByMediaId,
     entries,
     mediaFilter,
     mangaProgress,
@@ -245,11 +243,14 @@ export default function LibraryScreen() {
     view,
   ]);
 
-  const statusOptions = (statusTarget?.mediaType === 'anime'
-    ? ['watching', 'completed', 'dropped', 'plan-to-watch']
-    : ['reading', 'completed', 'dropped', 'plan-to-read']).map(value => ({
-      value, label: statusFilters.find(filter => filter.id === value)?.label ?? value,
-    }));
+  const statusOptions = (
+    statusTarget?.mediaType === 'anime'
+      ? ['watching', 'completed', 'dropped', 'plan-to-watch']
+      : ['reading', 'completed', 'dropped', 'plan-to-read']
+  ).map((value) => ({
+    value,
+    label: statusFilters.find((filter) => filter.id === value)?.label ?? value,
+  }));
 
   const handleDismiss = (entry: LibraryEntry) => {
     if (view === 'history') {
@@ -276,20 +277,19 @@ export default function LibraryScreen() {
 
   return (
     <Screen scrollable contentContainerClassName="gap-5 pb-8">
-      <View className="gap-1">
-        <Text variant="h1">Library</Text>
-        <Text tone="muted">Your saved titles, favorites, and activity.</Text>
-      </View>
-
       {/* View Tabs */}
-      <View className="flex-row gap-1 rounded-xl bg-neutral-100 p-1 dark:bg-neutral-900">
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerClassName="flex-row gap-1 rounded-xl bg-neutral-100 p-1 dark:bg-neutral-900"
+      >
         {viewTabs.map((tab) => {
           const isActive = view === tab.id;
           return (
             <Pressable
               key={tab.id}
               onPress={() => setView(tab.id)}
-              className={`flex-1 items-center gap-0.5 rounded-lg px-2 py-2 ${
+              className={`min-w-[68px] items-center gap-0.5 rounded-lg px-2 py-2 ${
                 isActive ? 'bg-white dark:bg-neutral-700' : ''
               }`}
             >
@@ -299,6 +299,7 @@ export default function LibraryScreen() {
                 color={isActive ? '#6366f1' : '#9ca3af'}
               />
               <Text
+                numberOfLines={1}
                 className={`text-center text-[10px] font-semibold ${
                   isActive ? 'text-primary-600 dark:text-primary-400' : 'text-neutral-500'
                 }`}
@@ -308,7 +309,7 @@ export default function LibraryScreen() {
             </Pressable>
           );
         })}
-      </View>
+      </ScrollView>
 
       {/* Media Type filter */}
       <View className="gap-2">
@@ -395,6 +396,7 @@ export default function LibraryScreen() {
             >
               <LibraryCard
                 entry={entry}
+                media={item}
                 title={item.title}
                 coverUrl={item.coverUrl}
                 subtitle={subtitle}
@@ -408,6 +410,7 @@ export default function LibraryScreen() {
             <LibraryCard
               key={`${entry.mediaType}:${entry.mediaId}`}
               entry={entry}
+              media={item}
               title={item.title}
               coverUrl={item.coverUrl}
               subtitle={subtitle}
@@ -435,9 +438,17 @@ export default function LibraryScreen() {
           </Text>
         </View>
       )}
-      <SelectionModal visible={statusTarget !== null} title="Library status" options={statusOptions}
-        value={statusTarget?.status} onClose={() => setStatusTarget(null)}
-        onSelect={status => { if (statusTarget) setStatus(statusTarget.mediaId, statusTarget.mediaType, status as LibraryStatus); }} />
+      <SelectionModal
+        visible={statusTarget !== null}
+        title="Library status"
+        options={statusOptions}
+        value={statusTarget?.status}
+        onClose={() => setStatusTarget(null)}
+        onSelect={(status) => {
+          if (statusTarget)
+            setStatus(statusTarget.mediaId, statusTarget.mediaType, status as LibraryStatus);
+        }}
+      />
     </Screen>
   );
 }

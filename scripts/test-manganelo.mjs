@@ -18,7 +18,7 @@ async function testMangaNelo() {
       console.log('✅ Site is accessible');
       const pageText = await siteResponse.text();
       console.log(`Page length: ${pageText.length} characters`);
-      
+
       // Test 2: Check for Cloudflare or other protections
       console.log('\n🔍 Test 2: Protection Detection');
       const headers = Object.fromEntries(siteResponse.headers.entries());
@@ -26,16 +26,16 @@ async function testMangaNelo() {
 
       // Check for common protection indicators
       const protectionIndicators = {
-        'Cloudflare': headers['cf-ray'] || headers['server']?.includes('cloudflare'),
-        'Challenge': pageText.includes('challenge') || pageText.includes('captcha'),
+        Cloudflare: headers['cf-ray'] || headers['server']?.includes('cloudflare'),
+        Challenge: pageText.includes('challenge') || pageText.includes('captcha'),
         'JavaScript Required': pageText.includes('javascript') && pageText.includes('enabled'),
-        'Redirect': siteResponse.redirected,
-        'Cookie Requirements': headers['set-cookie']?.length > 0
+        Redirect: siteResponse.redirected,
+        'Cookie Requirements': headers['set-cookie']?.length > 0,
       };
 
       console.log('Protection indicators:', protectionIndicators);
 
-      const hasProtection = Object.values(protectionIndicators).some(v => v === true);
+      const hasProtection = Object.values(protectionIndicators).some((v) => v === true);
       if (hasProtection) {
         console.log('⚠️  Protection detected - may require special handling');
       } else {
@@ -45,12 +45,14 @@ async function testMangaNelo() {
       console.log('\n=== MangaNelo Evaluation ===');
       console.log('Status: Operational website (nelomanga.net)');
       console.log('Protection Assessment:', hasProtection ? 'Has protections' : 'Normal access');
-      console.log('Integration Feasibility:', hasProtection ? 'Requires investigation' : 'Potentially viable');
+      console.log(
+        'Integration Feasibility:',
+        hasProtection ? 'Requires investigation' : 'Potentially viable',
+      );
     } else {
       console.log('❌ Site access failed');
       return;
     }
-
   } catch (error) {
     console.error('❌ Test failed:', error.message);
   }

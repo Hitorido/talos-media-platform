@@ -15,6 +15,7 @@ export function RecentlyUpdatedCard({ item, onPress, className }: RecentlyUpdate
   return (
     <View className={cn('w-28', className)}>
       <ContentPosterCard
+        routeId={item.id}
         title={item.title}
         coverUrl={item.coverUrl}
         type={item.type}

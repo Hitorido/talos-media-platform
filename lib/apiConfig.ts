@@ -14,7 +14,9 @@ export function getApiBaseUrl(): string {
     return configured.replace(/\/$/, '');
   }
 
-  const fromExtra = (Constants.expoConfig?.extra as { apiUrl?: string } | undefined)?.apiUrl?.trim();
+  const fromExtra = (
+    Constants.expoConfig?.extra as { apiUrl?: string } | undefined
+  )?.apiUrl?.trim();
   if (fromExtra) {
     return fromExtra.replace(/\/$/, '');
   }

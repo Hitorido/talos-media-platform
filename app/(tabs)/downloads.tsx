@@ -1,6 +1,8 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { View } from 'react-native';
+import { Alert, Image, View } from 'react-native';
+import { PopPressable as Pressable } from '@/components/ui/PopPressable';
 
 import { DownloadCard, DownloadSectionTabs } from '@/components/downloads';
 import { Button, Screen, SwipeableRow, Text } from '@/components/ui';
@@ -29,6 +31,7 @@ export default function DownloadsScreen() {
   const items = useMemo(() => Object.values(itemsMap), [itemsMap]);
 
   const [activeTab, setActiveTab] = useState<DownloadSectionTab>('all');
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
 
   const counts: Record<DownloadSectionTab, number> = useMemo(() => {
     return {
@@ -60,6 +63,30 @@ export default function DownloadsScreen() {
       .reduce((sum, i) => sum + (i.bytesDownloaded || 0), 0);
   }, [items]);
 
+  const groupedItems = useMemo(() => {
+    const groups = new Map<
+      string,
+      { key: string; title: string; coverUrl: string; items: DownloadItem[]; updatedAt: number }
+    >();
+    for (const item of filteredItems) {
+      const key = `${item.mediaType}:${item.mediaId}`;
+      const group = groups.get(key);
+      if (group) {
+        group.items.push(item);
+        group.updatedAt = Math.max(group.updatedAt, item.updatedAt);
+      } else {
+        groups.set(key, {
+          key,
+          title: item.mediaTitle,
+          coverUrl: item.coverUrl,
+          items: [item],
+          updatedAt: item.updatedAt,
+        });
+      }
+    }
+    return [...groups.values()].sort((a, b) => b.updatedAt - a.updatedAt);
+  }, [filteredItems]);
+
   const handleOpenItem = (item: DownloadItem) => {
     if (item.mediaType === 'anime') {
       router.push(animeWatchHref(item.mediaId, item.unitId));
@@ -75,11 +102,24 @@ export default function DownloadsScreen() {
   };
 
   const handleDismissItem = (item: DownloadItem) => {
-    // For active/queued: cancel first, then delete
-    if (item.status === 'downloading' || item.status === 'queued' || item.status === 'paused') {
-      cancelDownload(item.id);
+    void deleteDownload(item.id);
+  };
+
+  const handleDeleteAll = () => {
+    Alert.alert('Delete all downloads?', 'This removes every downloaded episode and chapter.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete all',
+        style: 'destructive',
+        onPress: () => void Promise.all(items.map((item) => deleteDownload(item.id))),
+      },
+    ]);
+  };
+
+  const handleRetryFailed = () => {
+    for (const item of items) {
+      if (item.status === 'failed' || item.status === 'cancelled') retryDownload(item.id);
     }
-    deleteDownload(item.id);
   };
 
   return (
@@ -91,9 +131,32 @@ export default function DownloadsScreen() {
             <Text variant="h1">Downloads</Text>
             <Text tone="muted">Manage your offline media and queues.</Text>
           </View>
-          {counts.completed > 0 ? (
-            <Button label="Clear" variant="secondary" size="sm" onPress={clearCompletedDownloads} />
-          ) : null}
+          <View className="flex-row items-center gap-2">
+            {counts.failed > 0 ? (
+              <Button
+                label="Retry failed"
+                variant="secondary"
+                size="sm"
+                onPress={handleRetryFailed}
+              />
+            ) : null}
+            {counts.completed > 0 ? (
+              <Button
+                label="Clear completed"
+                variant="secondary"
+                size="sm"
+                onPress={() => void clearCompletedDownloads()}
+              />
+            ) : null}
+            {items.length > 0 ? (
+              <Button
+                label="Delete all"
+                variant="destructive"
+                size="sm"
+                onPress={handleDeleteAll}
+              />
+            ) : null}
+          </View>
         </View>
 
         {/* Storage stats banner */}
@@ -108,7 +171,9 @@ export default function DownloadsScreen() {
             <Text variant="caption" tone="muted">
               Downloaded Titles
             </Text>
-            <Text variant="label">{counts.completed} Items</Text>
+            <Text variant="label" numberOfLines={1} adjustsFontSizeToFit>
+              {counts.completed} Items
+            </Text>
           </View>
         </View>
       </View>
@@ -117,7 +182,7 @@ export default function DownloadsScreen() {
       <DownloadSectionTabs activeTab={activeTab} counts={counts} onSelectTab={setActiveTab} />
 
       {/* Swipe hint */}
-      {filteredItems.length > 0 ? (
+      {groupedItems.length > 0 ? (
         <View className="px-4">
           <Text variant="caption" tone="muted" className="text-center">
             Swipe right on a title to remove it
@@ -127,25 +192,74 @@ export default function DownloadsScreen() {
 
       {/* Download Items List */}
       <View className="gap-3 px-4">
-        {filteredItems.length > 0 ? (
-          filteredItems.map((item) => (
-            <SwipeableRow
-              key={item.id}
-              onSwipeRight={() => handleDismissItem(item)}
-              actionLabel="Remove"
-              actionIcon="trash-outline"
-            >
-              <DownloadCard
-                item={item}
-                onPause={() => pauseDownload(item.id)}
-                onResume={() => resumeDownload(item.id)}
-                onRetry={() => retryDownload(item.id)}
-                onCancel={() => cancelDownload(item.id)}
-                onDelete={() => deleteDownload(item.id)}
-                onOpen={() => handleOpenItem(item)}
-              />
-            </SwipeableRow>
-          ))
+        {groupedItems.length > 0 ? (
+          groupedItems.map((group) => {
+            const isCollapsed = collapsedGroups[group.key] ?? false;
+            return (
+              <View
+                key={group.key}
+                className="overflow-hidden rounded-xl border border-neutral-200 dark:border-neutral-800"
+              >
+                <SwipeableRow
+                  onSwipeRight={() =>
+                    void Promise.all(group.items.map((item) => deleteDownload(item.id)))
+                  }
+                  actionLabel="Delete title"
+                  actionIcon="trash-outline"
+                >
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded: !isCollapsed }}
+                    onPress={() =>
+                      setCollapsedGroups((current) => ({ ...current, [group.key]: !isCollapsed }))
+                    }
+                    className="flex-row items-center gap-3 bg-neutral-100 p-3 dark:bg-neutral-900"
+                  >
+                    <Image
+                      source={group.coverUrl?.trim() ? { uri: group.coverUrl } : undefined}
+                      className="h-14 w-10 rounded bg-neutral-300 dark:bg-neutral-800"
+                      resizeMode="cover"
+                    />
+                    <View className="flex-1">
+                      <Text variant="label" numberOfLines={1}>
+                        {group.title}
+                      </Text>
+                      <Text variant="caption" tone="muted" numberOfLines={1}>
+                        {group.items.length} {group.items.length === 1 ? 'download' : 'downloads'}
+                      </Text>
+                    </View>
+                    <Ionicons
+                      name={isCollapsed ? 'chevron-down' : 'chevron-up'}
+                      size={20}
+                      color="#9ca3af"
+                    />
+                  </Pressable>
+                </SwipeableRow>
+                {!isCollapsed ? (
+                  <View className="gap-3 p-2">
+                    {group.items.map((item) => (
+                      <SwipeableRow
+                        key={item.id}
+                        onSwipeRight={() => handleDismissItem(item)}
+                        actionLabel="Delete"
+                        actionIcon="trash-outline"
+                      >
+                        <DownloadCard
+                          item={item}
+                          onPause={() => pauseDownload(item.id)}
+                          onResume={() => resumeDownload(item.id)}
+                          onRetry={() => retryDownload(item.id)}
+                          onCancel={() => cancelDownload(item.id)}
+                          onDelete={() => void deleteDownload(item.id)}
+                          onOpen={() => handleOpenItem(item)}
+                        />
+                      </SwipeableRow>
+                    ))}
+                  </View>
+                ) : null}
+              </View>
+            );
+          })
         ) : (
           <View className="items-center gap-2 py-16">
             <Text variant="h3">No downloads found</Text>

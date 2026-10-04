@@ -1,4 +1,4 @@
-﻿import { load } from 'cheerio';
+import { load } from 'cheerio';
 import { checkedId, sourceText } from '../shared/sourceHttp.js';
 import { ProviderGatewayError, type ContentProviderAdapter } from '../types.js';
 
@@ -165,7 +165,9 @@ export const donghuaStreamAdapter: ContentProviderAdapter = {
       mediaId: sourceId,
       episodeId,
       url: mediaUrl(candidate.url),
-      qualityOptions: Object.entries(variants).filter(([quality]) => /^(360|480|720|1080)$/.test(quality)).map(([quality, value]) => ({label:quality+'p',url:mediaUrl(value.url)})),
+      qualityOptions: Object.entries(variants)
+        .filter(([quality]) => /^(360|480|720|1080)$/.test(quality))
+        .map(([quality, value]) => ({ label: quality + 'p', url: mediaUrl(value.url) })),
       contentType: 'hls',
       availability: 'available',
       note: 'DonghuaStream public video. Some uploads include burned-in English captions; availability varies by episode.',

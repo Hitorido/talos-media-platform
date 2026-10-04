@@ -1,12 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { ENV } from '../config/env.js';
 
-export function errorHandler(
-  err: Error,
-  _req: Request,
-  res: Response,
-  _next: NextFunction,
-) {
+export function errorHandler(err: Error, _req: Request, res: Response, _next: NextFunction) {
   console.error('[Backend Error]:', err);
 
   const status = (err as Error & { statusCode?: number }).statusCode || 500;

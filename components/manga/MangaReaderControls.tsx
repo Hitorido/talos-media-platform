@@ -1,10 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
-import { PanResponder, Pressable, View } from 'react-native';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { View } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, { runOnJS, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Text } from '@/components/ui';
 import type { ReadingDirection, ReadingMode } from '@/types/manga';
 import { cn } from '@/utils/cn';
+import { ReaderPressable } from './ReaderPressable';
 
 type MangaReaderControlsProps = {
   currentPage: number;
@@ -23,55 +26,41 @@ type MangaReaderControlsProps = {
   onSeekPage: (page: number, animated?: boolean) => void;
 };
 
-type ProgressGestureModel = {
-  width: number;
+/**
+ * Seek markers are static for the lifetime of a drag. Keeping them in their own
+ * memoized component means a drag never reconciles hundreds of marker views.
+ */
+const SeekMarkers = memo(function SeekMarkers({
+  pageMarkers,
+  totalPages,
+}: {
+  pageMarkers: number[];
   totalPages: number;
-  direction: ReadingDirection;
-  startProgress: number;
-  lastPage: number;
-  seekPage: (page: number) => void;
-  settlePage: (page: number) => void;
-};
+}) {
+  if (totalPages <= 1) return null;
+  return (
+    <>
+      {pageMarkers.map((pageProgress, index) => (
+        <View
+          key={index}
+          pointerEvents="none"
+          className="absolute top-[2.5px] h-[3px] w-[3px] rounded-full bg-neutral-400"
+          style={{ left: `${(pageProgress / (totalPages - 1)) * 100}%`, marginLeft: -1.5 }}
+        />
+      ))}
+    </>
+  );
+});
 
-function createProgressResponder(
-  gestureModelRef: { current: ProgressGestureModel },
-  seekFromProgress: (progress: number) => void,
-) {
-  return PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponder: () => true,
-    onPanResponderTerminationRequest: () => false,
-    onStartShouldSetPanResponderCapture: () => true,
-    onMoveShouldSetPanResponderCapture: () => true,
-    onPanResponderGrant: (event) => {
-      const gestureModel = gestureModelRef.current;
-      if (!gestureModel.width) return;
-      gestureModel.lastPage = 0;
-      gestureModel.startProgress = Math.max(
-        0,
-        Math.min(1, event.nativeEvent.locationX / gestureModel.width),
-      );
-      seekFromProgress(gestureModel.startProgress);
-    },
-    onPanResponderMove: (_event, gestureState) => {
-      const gestureModel = gestureModelRef.current;
-      if (!gestureModel.width) return;
-      const rawProgress = Math.max(
-        0,
-        Math.min(1, gestureModel.startProgress + gestureState.dx / gestureModel.width),
-      );
-      seekFromProgress(rawProgress);
-    },
-    onPanResponderRelease: () => {
-      const gestureModel = gestureModelRef.current;
-      if (gestureModel.lastPage > 0) {
-        gestureModel.settlePage(gestureModel.lastPage);
-      }
-    },
-  });
-}
+/**
+ * The dragging thumb/fill are driven straight from shared values on the UI thread
+ * (immediate). The numeric bubble is decorative, so it is throttled on the JS side
+ * to avoid queueing a React update for every page crossed during a long drag — that
+ * queue was what made the commit on release feel late.
+ */
+const PREVIEW_THROTTLE_MS = 50;
 
-export function MangaReaderControls({
+function MangaReaderControlsImpl({
   currentPage,
   totalPages,
   mode,
@@ -89,55 +78,140 @@ export function MangaReaderControls({
 }: MangaReaderControlsProps) {
   const insets = useSafeAreaInsets();
   const [progressWidth, setProgressWidth] = useState(0);
+  const [previewPage, setPreviewPage] = useState(currentPage);
   const progressDirection = mode === 'horizontal' ? direction : 'rtl';
   const progress = totalPages > 1 ? (currentPage - 1) / (totalPages - 1) : 0;
   const boundedProgress = Math.max(0, Math.min(1, progress));
-  const gestureModelRef = useRef({
-    width: 0,
-    totalPages: 0,
-    direction: 'rtl' as ReadingDirection,
-    startProgress: 0,
-    lastPage: 0,
-    seekPage: (_page: number): void => undefined,
-    settlePage: (_page: number): void => undefined,
-  });
+  const progressValue = useSharedValue(boundedProgress);
+  const draggingValue = useSharedValue(false);
+  const lastPageValue = useSharedValue(currentPage);
+  const lastPreviewAt = useSharedValue(0);
+  const onSeekPageRef = useRef(onSeekPage);
+  const previewThrottleRef = useRef(0);
+  const markerCount = Math.min(totalPages, Math.max(2, Math.floor(progressWidth / 6)));
+  const pageMarkers = useMemo(
+    () =>
+      Array.from(
+        { length: totalPages > 1 ? markerCount : 0 },
+        (_, index) => (index / (markerCount - 1)) * (totalPages - 1),
+      ),
+    [markerCount, totalPages],
+  );
 
   useEffect(() => {
-    gestureModelRef.current.width = progressWidth;
-    gestureModelRef.current.totalPages = totalPages;
-    gestureModelRef.current.direction = progressDirection;
-    gestureModelRef.current.seekPage = (page) => onSeekPage(page, false);
-    gestureModelRef.current.settlePage = (page) => onSeekPage(page, true);
-  }, [onSeekPage, progressDirection, progressWidth, totalPages]);
+    onSeekPageRef.current = onSeekPage;
+  }, [onSeekPage]);
 
-  function onSeekPageFromProgress(rawProgress: number) {
-    const gestureModel = gestureModelRef.current;
-    if (gestureModel.totalPages <= 0) return;
-    const logicalProgress = gestureModel.direction === 'rtl' ? 1 - rawProgress : rawProgress;
-    const page = Math.round(logicalProgress * (gestureModel.totalPages - 1)) + 1;
-    if (page === gestureModel.lastPage) return;
-    gestureModel.lastPage = page;
-    gestureModel.seekPage(page);
-  }
+  useEffect(() => {
+    if (!draggingValue.value) progressValue.value = boundedProgress;
+  }, [boundedProgress, draggingValue, progressValue]);
 
-  // PanResponder is created once so an active thumb drag is not interrupted by page updates.
-  // eslint-disable-next-line react-hooks/refs
-  const [progressResponder] = useState(() =>
-    createProgressResponder(gestureModelRef, onSeekPageFromProgress),
+  // Throttled so a long drag cannot queue a React update per page crossed.
+  const showPagePreview = useCallback((page: number) => {
+    const now = Date.now();
+    if (now - previewThrottleRef.current < PREVIEW_THROTTLE_MS) return;
+    previewThrottleRef.current = now;
+    setPreviewPage(page);
+  }, []);
+
+  const commitPage = useCallback((page: number) => {
+    onSeekPageRef.current(page, false);
+  }, []);
+
+  const seekGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .minDistance(0)
+        // Gesture callbacks are worklets; shared values are intentionally mutated on the UI thread.
+
+        .onBegin((event) => {
+          if (progressWidth <= 0 || totalPages <= 0) return;
+          const visualProgress = Math.max(0, Math.min(1, event.x / progressWidth));
+          const logicalProgress = progressDirection === 'rtl' ? 1 - visualProgress : visualProgress;
+          const page = Math.round(logicalProgress * (totalPages - 1)) + 1;
+          // eslint-disable-next-line react-hooks/immutability
+          progressValue.value = logicalProgress;
+          // eslint-disable-next-line react-hooks/immutability
+          lastPageValue.value = page;
+          // eslint-disable-next-line react-hooks/immutability
+          draggingValue.value = true;
+          runOnJS(setPreviewPage)(page);
+        })
+        // eslint-disable-next-line react-hooks/refs
+        .onUpdate((event) => {
+          if (progressWidth <= 0 || totalPages <= 0) return;
+          const visualProgress = Math.max(0, Math.min(1, event.x / progressWidth));
+          const logicalProgress = progressDirection === 'rtl' ? 1 - visualProgress : visualProgress;
+          const page = Math.round(logicalProgress * (totalPages - 1)) + 1;
+          // eslint-disable-next-line react-hooks/immutability
+          progressValue.value = logicalProgress;
+          if (page !== lastPageValue.value) {
+            // eslint-disable-next-line react-hooks/immutability
+            lastPageValue.value = page;
+            const now = Date.now();
+            if (now - lastPreviewAt.value >= PREVIEW_THROTTLE_MS) {
+              lastPreviewAt.value = now;
+              runOnJS(showPagePreview)(page);
+            }
+          }
+        })
+        // eslint-disable-next-line react-hooks/refs
+        .onEnd((_event, success) => {
+          if (success && draggingValue.value && lastPageValue.value > 0) {
+            runOnJS(setPreviewPage)(lastPageValue.value);
+            runOnJS(commitPage)(lastPageValue.value);
+          }
+          // eslint-disable-next-line react-hooks/immutability
+          draggingValue.value = false;
+        })
+        .onFinalize(() => {
+          // eslint-disable-next-line react-hooks/immutability
+          draggingValue.value = false;
+        }),
+    [
+      commitPage,
+      draggingValue,
+      lastPageValue,
+      lastPreviewAt,
+      progressDirection,
+      progressValue,
+      progressWidth,
+      showPagePreview,
+      totalPages,
+    ],
   );
+
+  const fillStyle = useAnimatedStyle(() => ({
+    width: `${progressValue.value * 100}%`,
+    ...(progressDirection === 'rtl' ? { right: 0 } : { left: 0 }),
+  }));
+  const thumbStyle = useAnimatedStyle(() => ({
+    ...(progressDirection === 'rtl'
+      ? { right: `${progressValue.value * 100}%` }
+      : { left: `${progressValue.value * 100}%` }),
+    transform: [{ translateX: progressDirection === 'rtl' ? 10 : -10 }],
+  }));
+  const bubbleStyle = useAnimatedStyle(() => ({
+    opacity: draggingValue.value ? 1 : 0,
+    ...(progressDirection === 'rtl'
+      ? { right: `${progressValue.value * 100}%` }
+      : { left: `${progressValue.value * 100}%` }),
+    transform: [
+      { translateX: progressDirection === 'rtl' ? 14 : -14 },
+      { scale: draggingValue.value ? 1 : 0.85 },
+    ],
+  }));
 
   return (
     <View
       style={{ paddingBottom: Math.max(insets.bottom, 12) }}
       className="absolute bottom-0 left-0 right-0 z-20 bg-black/90 px-4 pt-3"
     >
-      {/* Mode & Direction — only visible when Options is on */}
       {showModeOptions ? (
         <View className="mb-3 flex-row items-center justify-between gap-1 border-b border-neutral-800 pb-3">
-          {/* Page Navigation (only in Manga/horizontal mode) */}
           {mode === 'horizontal' ? (
             <View className="flex-row items-center gap-1">
-              <Pressable
+              <ReaderPressable
                 onPress={onPrevPage}
                 disabled={currentPage <= 1}
                 className={cn(
@@ -146,11 +220,11 @@ export function MangaReaderControls({
                 )}
               >
                 <Text className="text-xs font-semibold text-white">‹</Text>
-              </Pressable>
+              </ReaderPressable>
               <Text className="text-xs text-neutral-400">
                 {currentPage}/{totalPages}
               </Text>
-              <Pressable
+              <ReaderPressable
                 onPress={onNextPage}
                 disabled={currentPage >= totalPages}
                 className={cn(
@@ -159,7 +233,7 @@ export function MangaReaderControls({
                 )}
               >
                 <Text className="text-xs font-semibold text-white">›</Text>
-              </Pressable>
+              </ReaderPressable>
             </View>
           ) : (
             <View className="items-center justify-center">
@@ -170,9 +244,8 @@ export function MangaReaderControls({
           )}
 
           <View className="flex-row items-center gap-2">
-            {/* Mode switcher: Webtoon / Manga */}
             <View className="flex-row rounded-lg bg-neutral-900 p-1">
-              <Pressable
+              <ReaderPressable
                 onPress={() => onSelectMode('vertical')}
                 className={cn(
                   'rounded-md px-2.5 py-1',
@@ -180,8 +253,8 @@ export function MangaReaderControls({
                 )}
               >
                 <Text className="text-xs font-medium text-white">Webtoon</Text>
-              </Pressable>
-              <Pressable
+              </ReaderPressable>
+              <ReaderPressable
                 onPress={() => onSelectMode('horizontal')}
                 className={cn(
                   'rounded-md px-2.5 py-1',
@@ -189,13 +262,12 @@ export function MangaReaderControls({
                 )}
               >
                 <Text className="text-xs font-medium text-white">Manga</Text>
-              </Pressable>
+              </ReaderPressable>
             </View>
 
-            {/* RTL/LTR only in Manga mode */}
             {mode === 'horizontal' ? (
               <View className="flex-row rounded-lg bg-neutral-900 p-0.5">
-                <Pressable
+                <ReaderPressable
                   onPress={() => onSelectDirection('rtl')}
                   className={cn(
                     'rounded-md px-1.5 py-0.5',
@@ -203,8 +275,8 @@ export function MangaReaderControls({
                   )}
                 >
                   <Text className="text-[10px] text-white">RTL</Text>
-                </Pressable>
-                <Pressable
+                </ReaderPressable>
+                <ReaderPressable
                   onPress={() => onSelectDirection('ltr')}
                   className={cn(
                     'rounded-md px-1.5 py-0.5',
@@ -212,47 +284,44 @@ export function MangaReaderControls({
                   )}
                 >
                   <Text className="text-[10px] text-white">LTR</Text>
-                </Pressable>
+                </ReaderPressable>
               </View>
             ) : null}
           </View>
         </View>
       ) : null}
 
-      {/* Always-visible Chapter Navigation Row */}
-      <View className="mb-3 h-5 px-1">
-        <View
-          className="absolute left-1 right-1 top-1.5 h-2 rounded-full bg-neutral-800"
-          onLayout={(event) => {
-            setProgressWidth(event.nativeEvent.layout.width);
-          }}
-          {...progressResponder.panHandlers}
-        >
+      <View className="mb-3 h-10 px-1">
+        <GestureDetector gesture={seekGesture}>
           <View
-            pointerEvents="none"
-            className="absolute h-full rounded-full bg-primary-500"
-            style={{
-              width: `${boundedProgress * 100}%`,
-              ...(progressDirection === 'rtl' ? { right: 0 } : { left: 0 }),
-            }}
-          />
-          <View
-            pointerEvents="none"
-            className="absolute -top-1.5 h-5 w-5 rounded-full border-2 border-white bg-primary-500 shadow"
-            style={{
-              ...(progressDirection === 'rtl'
-                ? {
-                    right: `${boundedProgress * 100}%`,
-                  }
-                : { left: `${boundedProgress * 100}%` }),
-              transform: [{ translateX: progressDirection === 'rtl' ? 10 : -10 }],
-            }}
-          />
-        </View>
+            hitSlop={{ top: 15, bottom: 15 }}
+            className="absolute left-1 right-1 top-[15px] h-2 rounded-full bg-neutral-800"
+            onLayout={(event) => setProgressWidth(event.nativeEvent.layout.width)}
+          >
+            <SeekMarkers pageMarkers={pageMarkers} totalPages={totalPages} />
+            <Animated.View
+              pointerEvents="none"
+              className="absolute h-full rounded-full bg-primary-500/25"
+              style={fillStyle}
+            />
+            <Animated.View
+              pointerEvents="none"
+              className="absolute -top-1.5 h-5 w-5 rounded-full border-2 border-white bg-primary-500 shadow"
+              style={thumbStyle}
+            />
+            <Animated.View
+              pointerEvents="none"
+              className="absolute -top-[19px] min-w-7 items-center rounded-full bg-primary-500 px-1 py-1"
+              style={bubbleStyle}
+            >
+              <Text className="text-[9px] font-bold text-white">{previewPage}</Text>
+            </Animated.View>
+          </View>
+        </GestureDetector>
       </View>
 
       <View className="flex-row items-center justify-between">
-        <Pressable
+        <ReaderPressable
           onPress={onPrevChapter}
           disabled={!hasPrevChapter}
           className={cn(
@@ -261,9 +330,8 @@ export function MangaReaderControls({
           )}
         >
           <Text className="text-xs font-semibold text-white">« Prev Chapter</Text>
-        </Pressable>
-
-        <Pressable
+        </ReaderPressable>
+        <ReaderPressable
           onPress={onNextChapter}
           disabled={!hasNextChapter}
           className={cn(
@@ -272,8 +340,10 @@ export function MangaReaderControls({
           )}
         >
           <Text className="text-xs font-semibold text-white">Next Chapter »</Text>
-        </Pressable>
+        </ReaderPressable>
       </View>
     </View>
   );
 }
+
+export const MangaReaderControls = memo(MangaReaderControlsImpl);

@@ -71,7 +71,7 @@ async function fetchText(url: string): Promise<string> {
 async function fetchNovel(ncode: string): Promise<NarouNovel> {
   const payload = JSON.parse(
     await fetchText(`${API_URL}?out=json&ncode=${encodeURIComponent(ncode)}`),
-  ) as Array<NarouNovel | { allcount?: number }>;
+  ) as (NarouNovel | { allcount?: number })[];
   const novel = payload.find((item): item is NarouNovel => 'ncode' in item);
   if (!novel) throw new ProviderGatewayError('Narou novel was not found.', 404, 'NOT_FOUND');
   return novel;
@@ -79,7 +79,8 @@ async function fetchNovel(ncode: string): Promise<NarouNovel> {
 
 function parseChapterList(ncode: string, html: string): BackendNormalizedChapter[] {
   const chapters: BackendNormalizedChapter[] = [];
-  const pattern = /<a\s+href="\/(n[a-z0-9]+)\/(\d+)\/"[^>]*class="p-eplist__subtitle"[^>]*>([\s\S]*?)<\/a>/gi;
+  const pattern =
+    /<a\s+href="\/(n[a-z0-9]+)\/(\d+)\/"[^>]*class="p-eplist__subtitle"[^>]*>([\s\S]*?)<\/a>/gi;
   for (const match of html.matchAll(pattern)) {
     const chapterNumber = Number.parseInt(match[2], 10);
     if (!Number.isFinite(chapterNumber)) continue;
@@ -95,14 +96,24 @@ function parseChapterList(ncode: string, html: string): BackendNormalizedChapter
   return chapters;
 }
 
-function parseChapterContent(ncode: string, chapterId: string, html: string): BackendNormalizedNovelContent {
-  const title = decodeHtml(html.match(/<h1[^>]*class="[^"]*p-novel__title[^"]*"[^>]*>([\s\S]*?)<\/h1>/i)?.[1] ?? '');
+function parseChapterContent(
+  ncode: string,
+  chapterId: string,
+  html: string,
+): BackendNormalizedNovelContent {
+  const title = decodeHtml(
+    html.match(/<h1[^>]*class="[^"]*p-novel__title[^"]*"[^>]*>([\s\S]*?)<\/h1>/i)?.[1] ?? '',
+  );
   const body = html.match(/<div class="js-novel-text[^"]*">([\s\S]*?)<\/div>/i)?.[1] ?? '';
   const paragraphs = [...body.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)]
     .map((match) => decodeHtml(match[1]))
     .filter(Boolean);
   if (paragraphs.length === 0) {
-    throw new ProviderGatewayError('Narou chapter returned no text content.', 502, 'CONTENT_NOT_FOUND');
+    throw new ProviderGatewayError(
+      'Narou chapter returned no text content.',
+      502,
+      'CONTENT_NOT_FOUND',
+    );
   }
   return {
     providerId: PROVIDER_ID,
@@ -130,7 +141,7 @@ export const narouProviderAdapter: ContentProviderAdapter = {
   async search(query): Promise<BackendSearchResult[]> {
     const payload = JSON.parse(
       await fetchText(`${API_URL}?out=json&lim=12&word=${encodeURIComponent(query)}`),
-    ) as Array<NarouNovel | { allcount?: number }>;
+    ) as (NarouNovel | { allcount?: number })[];
     return payload
       .filter((item): item is NarouNovel => 'ncode' in item)
       .map((item) => ({

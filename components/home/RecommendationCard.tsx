@@ -1,6 +1,8 @@
-import { Image, Pressable, View } from 'react-native';
+import { Image, View } from 'react-native';
+import { PopPressable as Pressable } from '@/components/ui/PopPressable';
 
 import { Badge, Text } from '@/components/ui';
+import { useMediaCover } from '@/hooks/useMediaCover';
 import type { RecommendationItem } from '@/types/content';
 import { cn } from '@/utils/cn';
 
@@ -23,6 +25,7 @@ const badgeLabelMap = {
 } as const;
 
 export function RecommendationCard({ item, onPress, className }: RecommendationCardProps) {
+  const displayCover = useMediaCover(item.id, item.coverUrl);
   return (
     <Pressable
       accessibilityRole="button"
@@ -33,7 +36,11 @@ export function RecommendationCard({ item, onPress, className }: RecommendationC
       )}
     >
       <View className="flex-row">
-        <Image source={item.coverUrl?.trim() ? { uri: item.coverUrl } : undefined} className="h-28 w-20" resizeMode="cover" />
+        <Image
+          source={displayCover?.trim() ? { uri: displayCover } : undefined}
+          className="h-28 w-20"
+          resizeMode="cover"
+        />
         <View className="flex-1 gap-2 p-3">
           <Badge label={badgeLabelMap[item.type]} variant={badgeVariantMap[item.type]} />
           <Text variant="label" numberOfLines={2}>

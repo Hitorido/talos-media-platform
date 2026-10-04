@@ -17,8 +17,8 @@ async function testMangaUpdates() {
       },
       body: JSON.stringify({
         search: 'One Piece',
-        per_page: 3
-      })
+        per_page: 3,
+      }),
     });
 
     console.log(`Status: ${response.status}`);
@@ -41,7 +41,6 @@ async function testMangaUpdates() {
     console.log('   - No chapter content access');
     console.log('   - Requires credit to MangaUpdates');
     console.log('   - Acceptable use policy restrictions');
-
   } catch (error) {
     console.error('❌ Test failed:', error.message);
   }

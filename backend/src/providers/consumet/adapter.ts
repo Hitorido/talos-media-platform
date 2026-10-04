@@ -1,6 +1,12 @@
 import { ENV } from '../../config/env.js';
-import type { ContentProviderAdapter } from '../types.js';
-import { ProviderGatewayError, type BackendNormalizedEpisode, type BackendNormalizedMedia, type BackendNormalizedPlaybackSource, type BackendSearchResult } from '../types.js';
+import {
+  type ContentProviderAdapter,
+  ProviderGatewayError,
+  type BackendNormalizedEpisode,
+  type BackendNormalizedMedia,
+  type BackendNormalizedPlaybackSource,
+  type BackendSearchResult,
+} from '../types.js';
 
 const PUBLIC_CONSUMET = 'https://api.consumet.org';
 
@@ -25,16 +31,16 @@ function resolveConsumetStatus() {
 }
 
 type ConsumetResponse = {
-  results?: Array<{ id: string; title?: string; image?: string; description?: string }>;
+  results?: { id: string; title?: string; image?: string; description?: string }[];
   id?: string;
   title?: string;
   image?: string;
   description?: string;
   genres?: string[];
   status?: string;
-  episodes?: Array<{ id: string; title?: string; number?: number; image?: string }>;
-  sources?: Array<{ url: string; quality?: string; isM3U8?: boolean }>;
-  subtitles?: Array<{ url: string; lang?: string; language?: string }>;
+  episodes?: { id: string; title?: string; number?: number; image?: string }[];
+  sources?: { url: string; quality?: string; isM3U8?: boolean }[];
+  subtitles?: { url: string; lang?: string; language?: string }[];
 };
 
 function ensureConfigured(): string {
@@ -103,7 +109,11 @@ export const consumetProviderAdapter: ContentProviderAdapter = {
 
   async search(query, mediaType) {
     if (mediaType !== 'anime') {
-      throw new ProviderGatewayError('Backend Consumet adapter currently supports anime only.', 400, 'MEDIA_TYPE_MISMATCH');
+      throw new ProviderGatewayError(
+        'Backend Consumet adapter currently supports anime only.',
+        400,
+        'MEDIA_TYPE_MISMATCH',
+      );
     }
     const payload = await consumetRequest(`/anime/gogoanime/${encodeURIComponent(query)}?page=1`);
     return (payload.results ?? []).map((item): BackendSearchResult => ({
@@ -118,7 +128,11 @@ export const consumetProviderAdapter: ContentProviderAdapter = {
 
   async getDetails(sourceId, mediaType): Promise<BackendNormalizedMedia> {
     if (mediaType !== 'anime') {
-      throw new ProviderGatewayError('Backend Consumet adapter currently supports anime only.', 400, 'MEDIA_TYPE_MISMATCH');
+      throw new ProviderGatewayError(
+        'Backend Consumet adapter currently supports anime only.',
+        400,
+        'MEDIA_TYPE_MISMATCH',
+      );
     }
     const payload = await consumetRequest(`/anime/gogoanime/info/${encodeURIComponent(sourceId)}`);
     return {
@@ -145,10 +159,17 @@ export const consumetProviderAdapter: ContentProviderAdapter = {
   },
 
   async getPlaybackSource(sourceId, episodeId): Promise<BackendNormalizedPlaybackSource> {
-    const payload = await consumetRequest(`/anime/gogoanime/watch/${encodeURIComponent(episodeId)}`);
-    const source = payload.sources?.find((item) => item.quality === '1080p') ?? payload.sources?.[0];
+    const payload = await consumetRequest(
+      `/anime/gogoanime/watch/${encodeURIComponent(episodeId)}`,
+    );
+    const source =
+      payload.sources?.find((item) => item.quality === '1080p') ?? payload.sources?.[0];
     if (!source?.url) {
-      throw new ProviderGatewayError('Consumet returned no playable sources.', 502, 'NO_PLAYABLE_SOURCE');
+      throw new ProviderGatewayError(
+        'Consumet returned no playable sources.',
+        502,
+        'NO_PLAYABLE_SOURCE',
+      );
     }
     return {
       providerId: 'proxy-consumet',
@@ -165,5 +186,4 @@ export const consumetProviderAdapter: ContentProviderAdapter = {
       note: 'Playback resolved through the configured Consumet-compatible endpoint.',
     };
   },
-
 };

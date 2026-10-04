@@ -3,7 +3,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { appPersistStorage } from '@/stores/persistStorage';
 
-export type BackendUrlKey = 'scraper' | 'novel';
+export type BackendUrlKey = 'scraper' | 'novel' | 'consumet';
 
 type BackendConfigState = {
   backendUrls: Partial<Record<BackendUrlKey, string>>;

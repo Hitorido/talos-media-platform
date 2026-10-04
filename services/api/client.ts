@@ -94,3 +94,46 @@ export async function checkBackendHealth(): Promise<boolean> {
     return false;
   }
 }
+
+let lastWakeVerifiedAt = 0;
+let pendingWake: Promise<boolean> | null = null;
+const WAKE_REUSE_WINDOW_MS = 15_000;
+
+/**
+ * Best-effort `/health` ping so a sleeping Render instance starts warming up.
+ * Returns true when the backend answers (or was verified very recently).
+ */
+export async function wakeBackend(): Promise<boolean> {
+  if (Date.now() - lastWakeVerifiedAt < WAKE_REUSE_WINDOW_MS) return true;
+  if (!pendingWake) pendingWake = checkBackendHealth().then((awake) => {
+    if (awake) lastWakeVerifiedAt = Date.now();
+    return awake;
+  }).finally(() => { pendingWake = null; });
+  return pendingWake;
+}
+
+/**
+ * Backend-backed providers all share one Render instance that sleeps when idle.
+ * A first request can therefore fail purely because the instance is cold.
+ *
+ * On a cold-start-shaped failure (network error / 502-504) we ping `/health` to
+ * trigger the wake-up and retry exactly once. A sleeping backend is never
+ * mistaken for a broken source, and a provider is never permanently disabled
+ * because the first Render request timed out.
+ */
+export async function apiRequestWithWake<T>(
+  path: string,
+  options: RequestOptions = {},
+): Promise<T> {
+  try {
+    return await apiRequest<T>(path, options);
+  } catch (error) {
+    if (options.signal?.aborted || (options.method && options.method !== 'GET')) throw error;
+    const status = error instanceof ApiError ? error.status : -1;
+    const looksLikeColdStart = status === 0 || status === 502 || status === 503 || status === 504;
+    if (!looksLikeColdStart) throw error;
+    const awake = await wakeBackend();
+    if (!awake) throw error;
+    return apiRequest<T>(path, options);
+  }
+}

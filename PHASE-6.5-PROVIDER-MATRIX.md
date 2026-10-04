@@ -13,7 +13,6 @@ This summary supersedes older status statements below; earlier sections are reta
 - Discovery: all seven sections implemented/local-verified. Production Narou discovery confirmation remains pending connectivity; recommendations are anime-only.
 - AnimeParadise: real HLS/video/audio verified, physical player behavior unverified. Narou reading regression remains verified.
 
-
 Verification date: 2026-09-17. Statuses distinguish local adapter success from Render deployment and physical-device UI verification. Enabled is not equivalent to working.
 
 ## WeebCentral — Backend — Limited (production verification pending)
@@ -524,7 +523,6 @@ Deployment evidence: code `6c18a7c` pushed to main successfully. All four Render
 - **Pending:** Webnovel/Wuxiaworld/public translator-feed integrations, early Soul Land 2 native playback, broader Korean/Chinese coverage, deployed backend health, and phone retests. Public host names or iframe responses alone do not qualify as working playback sources.
 
 References: source-owned https://www.royalroad.com/fiction/21220/mother-of-learning ; https://donghuastream.org/anime/soul-land-2nd/ ; source-provided public Rumble embed/media; https://novelping.com/ . No third-party parser code was copied or executed.
-
 
 ## September 29 verification correction
 

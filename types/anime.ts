@@ -10,6 +10,7 @@ export type AnimeEpisode = {
 export type AnimeDetails = {
   id: string;
   title: string;
+  altTitles?: string[];
   description: string;
   coverUrl: string;
   bannerUrl: string;

@@ -1,21 +1,27 @@
 import { SourceWebsiteButton } from '@/components/content/SourceWebsiteButton';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, FlatList, Modal, Pressable, View } from 'react-native';
+import { ActivityIndicator, Animated, FlatList, Modal, View } from 'react-native';
+import { PopPressable as Pressable } from '@/components/ui/PopPressable';
 
 import {
-    NovelReaderControls,
-    NovelReaderHeader,
-    NovelReaderText,
-    NovelReaderTextRef,
+  NovelReaderControls,
+  NovelReaderHeader,
+  NovelReaderText,
+  NovelReaderTextRef,
 } from '@/components/novel';
 import { Badge, Text } from '@/components/ui';
 import { useNovelContent } from '@/hooks/useNovelContent';
 import { novelDetailsHref } from '@/lib/routes';
 import { getProviderDisplayName, resolveNovelChapterContent } from '@/services/contentService';
+import { maintainNovelDownloadWindow } from '@/services/rollingDownloadService';
 import { useNovelProgressStore } from '@/stores/novelProgressStore';
+import { useRollingDownloadSettingsStore } from '@/stores/rollingDownloadSettingsStore';
 import type { NovelChapter } from '@/types/novel';
 import { cn } from '@/utils/cn';
+
+// Stable empty cache so "no chapters loaded" never changes identity.
+const EMPTY_CHAPTER_CACHE: Record<string, NovelChapter> = {};
 
 export default function NovelReaderScreen() {
   const router = useRouter();
@@ -33,12 +39,14 @@ export default function NovelReaderScreen() {
       router.back();
     } else {
       // Cast needed: typed routes require literal path strings; our helper returns a cast Href.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       router.replace(novelDetailsHref(id) as any);
     }
   }, [router, id]);
 
   const settings = useNovelProgressStore((state) => state.settings);
+  const rollingDownloadsEnabled = useRollingDownloadSettingsStore((state) => state.enabled);
+  const rollingDownloadWindow = useRollingDownloadSettingsStore((state) => state.windowSize);
   const updateSettings = useNovelProgressStore((state) => state.updateSettings);
   const setChapterProgress = useNovelProgressStore((state) => state.setChapterProgress);
   const addBookmark = useNovelProgressStore((state) => state.addBookmark);
@@ -73,11 +81,18 @@ export default function NovelReaderScreen() {
   const [showSettingsSheet, setShowSettingsSheet] = useState<boolean>(false);
   const [showChapterPicker, setShowChapterPicker] = useState<boolean>(false);
   const [showChapterNavPrompt, setShowChapterNavPrompt] = useState<boolean>(false);
-  const [chapterToast, setChapterToast] = useState<{ visible: boolean; title: string }>({
-    visible: false,
-    title: '',
-  });
-  const [chaptersWithContent, setChaptersWithContent] = useState<Record<string, NovelChapter>>({});
+  const [contentCache, setContentCache] = useState<{
+    novelId: string;
+    chapters: Record<string, NovelChapter>;
+  }>({ novelId: id, chapters: EMPTY_CHAPTER_CACHE });
+  // Keying the cache by novel means switching books resets it during render,
+  // with no synchronous setState cascade from an effect.
+  const chaptersWithContent =
+    contentCache.novelId === id ? contentCache.chapters : EMPTY_CHAPTER_CACHE;
+  const writeChaptersWithContent = useCallback(
+    (chapters: Record<string, NovelChapter>) => setContentCache({ novelId: id, chapters }),
+    [id],
+  );
   const [contentLoading, setContentLoading] = useState(true);
   const [contentError, setContentError] = useState<string | null>(null);
   const [isOffline, setIsOffline] = useState(false);
@@ -85,8 +100,9 @@ export default function NovelReaderScreen() {
   const [contentProviderId, setContentProviderId] = useState<string | null>(null);
   const [retryNonce, setRetryNonce] = useState(0);
 
-  const chapterPromptTranslate = useRef(new Animated.Value(80)).current;
-  const chapterPromptOpacity = useRef(new Animated.Value(0)).current;
+  // Lazy state init keeps stable Animated.Values without reading refs during render.
+  const [chapterPromptTranslate] = useState(() => new Animated.Value(80));
+  const [chapterPromptOpacity] = useState(() => new Animated.Value(0));
   const novelReaderRef = useRef<NovelReaderTextRef>(null);
 
   const lastSavedRef = useRef<{ chapterId: string; ratio: number }>({
@@ -94,17 +110,30 @@ export default function NovelReaderScreen() {
     ratio: chapterScrollProgress,
   });
 
-  useEffect(() => {
+  // Route params own the active chapter and its reading progress. Adjusting
+  // during render (React's documented "state from props" pattern) means a
+  // chapter switch costs no extra effect-driven render pass.
+  const routeProgressKey = `${chapterId}|${chapterScrollProgress}`;
+  const [syncedProgressKey, setSyncedProgressKey] = useState(routeProgressKey);
+  if (syncedProgressKey !== routeProgressKey) {
+    setSyncedProgressKey(routeProgressKey);
     setActiveChapterId(chapterId);
     setReadingProgress(chapterScrollProgress);
+  }
+  useEffect(() => {
     lastSavedRef.current = { chapterId, ratio: chapterScrollProgress };
   }, [chapterId, chapterScrollProgress]);
 
   // Reset the chapter-navigation prompt when the active chapter changes to prevent
-  // ghost overlays from stale animation state on the incoming chapter.
+  // ghost overlays from stale animation state on the incoming chapter. The
+  // visibility flag is derived below; only the animated values need an effect.
+  const [syncedPromptChapter, setSyncedPromptChapter] = useState(activeChapterId);
+  if (syncedPromptChapter !== activeChapterId) {
+    setSyncedPromptChapter(activeChapterId);
+    if (settings.scrollMode !== 'continuous') setShowChapterNavPrompt(false);
+  }
   useEffect(() => {
     if (settings.scrollMode === 'continuous') return;
-    setShowChapterNavPrompt(false);
     // Snap values to hidden immediately — no animation delay means no ghost frame.
     chapterPromptOpacity.setValue(0);
     chapterPromptTranslate.setValue(80);
@@ -121,12 +150,12 @@ export default function NovelReaderScreen() {
     [id, novel],
   );
 
+  // Latest-value holder for the already-loaded chapter cache. Written from an
+  // effect rather than during render so the ref is never mutated mid-render.
   const loadedContentRef = useRef(chaptersWithContent);
-  loadedContentRef.current = chaptersWithContent;
   useEffect(() => {
-    loadedContentRef.current = {};
-    setChaptersWithContent({});
-  }, [id]);
+    loadedContentRef.current = chaptersWithContent;
+  });
   useEffect(() => {
     if (!novel || novel.id !== id || !id || !activeChapterId) return;
     let cancelled = false;
@@ -149,7 +178,7 @@ export default function NovelReaderScreen() {
           const result = await loadChapterContent(target);
           if (cancelled || !result) return;
           loadedContentRef.current = { ...loadedContentRef.current, [target]: result.chapter };
-          setChaptersWithContent(loadedContentRef.current);
+          writeChaptersWithContent(loadedContentRef.current);
           if (target === activeChapterId) {
             setIsOffline(result.isOffline);
             setIsDemo(result.isDemo);
@@ -168,7 +197,15 @@ export default function NovelReaderScreen() {
     return () => {
       cancelled = true;
     };
-  }, [novel, id, activeChapterId, settings.scrollMode, loadChapterContent, retryNonce]);
+  }, [
+    novel,
+    id,
+    activeChapterId,
+    settings.scrollMode,
+    loadChapterContent,
+    retryNonce,
+    writeChaptersWithContent,
+  ]);
 
   const chaptersToLoad = useMemo<NovelChapter[]>(() => {
     if (!novel) return [];
@@ -185,6 +222,11 @@ export default function NovelReaderScreen() {
   const activeChapter =
     chaptersWithContent[activeChapterId] ??
     novel?.chapters.find((chapter) => chapter.id === activeChapterId);
+  useEffect(() => {
+    if (rollingDownloadsEnabled && novel) {
+      void maintainNovelDownloadWindow(novel, activeChapterId);
+    }
+  }, [activeChapterId, novel, rollingDownloadsEnabled, rollingDownloadWindow]);
 
   const prevChapter = useMemo(() => {
     if (!novel) return undefined;
@@ -228,20 +270,35 @@ export default function NovelReaderScreen() {
     setActiveChapterId((current) => (current === chId ? current : chId));
   }, []);
 
+  // The chapter toast is derived from the active chapter; only the 3s
+  // auto-dismiss needs state, so entering a chapter no longer cascades a
+  // setState from inside the effect body.
+  const [toastDismissedFor, setToastDismissedFor] = useState<string | null>(null);
+  const chapterToast = useMemo(
+    () =>
+      activeChapter && toastDismissedFor !== activeChapterId
+        ? { visible: true, title: activeChapter.title }
+        : { visible: false, title: '' },
+    [activeChapter, toastDismissedFor, activeChapterId],
+  );
+
   useEffect(() => {
-    if (!activeChapter) return;
+    if (!activeChapter || toastDismissedFor === activeChapterId) return;
+    const timer = setTimeout(() => setToastDismissedFor(activeChapterId), 3000);
+    return () => clearTimeout(timer);
+  }, [activeChapterId, activeChapter, toastDismissedFor]);
 
-    setChapterToast({ visible: true, title: activeChapter.title });
-    const timeout = setTimeout(() => {
-      setChapterToast((prev) => ({ ...prev, visible: false }));
-    }, 3000);
-
-    return () => clearTimeout(timeout);
-  }, [activeChapterId, activeChapter]);
+  // Leaving paged mode must clear the nav prompt, otherwise it would reappear
+  // the moment the reader returns to paged mode. Derived during render so the
+  // animation effect below stays free of synchronous setState.
+  const [syncedScrollMode, setSyncedScrollMode] = useState(settings.scrollMode);
+  if (syncedScrollMode !== settings.scrollMode) {
+    setSyncedScrollMode(settings.scrollMode);
+    if (settings.scrollMode === 'continuous') setShowChapterNavPrompt(false);
+  }
 
   useEffect(() => {
     if (settings.scrollMode === 'continuous') {
-      setShowChapterNavPrompt(false);
       Animated.parallel([
         Animated.timing(chapterPromptTranslate, {
           toValue: 80,
