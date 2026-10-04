@@ -6,7 +6,7 @@ const MANGADEX_API = 'https://api.mangadex.org';
 
 const MANGADEX_HEADERS = {
   'User-Agent': 'MangaAnimeNovelReader/1.0',
-  'Accept': 'application/json',
+  Accept: 'application/json',
 };
 
 async function mangadexFetch(url) {
@@ -23,14 +23,16 @@ function pickLocalized(value) {
 }
 
 function classifyManga(manga) {
-  const genres = manga.attributes.tags.map(tag => pickLocalized(tag.attributes.name)).filter(Boolean);
+  const genres = manga.attributes.tags
+    .map((tag) => pickLocalized(tag.attributes.name))
+    .filter(Boolean);
   const originalLanguage = (manga.attributes.originalLanguage || '').toLowerCase();
   let comicFormat = 'manga';
 
-  if (genres.some(genre => genre.toLowerCase().includes('manhwa')) || originalLanguage === 'ko') {
+  if (genres.some((genre) => genre.toLowerCase().includes('manhwa')) || originalLanguage === 'ko') {
     comicFormat = 'manhwa';
   } else if (
-    genres.some(genre => genre.toLowerCase().includes('manhua')) ||
+    genres.some((genre) => genre.toLowerCase().includes('manhua')) ||
     originalLanguage === 'zh' ||
     originalLanguage.startsWith('zh')
   ) {
@@ -41,7 +43,7 @@ function classifyManga(manga) {
     title: pickLocalized(manga.attributes.title),
     originalLanguage,
     genres,
-    comicFormat
+    comicFormat,
   };
 }
 
@@ -106,7 +108,6 @@ async function runTests() {
       console.log('\n⚠️ Some classification tests failed.');
       console.log('MangaDex may need adjustments for proper classification.');
     }
-
   } catch (error) {
     console.error('❌ Test failed:', error.message);
   }

@@ -5,7 +5,8 @@ import { useLibraryStore } from '@/stores/libraryStore';
 import { useMediaBookmarkStore } from '@/stores/mediaBookmarkStore';
 import { useNovelProgressStore } from '@/stores/novelProgressStore';
 import { useRouter } from 'expo-router';
-import { Image, Pressable, View } from 'react-native';
+import { Image, View } from 'react-native';
+import { PopPressable as Pressable } from '@/components/ui/PopPressable';
 
 export function MediaBookmarks({
   mediaId,

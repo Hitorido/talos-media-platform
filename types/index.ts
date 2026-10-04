@@ -54,4 +54,3 @@ export type {
   DownloadSectionTab,
   DownloadStatus,
 } from '@/types/download';
-

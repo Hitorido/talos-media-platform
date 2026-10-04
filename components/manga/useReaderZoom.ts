@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Gesture } from 'react-native-gesture-handler';
 import {
   cancelAnimation,
@@ -28,11 +28,7 @@ function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
 
-function horizontalLimit(
-  scaleValue: number,
-  viewportWidth: number,
-  contentWidth: number,
-) {
+function horizontalLimit(scaleValue: number, viewportWidth: number, contentWidth: number) {
   'worklet';
   // RN applies transform right→left: scale then translateX → x is screen pixels.
   return Math.max(0, (Math.max(contentWidth, 0) * scaleValue - viewportWidth) / 2);
@@ -51,7 +47,11 @@ export function useReaderZoom(
   contentWidth?: SharedValue<number>,
 ) {
   const callbacks = useRef({ onTap, onActive, onNavigateLeft, onNavigateRight });
-  callbacks.current = { onTap, onActive, onNavigateLeft, onNavigateRight };
+  // Latest-callback holder. Written from an effect (never during render) so the
+  // stable gesture worklets below always invoke the current props.
+  useEffect(() => {
+    callbacks.current = { onTap, onActive, onNavigateLeft, onNavigateRight };
+  });
   const notifyTap = useCallback(() => callbacks.current.onTap(), []);
   const notifyActive = useCallback((active: boolean) => callbacks.current.onActive?.(active), []);
   const notifyNavigateLeft = useCallback(() => callbacks.current.onNavigateLeft?.(), []);
@@ -61,9 +61,7 @@ export function useReaderZoom(
   const initialScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, initialView?.scale || FIT_SCALE));
   const initialLimit = Math.max(0, (width * initialScale - width) / 2);
   const scale = useSharedValue(initialScale);
-  const x = useSharedValue(
-    clamp((initialView?.pan || 0) * width, -initialLimit, initialLimit),
-  );
+  const x = useSharedValue(clamp((initialView?.pan || 0) * width, -initialLimit, initialLimit));
   const scrollY = useSharedValue(0);
   const startScale = useSharedValue(1);
   const startX = useSharedValue(0);
@@ -95,7 +93,8 @@ export function useReaderZoom(
   const drivingScroll = useSharedValue(false);
 
   const scrollHandler = useAnimatedScrollHandler((event) => {
-    if (drivingScroll.value || flingingScroll.value || zoomAnimating.value || pinching.value) return;
+    if (drivingScroll.value || flingingScroll.value || zoomAnimating.value || pinching.value)
+      return;
     scrollY.value = event.contentOffset.y;
   });
 
@@ -112,7 +111,9 @@ export function useReaderZoom(
 
   const maxScrollForScale = (s: number) => {
     'worklet';
-    return contentHeight ? Math.max(0, contentHeight.value - height / Math.max(s, 0.001)) : 1_000_000;
+    return contentHeight
+      ? Math.max(0, contentHeight.value - height / Math.max(s, 0.001))
+      : 1_000_000;
   };
 
   useAnimatedReaction(
@@ -209,12 +210,6 @@ export function useReaderZoom(
         const cw = pageWidth?.value ?? width;
         const limit = horizontalLimit(scale.value, width, cw);
         x.value = clamp(x.value, -limit, limit);
-        if (scale.value < 1.01) {
-          scale.value = withTiming(FIT_SCALE, { duration: 160 });
-          x.value = withTiming(0, { duration: 160 });
-        } else {
-          x.value = withTiming(clamp(x.value, -limit, limit), { duration: 160 });
-        }
         runOnJS(notifyActive)(scale.value > 1.01);
       });
 
@@ -226,7 +221,7 @@ export function useReaderZoom(
         if (e.numberOfTouches !== 1) manager.fail();
       })
       .numberOfTaps(2)
-      .maxDelay(250)
+      .maxDelay(180)
       .maxDistance(18)
       .onEnd((_e, ok) => {
         if (!ok || pinching.value) return;
@@ -269,7 +264,7 @@ export function useReaderZoom(
           }
         } else {
           targetX = 0;
-          const viewportCenterY = height / 2;
+          const viewportCenterY = _e.y;
           const oldPadding = contentHeight
             ? Math.max(0, (height / currentScale - contentHeight.value) / 2)
             : 0;
@@ -286,8 +281,6 @@ export function useReaderZoom(
           );
           if (contentHeight) {
             targetScroll = clamp(targetScroll, 0, maxScrollForScale(targetScale));
-          } else {
-            targetScroll = currentScroll;
           }
         }
 
@@ -457,7 +450,16 @@ export function useReaderZoom(
       .simultaneousWithExternalGesture(pinch, tap);
 
     return { touch: Gesture.Simultaneous(pinch, pan, Gesture.Exclusive(double, tap)), native };
-  }, [width, height, notifyTap, notifyActive, notifyNavigateLeft, notifyNavigateRight, contentHeight, pageWidth]);
+  }, [
+    width,
+    height,
+    notifyTap,
+    notifyActive,
+    notifyNavigateLeft,
+    notifyNavigateRight,
+    contentHeight,
+    pageWidth,
+  ]);
 
   return {
     scale,

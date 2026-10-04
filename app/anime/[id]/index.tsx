@@ -1,10 +1,12 @@
+import { AlternateSourcesModal } from '@/components/content/AlternateSourcesModal';
 import { MediaBookmarks } from '@/components/content/MediaBookmarks';
 import { ChapterRangePicker, chapterRange } from '@/components/content/SelectionModal';
 import { SourceWebsiteButton } from '@/components/content/SourceWebsiteButton';
 import { Ionicons } from '@expo/vector-icons';
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
+import { PopPressable as Pressable } from '@/components/ui/PopPressable';
 
 import { AnimeDetailsHeader, EpisodeList } from '@/components/anime';
 import { BulkDownloadModal } from '@/components/downloads';
@@ -24,6 +26,7 @@ export default function AnimeDetailsScreen() {
   const [range, setRange] = useState(0);
   const [showBookmarks, setShowBookmarks] = useState(false);
   const [bulkModalOpen, setBulkModalOpen] = useState(false);
+  const [alternateSourcesVisible, setAlternateSourcesVisible] = useState(false);
 
   if (loading) {
     return (
@@ -64,8 +67,26 @@ export default function AnimeDetailsScreen() {
 
   return (
     <Screen scrollable contentContainerClassName="gap-6 pb-8">
-      <Stack.Screen options={{ title: anime.title }} />
       <AnimeDetailsHeader anime={anime} />
+
+      <View className="flex-row flex-wrap items-center gap-2">
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Find other sources for this title"
+          onPress={() => setAlternateSourcesVisible(true)}
+          className="rounded-full border border-neutral-200 px-3 py-1.5 dark:border-neutral-700"
+        >
+          <Text variant="caption">Find other sources</Text>
+        </Pressable>
+      </View>
+      <AlternateSourcesModal
+        visible={alternateSourcesVisible}
+        title={anime.title}
+        alternativeTitles={anime.altTitles}
+        mediaType="anime"
+        currentMediaId={anime.id}
+        onClose={() => setAlternateSourcesVisible(false)}
+      />
 
       {isProviderContent ? (
         <View className="rounded-xl border border-primary-500/30 bg-primary-500/10 px-3 py-2">

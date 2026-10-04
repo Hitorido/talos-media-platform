@@ -13,7 +13,7 @@ async function testNarouAPI() {
     const params = new URLSearchParams({
       out: 'json',
       lim: '3',
-      word: '転生' // Common isekai/reincarnation keyword
+      word: '転生', // Common isekai/reincarnation keyword
     });
 
     const response = await fetch(`${NAROU_API}?${params.toString()}`);
@@ -52,7 +52,6 @@ async function testNarouAPI() {
     console.log('   - 5-minute to 2-hour data delay');
     console.log('   - R18 content requires separate API');
     console.log('   - Geographic/language limitations');
-
   } catch (error) {
     console.error('❌ Test failed:', error.message);
   }

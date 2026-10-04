@@ -26,7 +26,9 @@ export function createApp() {
       origin: (origin, callback) => {
         // Non-browser clients (native apps, curl) send no Origin.
         if (!origin) return callback(null, true);
-        const allowedOrigins = ENV.CORS_ORIGIN.split(',').map((value) => value.trim()).filter(Boolean);
+        const allowedOrigins = ENV.CORS_ORIGIN.split(',')
+          .map((value) => value.trim())
+          .filter(Boolean);
         if (allowedOrigins.includes(origin)) return callback(null, true);
         try {
           const { hostname } = new URL(origin);

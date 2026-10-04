@@ -24,7 +24,10 @@ export function Screen({
         {...props}
       >
         <ScrollView
-          contentContainerClassName={cn('px-4 py-6', contentContainerClassName)}
+          contentContainerClassName={cn(
+            'px-4 py-6 w-full max-w-7xl self-center',
+            contentContainerClassName,
+          )}
           keyboardShouldPersistTaps="handled"
           {...scrollViewProps}
         >

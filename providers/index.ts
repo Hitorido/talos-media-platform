@@ -30,7 +30,12 @@ export const RESTORED_SOURCE_IDS = [
   'animeparadise',
 ];
 
-function registerComic(id: string, name: string, note?: string, mediaTypes?: Array<'manga' | 'manhwa' | 'manhua'>) {
+function registerComic(
+  id: string,
+  name: string,
+  note?: string,
+  mediaTypes?: ('manga' | 'manhwa' | 'manhua')[],
+) {
   const provider = backendComicProvider(id, name);
   provider.definition.executionMode = 'scraper-backend';
   provider.definition.backendRequired = true;
@@ -49,7 +54,11 @@ export function initializeProviders(): void {
   providerRegistry.register(mangaDexProvider);
 
   registerComic('weebcentral', 'WeebCentral');
-  registerComic('mangapill', 'MangaPill', 'Manga via Talos Render. Source discontinued manhwa support.');
+  registerComic(
+    'mangapill',
+    'MangaPill',
+    'Manga via Talos Render. Source discontinued manhwa support.',
+  );
   registerComic('mangatown', 'MangaTown');
   registerComic('gdscans', 'GdScans');
   registerComic('demonicscans', 'DemonicScans');

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Modal, Pressable, TextInput, View } from 'react-native';
+import { Modal, TextInput, View } from 'react-native';
+import { PopPressable as Pressable } from '@/components/ui/PopPressable';
 
 import { Button, Text } from '@/components/ui';
 import type { LibraryEntry } from '@/types/library';

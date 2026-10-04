@@ -90,23 +90,22 @@ type MangaDexAtHomeResponse = {
 async function mangadexFetch<T>(url: string, signal?: AbortSignal): Promise<T> {
   const attempts = signal ? 1 : 2;
   for (let attempt = 0; attempt < attempts; attempt++) {
-    const controller = new AbortController();
-    const abort = () => controller.abort();
-    if (signal?.aborted) controller.abort();
-    signal?.addEventListener('abort', abort, { once: true });
-    const timer = setTimeout(abort, 15000);
+    // Caller signals go straight to fetch so an abort reaches the transport
+    // itself; without one, own a controller so the 15s bound can cancel work.
+    const controller = signal ? undefined : new AbortController();
+    const fetchSignal = signal ?? controller!.signal;
+    const timer = controller ? setTimeout(() => controller.abort(), 15000) : null;
     try {
-      const response = await fetch(url, { headers: MANGADEX_HEADERS, signal: controller.signal });
+      const response = await fetch(url, { headers: MANGADEX_HEADERS, signal: fetchSignal });
       if (!response.ok) throw new Error('MangaDex request failed (' + response.status + ')');
       return (await response.json()) as T;
     } catch (error) {
       const transient =
         error instanceof TypeError ||
         /preface|SETTINGS|network request failed|connection reset/i.test(String(error));
-      if (!transient || controller.signal.aborted || attempt + 1 === attempts) throw error;
+      if (!transient || fetchSignal.aborted || attempt + 1 === attempts) throw error;
     } finally {
-      clearTimeout(timer);
-      signal?.removeEventListener('abort', abort);
+      if (timer) clearTimeout(timer);
     }
   }
   throw new Error('MangaDex connection unavailable.');

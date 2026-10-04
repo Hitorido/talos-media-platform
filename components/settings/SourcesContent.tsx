@@ -1,13 +1,12 @@
 import { useState } from 'react';
 import { Switch, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
-import { Button, Input, Text } from '@/components/ui';
+import { SourceLogo } from '@/components/settings/SourceLogo';
+import { Button, Input, PopPressable, Text } from '@/components/ui';
 import { initializeProviders, providerRegistry } from '@/providers';
 import { fetchProviderHealth } from '@/services/api/backendApi';
-import {
-    useBackendConfigStore,
-    type BackendUrlKey,
-} from '@/stores/backendConfigStore';
+import { useBackendConfigStore, type BackendUrlKey } from '@/stores/backendConfigStore';
 import { useProviderHealthStore } from '@/stores/providerHealthStore';
 import { useProviderStore } from '@/stores/providerStore';
 import type { ProviderExecutionMode, ProviderStatus } from '@/types/provider';
@@ -38,41 +37,30 @@ const backendFields: { key: BackendUrlKey; label: string; hint: string }[] = [
   {
     key: 'novel',
     label: 'Novel Backend URL',
-    hint: 'Compatible novel API base (search/details/chapters/content). Leave empty to use this app Express /api/novels gateway.',
+    hint: 'Compatible novel API base. Leave empty to use this app Express /api/novels gateway.',
   },
   {
-    key: 'scraper',
-    label: 'Scraper Backend URL',
-    hint: 'Optional future comic scraper backend.',
+    key: 'consumet',
+    label: 'Consumet Base URL',
+    hint: 'Self-hosted Consumet API. Public api.consumet.org returns HTTP 451.',
   },
+  { key: 'scraper', label: 'Scraper Backend URL', hint: 'Optional future comic scraper backend.' },
 ];
 
 function statusColor(status: ProviderStatus): string {
-  switch (status) {
-    case 'working':
-      return 'text-emerald-500';
-    case 'limited':
-      return 'text-amber-500';
-    case 'requires-configuration':
-    case 'requires-backend':
-      return 'text-blue-400';
-    case 'candidate':
-      return 'text-neutral-400';
-    default:
-      return 'text-neutral-400';
-  }
+  if (status === 'working') return 'text-emerald-500';
+  if (status === 'limited') return 'text-amber-500';
+  if (status === 'requires-configuration' || status === 'requires-backend') return 'text-blue-400';
+  return 'text-neutral-400';
 }
 
 function formatHealthTimestamp(timestamp?: number): string | null {
-  if (!timestamp) return null;
-  return new Date(timestamp).toLocaleString();
+  return timestamp ? new Date(timestamp).toLocaleString() : null;
 }
 
 export function SourcesContent() {
   initializeProviders();
-  const providers = providerRegistry
-    .list()
-    .filter((provider) => !/consumet/i.test(provider.definition.id));
+  const providers = providerRegistry.list();
   const enabledMap = useProviderStore((state) => state.enabled);
   const setProviderEnabled = useProviderStore((state) => state.setProviderEnabled);
   const setPreferredProvider = useProviderStore((state) => state.setPreferredProvider);
@@ -84,6 +72,7 @@ export function SourcesContent() {
   const healthByProvider = useProviderHealthStore((state) => state.healthByProvider);
   const setHealth = useProviderHealthStore((state) => state.setHealth);
   const [draftUrls, setDraftUrls] = useState<Partial<Record<BackendUrlKey, string>>>({});
+  const [expandedProviders, setExpandedProviders] = useState<Record<string, boolean>>({});
   const [healthLoading, setHealthLoading] = useState(false);
   const [healthMessage, setHealthMessage] = useState<string | null>(null);
 
@@ -113,11 +102,12 @@ export function SourcesContent() {
 
   return (
     <View className="gap-6">
-      <View className="gap-3 rounded-2xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
+      <View className="gap-3 rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
         <Text variant="label">Backend Endpoints</Text>
         <Text variant="caption" tone="muted">
-          Configure optional self-hosted backends. Novel Backend Gateway uses the Novel URL when set;
-          otherwise it calls this app&apos;s Express /api/novels proxy (requires NOVEL_GATEWAY_URL).
+          Configure optional self-hosted backends. Novel Backend Gateway uses the Novel URL when
+          set; otherwise it calls this app&apos;s Express /api/novels proxy (requires
+          NOVEL_GATEWAY_URL).
         </Text>
         <Button
           label="Refresh backend health"
@@ -127,7 +117,10 @@ export function SourcesContent() {
           onPress={refreshBackendHealth}
         />
         {healthMessage ? (
-          <Text variant="caption" tone={healthMessage.startsWith('Checked') ? 'success' : 'destructive'}>
+          <Text
+            variant="caption"
+            tone={healthMessage.startsWith('Checked') ? 'success' : 'destructive'}
+          >
             {healthMessage}
           </Text>
         ) : null}
@@ -186,47 +179,72 @@ export function SourcesContent() {
           ['NOVELS', grouped.novel],
         ] as const
       ).map(([label, items]) =>
-        items.length > 0 ? (
+        items.length ? (
           <View key={label} className="gap-3">
             <Text variant="caption" tone="muted" className="font-semibold uppercase tracking-wide">
               {label}
             </Text>
             {items.map((provider) => {
               const def = provider.definition;
-              const status = getProviderStatus(def.id);
               const enabled = enabledMap[def.id] === true;
+              const status = getProviderStatus(def.id);
               const preferred = getPreferredProvider(def.mediaTypes[0]) === def.id;
               const canToggle = def.capabilities.length > 0;
               const health = healthByProvider[def.id];
               const backendConfigured = def.backendKey
                 ? isBackendConfigured(def.backendKey)
                 : false;
+              const expanded = expandedProviders[def.id] ?? false;
 
               return (
                 <View
                   key={def.id}
-                  className="gap-3 rounded-2xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900"
+                  className="overflow-hidden rounded-xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900"
                 >
-                  <View className="flex-row items-start justify-between gap-3">
-                    <View className="flex-1 gap-1">
-                      <Text variant="label">{def.name}</Text>
+                  <View className="flex-row items-center gap-3 p-3">
+                    <PopPressable
+                      onPress={() =>
+                        setExpandedProviders((current) => ({ ...current, [def.id]: !expanded }))
+                      }
+                      accessibilityRole="button"
+                      accessibilityState={{ expanded }}
+                      className="flex-1 flex-row items-center gap-3"
+                    >
+                      <SourceLogo name={def.name} website={def.website} />
+                      <View className="flex-1 gap-0.5">
+                        <Text variant="label" numberOfLines={1}>
+                          {def.name}
+                        </Text>
+                        <Text
+                          variant="caption"
+                          className={statusColor(enabled ? status : 'disabled')}
+                        >
+                          {statusLabels[enabled ? status : 'disabled']}
+                        </Text>
+                      </View>
+                      <Ionicons
+                        name={expanded ? 'chevron-up' : 'chevron-down'}
+                        size={18}
+                        color="#9ca3af"
+                      />
+                    </PopPressable>
+                    <Switch
+                      value={enabled}
+                      disabled={!canToggle}
+                      onValueChange={(value) => setProviderEnabled(def.id, value)}
+                    />
+                  </View>
+                  {expanded ? (
+                    <View className="gap-2 border-t border-neutral-100 px-4 py-3 dark:border-neutral-800">
                       <Text variant="caption" tone="muted">
                         {def.description}
-                      </Text>
-                      <Text variant="caption" className={statusColor(enabled ? status : 'disabled')}>
-                        Status: {statusLabels[enabled ? status : 'disabled']}
                       </Text>
                       <Text variant="caption" tone="muted">
                         Mode: {executionModeLabels[def.executionMode]}
                       </Text>
                       {def.backendRequired ? (
                         <Text variant="caption" tone="muted">
-                          Backend:{' '}
-                          {def.backendKey
-                            ? backendConfigured
-                              ? 'Configured'
-                              : 'Uses Talos Render (optional custom URL unset)'
-                            : 'Talos Render'}
+                          Backend: {backendConfigured ? 'Configured' : 'Not configured'}
                         </Text>
                       ) : null}
                       {def.statusNote ? (
@@ -234,7 +252,7 @@ export function SourcesContent() {
                           {def.statusNote}
                         </Text>
                       ) : null}
-                      {def.capabilities.length > 0 ? (
+                      {def.capabilities.length ? (
                         <Text variant="caption" tone="muted">
                           Capabilities: {def.capabilities.join(', ')}
                         </Text>
@@ -261,13 +279,6 @@ export function SourcesContent() {
                           {health.lastError}
                         </Text>
                       ) : null}
-                    </View>
-                    <View className="items-end gap-2">
-                      <Switch
-                        value={enabled}
-                        disabled={!canToggle}
-                        onValueChange={(value) => setProviderEnabled(def.id, value)}
-                      />
                       {enabled && canToggle ? (
                         <Button
                           label={preferred ? 'Primary' : 'Set primary'}
@@ -278,7 +289,7 @@ export function SourcesContent() {
                         />
                       ) : null}
                     </View>
-                  </View>
+                  ) : null}
                 </View>
               );
             })}

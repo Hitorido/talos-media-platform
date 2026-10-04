@@ -30,13 +30,13 @@ interface AsuraChapter {
 
 class AsuraRateLimiter {
   private lastRequest = 0;
-  
+
   async wait(): Promise<void> {
     const now = Date.now();
     const timeSinceLastRequest = now - this.lastRequest;
     if (timeSinceLastRequest < ASURA_RATE_LIMIT_MS) {
       const waitTime = ASURA_RATE_LIMIT_MS - timeSinceLastRequest;
-      await new Promise(resolve => setTimeout(resolve, waitTime));
+      await new Promise((resolve) => setTimeout(resolve, waitTime));
     }
     this.lastRequest = Date.now();
   }
@@ -46,26 +46,27 @@ const rateLimiter = new AsuraRateLimiter();
 
 async function fetchAsura(endpoint: string): Promise<string> {
   await rateLimiter.wait();
-  
+
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), ASURA_TIMEOUT);
-  
+
   try {
     const response = await fetch(`${ASURA_BASE_URL}${endpoint}`, {
       signal: controller.signal,
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.9',
       },
     });
-    
+
     clearTimeout(timeoutId);
-    
+
     if (!response.ok) {
       throw new Error(`Asura Scans request failed: ${response.status}`);
     }
-    
+
     return await response.text();
   } catch (error) {
     clearTimeout(timeoutId);
@@ -75,17 +76,17 @@ async function fetchAsura(endpoint: string): Promise<string> {
 
 export async function searchAsura(query: string): Promise<AsuraSeries[]> {
   const html = await fetchAsura(`/series/?title=${encodeURIComponent(query)}`);
-  
+
   // Parse HTML - simplified extraction
   const series: AsuraSeries[] = [];
   const titleRegex = /<h2[^>]*><a[^>]*>([^<]+)<\/a>/g;
   const linkRegex = /href="\/series\/([^"]+)"/g;
   const coverRegex = /<img[^>]*src="([^"]+)"[^>]*alt="[^"]*"/g;
-  
+
   const titles = html.match(titleRegex) || [];
   const links = html.match(linkRegex) || [];
   const covers = html.match(coverRegex) || [];
-  
+
   for (let i = 0; i < Math.min(titles.length, links.length, covers.length); i++) {
     series.push({
       id: links[i].match(/\/series\/([^"]+)/)?.[1] || `asura-${i}`,
@@ -96,20 +97,20 @@ export async function searchAsura(query: string): Promise<AsuraSeries[]> {
       status: 'Ongoing',
       type: 'Manhwa',
       genres: [],
-      author: 'Asura Scans'
+      author: 'Asura Scans',
     });
   }
-  
+
   return series;
 }
 
 export async function getAsuraDetails(slug: string): Promise<AsuraSeries> {
   const html = await fetchAsura(`/series/${slug}`);
-  
+
   const titleMatch = html.match(/<h1[^>]*>([^<]+)<\/h1>/);
   const coverMatch = html.match(/<img[^>]*src="([^"]+)"[^>]*class="[^"]*poster/);
   const descMatch = html.match(/<p[^>]*class="[^"]*description[^"]*"[^>]*>([^<]+)<\/p>/);
-  
+
   return {
     id: slug,
     title: titleMatch?.[1] || '',
@@ -119,16 +120,16 @@ export async function getAsuraDetails(slug: string): Promise<AsuraSeries> {
     status: 'Ongoing',
     type: 'Manhwa',
     genres: [],
-    author: 'Asura Scans'
+    author: 'Asura Scans',
   };
 }
 
 export async function getAsuraChapters(slug: string): Promise<AsuraChapter[]> {
   const html = await fetchAsura(`/series/${slug}`);
-  
+
   const chapters: AsuraChapter[] = [];
   const chapterRegex = /<a[^>]*href="\/chapter\/([^"]+)"[^>]*>([^<]+)<\/a>/g;
-  
+
   const matches = html.match(chapterRegex) || [];
   matches.forEach((match, index) => {
     const slugMatch = match.match(/\/chapter\/([^"]+)/);
@@ -139,27 +140,27 @@ export async function getAsuraChapters(slug: string): Promise<AsuraChapter[]> {
         title: titleMatch[1],
         chapterNumber: index + 1,
         slug: slugMatch[1],
-        releaseDate: new Date().toISOString()
+        releaseDate: new Date().toISOString(),
       });
     }
   });
-  
+
   return chapters.reverse();
 }
 
 export async function getAsuraPages(chapterSlug: string): Promise<string[]> {
   const html = await fetchAsura(`/chapter/${chapterSlug}`);
-  
+
   const pages: string[] = [];
   const imageRegex = /<img[^>]*src="([^"]+)"[^>]*class="[^"]*reading-mode/;
-  
+
   const matches = html.match(imageRegex) || [];
-  matches.forEach(match => {
+  matches.forEach((match) => {
     const urlMatch = match.match(/src="([^"]+)"/);
     if (urlMatch) {
       pages.push(urlMatch[1]);
     }
   });
-  
+
   return pages;
 }

@@ -244,7 +244,15 @@ export const NovelReaderText = forwardRef<NovelReaderTextRef, NovelReaderTextPro
         removeClippedSubviews
         className={cn('flex-1', themeBgClasses[settings.theme])}
       >
-        <View style={{ paddingTop: 80, paddingBottom: 120 }}>
+        <View
+          style={{
+            paddingTop: 80,
+            paddingBottom: 120,
+            width: '100%',
+            maxWidth: 800,
+            alignSelf: 'center',
+          }}
+        >
           {chapters.map((chapter, chapterIndex) => (
             <View
               key={chapter.id}

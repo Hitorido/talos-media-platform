@@ -1,9 +1,4 @@
-import {
-  getAsuraChapters,
-  getAsuraDetails,
-  getAsuraPages,
-  searchAsura,
-} from './scraper.js';
+import { getAsuraChapters, getAsuraDetails, getAsuraPages, searchAsura } from './scraper.js';
 import type { ContentProviderAdapter } from '../types.js';
 import { ProviderGatewayError } from '../types.js';
 

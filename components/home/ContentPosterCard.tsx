@@ -1,8 +1,10 @@
 import { PublicationStatus } from '@/components/content/PublicationStatus';
 import { MediaCount } from '@/components/content/MediaCount';
-import { Image, Pressable, View } from 'react-native';
+import { Image, View } from 'react-native';
+import { PopPressable as Pressable } from '@/components/ui/PopPressable';
 
 import { Badge, Text } from '@/components/ui';
+import { useMediaCover } from '@/hooks/useMediaCover';
 import type { ContentType } from '@/types/content';
 import { cn } from '@/utils/cn';
 
@@ -34,7 +36,11 @@ const badgeLabelMap: Record<ContentType, string> = {
 };
 
 export function ContentPosterCard({
-  routeId, episodeCount, chapterCount, sourceName, status,
+  routeId,
+  episodeCount,
+  chapterCount,
+  sourceName,
+  status,
   title,
   coverUrl,
   type,
@@ -43,11 +49,22 @@ export function ContentPosterCard({
   onPress,
   className,
 }: ContentPosterCardProps) {
+  const displayCover = useMediaCover(routeId, coverUrl);
   return (
     <Pressable accessibilityRole="button" onPress={onPress} className={cn('w-28', className)}>
       <View className="overflow-hidden rounded-xl bg-neutral-200 dark:bg-neutral-800">
-        {coverUrl ? <Image source={coverUrl?.trim() ? { uri: coverUrl } : undefined} className="aspect-[2/3] w-full" resizeMode="cover" /> : (
-          <View className="aspect-[2/3] w-full items-center justify-center px-2"><Text variant="caption" tone="muted">No cover</Text></View>
+        {displayCover ? (
+          <Image
+            source={displayCover?.trim() ? { uri: displayCover } : undefined}
+            className="aspect-[2/3] w-full"
+            resizeMode="cover"
+          />
+        ) : (
+          <View className="aspect-[2/3] w-full items-center justify-center px-2">
+            <Text variant="caption" tone="muted">
+              No cover
+            </Text>
+          </View>
         )}
         <View className="absolute left-2 top-2">
           <Badge label={badgeLabelMap[type]} variant={badgeVariantMap[type]} />
@@ -63,13 +80,25 @@ export function ContentPosterCard({
       <Text variant="label" numberOfLines={2} className="mt-2">
         {title}
       </Text>
-      {sourceName ? <View className="mt-1 gap-1"><Badge label={sourceName} variant="primary" /><PublicationStatus status={status} /></View> : null}
+      {sourceName ? (
+        <View className="mt-1 gap-1">
+          <Badge label={sourceName} variant="primary" />
+          <PublicationStatus status={status} />
+        </View>
+      ) : null}
       {subtitle && !sourceName ? (
         <Text variant="caption" tone="muted" numberOfLines={1} className="mt-0.5">
           {subtitle}
         </Text>
       ) : null}
-      {routeId ? <MediaCount routeId={routeId} type={type} episodeCount={episodeCount} chapterCount={chapterCount} /> : null}
+      {routeId ? (
+        <MediaCount
+          routeId={routeId}
+          type={type}
+          episodeCount={episodeCount}
+          chapterCount={chapterCount}
+        />
+      ) : null}
     </Pressable>
   );
 }

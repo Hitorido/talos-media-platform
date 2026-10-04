@@ -1,5 +1,5 @@
-import { saveOfflineCatalog, flushOfflineCatalog } from '@/services/offlineCatalog';
 import { downloadHls } from '@/services/hlsDownload';
+import { flushOfflineCatalog, saveOfflineCatalog } from '@/services/offlineCatalog';
 import {
   deleteStoragePath,
   downloadFile,
@@ -385,6 +385,9 @@ export async function deleteDownload(id: string): Promise<void> {
   useDownloadStore.getState().deleteDownload(id);
 }
 
-export function clearCompletedDownloads(): void {
-  useDownloadStore.getState().clearCompleted();
+export async function clearCompletedDownloads(): Promise<void> {
+  const completedIds = Object.values(useDownloadStore.getState().items)
+    .filter((item) => item.status === 'completed' || item.status === 'cancelled')
+    .map((item) => item.id);
+  await Promise.all(completedIds.map((id) => deleteDownload(id)));
 }

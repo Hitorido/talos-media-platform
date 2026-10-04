@@ -2,16 +2,19 @@ import { MediaSourceHeader } from '@/components/content/MediaSourceHeader';
 import { useState } from 'react';
 import { Image, View } from 'react-native';
 
+import { CoverCustomizeButton } from '@/components/content/CoverCustomizeButton';
 import { FavoriteTagModal } from '@/components/library';
 import { Badge, Button, Text } from '@/components/ui';
 import { useLibraryStore } from '@/stores/libraryStore';
 import type { AnimeDetails } from '@/types/anime';
+import { useMediaCover } from '@/hooks/useMediaCover';
 
 type AnimeDetailsHeaderProps = {
   anime: AnimeDetails;
 };
 
 export function AnimeDetailsHeader({ anime }: AnimeDetailsHeaderProps) {
+  const displayCover = useMediaCover(anime.id, anime.coverUrl);
   const addToLibrary = useLibraryStore((state) => state.addToLibrary);
   const removeFromLibrary = useLibraryStore((state) => state.removeFromLibrary);
   const toggleFavorite = useLibraryStore((state) => state.toggleFavorite);
@@ -27,11 +30,29 @@ export function AnimeDetailsHeader({ anime }: AnimeDetailsHeaderProps) {
   return (
     <>
       <View className="gap-4">
-        <View className="overflow-hidden rounded-2xl bg-neutral-200 dark:bg-neutral-800">
+        <View className="relative overflow-hidden rounded-2xl bg-neutral-200 dark:bg-neutral-800">
           <Image
-            source={anime.bannerUrl?.trim() ? { uri: anime.bannerUrl } : undefined}
+            source={
+              displayCover?.trim()
+                ? { uri: displayCover }
+                : anime.bannerUrl?.trim()
+                  ? { uri: anime.bannerUrl }
+                  : undefined
+            }
             className="aspect-video w-full"
             resizeMode="cover"
+          />
+          <CoverCustomizeButton
+            media={{
+              id: anime.id,
+              title: anime.title,
+              coverUrl: anime.coverUrl,
+              bannerUrl: anime.bannerUrl,
+              mediaType: 'anime',
+              genres: anime.genres,
+              episodeCount: anime.episodes.length,
+            }}
+            className="absolute right-3 top-3"
           />
         </View>
         <View className="gap-2">
@@ -39,7 +60,9 @@ export function AnimeDetailsHeader({ anime }: AnimeDetailsHeaderProps) {
           <MediaSourceHeader id={anime.id} type={'Anime'} count={anime.episodes.length} />
           <View className="flex-row flex-wrap gap-2">
             <Badge label={anime.status === 'ongoing' ? 'Ongoing' : 'Completed'} variant="primary" />
-            {anime.rating > 0 ? <Badge label={`★ ${anime.rating.toFixed(1)}`} variant="secondary" /> : null}
+            {anime.rating > 0 ? (
+              <Badge label={`★ ${anime.rating.toFixed(1)}`} variant="secondary" />
+            ) : null}
             {anime.genres.map((genre) => (
               <Badge key={genre} label={genre} variant="default" />
             ))}

@@ -1,19 +1,14 @@
 import { getApiBaseUrl } from '@/lib/apiConfig';
 import { initializeProviders, providerRegistry } from '@/providers';
-import {
-    resolveBuiltinMockAnime,
-    resolveBuiltinMockManga,
-    resolveBuiltinMockNovel,
-} from '@/providers/builtin-mock';
 import type { MediaProvider } from '@/providers/types';
 import { providerSupports } from '@/providers/types';
 import { loadOfflineCatalog } from '@/services/offlineCatalog';
 import { resolveAnimeSource, resolveNovelChapter } from '@/services/offlineResolver';
 import {
-    inSearchSlot,
-    sameComicTitle,
-    searchRequest,
-    settleProviderSearches,
+  inSearchSlot,
+  sameComicTitle,
+  searchRequest,
+  settleProviderSearches,
 } from '@/services/providerSearch';
 import { useBackendConfigStore } from '@/stores/backendConfigStore';
 import { useProviderHealthStore } from '@/stores/providerHealthStore';
@@ -22,13 +17,13 @@ import type { AnimeDetails } from '@/types/anime';
 import type { MangaDetails, MangaPage } from '@/types/manga';
 import type { NovelChapter, NovelDetails } from '@/types/novel';
 import {
-    decodeMediaRouteId,
-    encodeMediaRouteId,
-    type MediaRef,
-    type NormalizedChapter,
-    type NormalizedMedia,
-    type NormalizedNovelContent,
-    type NormalizedPlaybackSource,
+  decodeMediaRouteId,
+  encodeMediaRouteId,
+  type MediaRef,
+  type NormalizedChapter,
+  type NormalizedMedia,
+  type NormalizedNovelContent,
+  type NormalizedPlaybackSource,
 } from '@/types/provider';
 import type { SearchFilter, SearchResponse, SearchResult } from '@/types/search';
 import { isActiveSource } from '@/utils/activeSource';
@@ -151,10 +146,10 @@ function assertProviderEnabled(providerId: string): void {
   }
 }
 
-function resolveMediaRef(routeOrSourceId: string, fallbackProviderId = 'builtin-mock'): MediaRef {
+function resolveMediaRef(routeOrSourceId: string): MediaRef {
   const decoded = decodeMediaRouteId(routeOrSourceId);
   if (decoded) return decoded;
-  return { providerId: fallbackProviderId, sourceId: routeOrSourceId };
+  return { providerId: 'unknown', sourceId: routeOrSourceId };
 }
 
 function dedupeSearchResults(results: SearchResult[]): SearchResult[] {
@@ -369,17 +364,6 @@ export async function getMediaEpisodes(routeId: string) {
   const provider = providerRegistry.get(ref.providerId);
   if (provider?.getEpisodes) {
     return withProviderHealth(ref.providerId, () => provider.getEpisodes!(ref));
-  }
-
-  const anime = resolveBuiltinMockAnime(ref);
-  if (anime) {
-    return anime.episodes.map((ep) => ({
-      id: ep.id,
-      number: ep.number,
-      title: ep.title,
-      durationSeconds: ep.durationSeconds,
-      thumbnailUrl: ep.thumbnailUrl,
-    }));
   }
 
   throw new Error(`Provider "${ref.providerId}" does not support episodes.`);
@@ -648,12 +632,6 @@ export async function getMangaChapterPages(
     }));
   }
 
-  const manga = resolveBuiltinMockManga(ref);
-  const chapter = manga?.chapters.find((entry) => entry.id === chapterId);
-  if (chapter) {
-    return chapter.pages;
-  }
-
   throw new Error('Unable to resolve chapter pages.');
 }
 
@@ -666,32 +644,8 @@ export async function getNovelChapterContent(routeId: string, chapterId: string)
     return withProviderHealth(ref.providerId, () => provider.getNovelContent!(ref, chapterId));
   }
 
-  // Legacy builtin fallback only when the media itself is built-in demo content.
-  if (ref.providerId === 'builtin-mock') {
-    const novel = resolveBuiltinMockNovel(ref);
-    const chapter = novel?.chapters.find((entry) => entry.id === chapterId);
-    if (chapter) {
-      const index = novel!.chapters.findIndex((entry) => entry.id === chapterId);
-      return {
-        providerId: ref.providerId,
-        novelId: novel!.id,
-        chapterId: chapter.id,
-        title: chapter.title,
-        paragraphs: chapter.paragraphs,
-        wordCount: chapter.wordCount,
-        previousChapterId: index > 0 ? novel!.chapters[index - 1]?.id : undefined,
-        nextChapterId:
-          index >= 0 && index < novel!.chapters.length - 1
-            ? novel!.chapters[index + 1]?.id
-            : undefined,
-        isDemo: true,
-        note: 'Built-in demo novel text for development.',
-      } satisfies NormalizedNovelContent;
-    }
-  }
-
   throw new Error(
-    `Provider "${ref.providerId}" does not support novel chapter content. Enable a configured novel source or use the Built-in Demo Catalog.`,
+    `Provider "${ref.providerId}" does not support novel chapter content. Enable a configured novel source.`,
   );
 }
 
@@ -768,21 +722,15 @@ export async function searchAlternateNovelSources(params: {
 }
 
 export function getBuiltinMangaDetails(routeId: string): MangaDetails | undefined {
-  const ref = resolveMediaRef(routeId);
-  if (ref.providerId !== 'builtin-mock') return undefined;
-  return resolveBuiltinMockManga(ref);
+  return undefined;
 }
 
 export function getBuiltinNovelDetails(routeId: string): NovelDetails | undefined {
-  const ref = resolveMediaRef(routeId);
-  if (ref.providerId !== 'builtin-mock') return undefined;
-  return resolveBuiltinMockNovel(ref);
+  return undefined;
 }
 
 export function getBuiltinAnimeDetails(routeId: string): AnimeDetails | undefined {
-  const ref = resolveMediaRef(routeId);
-  if (ref.providerId !== 'builtin-mock') return undefined;
-  return resolveBuiltinMockAnime(ref);
+  return undefined;
 }
 
 export function toMediaRouteId(ref: MediaRef): string {
@@ -798,4 +746,3 @@ export function resolveComicFormatFromMedia(media: NormalizedMedia) {
 }
 
 export { resolveMediaRef };
-

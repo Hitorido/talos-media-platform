@@ -1,11 +1,11 @@
 import { loadOfflineCatalog } from '@/services/offlineCatalog';
 import { useLibraryStore } from '@/stores/libraryStore';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import {
-    getBuiltinMangaDetails,
-    getMediaChapters,
-    getMediaDetails,
+  getBuiltinMangaDetails,
+  getMediaChapters,
+  getMediaDetails,
 } from '@/services/contentService';
 import type { MangaChapter, MangaDetails } from '@/types/manga';
 import type { NormalizedChapter, NormalizedMedia } from '@/types/provider';
@@ -53,30 +53,32 @@ type MangaContentState = {
   isProviderContent: boolean;
 };
 
+const EMPTY_MANGA_STATE: MangaContentState = {
+  manga: null,
+  loading: false,
+  error: null,
+  isProviderContent: false,
+};
+
+const PENDING_MANGA_STATE: MangaContentState = {
+  manga: null,
+  loading: true,
+  error: null,
+  isProviderContent: true,
+};
+
 export function useMangaContent(routeId: string | undefined): MangaContentState {
-  const [state, setState] = useState<MangaContentState>({
-    manga: routeId ? (getBuiltinMangaDetails(routeId) ?? null) : null,
-    loading: Boolean(routeId && !getBuiltinMangaDetails(routeId)),
-    error: null,
-    isProviderContent: Boolean(routeId && !getBuiltinMangaDetails(routeId)),
-  });
+  const builtin = useMemo(() => (routeId ? getBuiltinMangaDetails(routeId) : null), [routeId]);
+
+  // Resolved payloads are tagged with the route they belong to. That lets the
+  // hook derive "no route", "builtin title" and "still loading" during render
+  // instead of cascading synchronous setState from the effect body — one less
+  // render pass on every details screen open.
+  const [resolved, setResolved] = useState<{ key: string; state: MangaContentState } | null>(null);
 
   useEffect(() => {
-    if (!routeId) {
-      setState({ manga: null, loading: false, error: null, isProviderContent: false });
-      return;
-    }
-
-    const builtin = getBuiltinMangaDetails(routeId);
-    if (builtin) {
-      setState({
-        manga: builtin,
-        loading: false,
-        error: null,
-        isProviderContent: false,
-      });
-      return;
-    }
+    if (!routeId || builtin) return;
+    const key = routeId;
 
     let cancelled = false;
     let fresh = false;
@@ -85,10 +87,12 @@ export function useMangaContent(routeId: string | undefined): MangaContentState 
       .then((saved) => {
         local = saved;
         if (saved && !cancelled && !fresh)
-          setState({ manga: saved, loading: false, error: null, isProviderContent: true });
+          setResolved({
+            key,
+            state: { manga: saved, loading: false, error: null, isProviderContent: true },
+          });
       })
       .catch(() => {});
-    setState((current) => ({ ...current, loading: true, error: null, isProviderContent: true }));
 
     Promise.all([getMediaDetails(routeId), getMediaChapters(routeId)])
       .then(([media, chapters]) => {
@@ -118,32 +122,43 @@ export function useMangaContent(routeId: string | undefined): MangaContentState 
               : 'manga',
           chapterCount: chapters.length,
         });
-        setState({
-          manga: toMangaDetails(
-            { ...media, coverUrl: resolvedCoverUrl, bannerUrl: resolvedBannerUrl },
-            chapters,
-          ),
-          loading: false,
-          error: null,
-          isProviderContent: true,
+        setResolved({
+          key,
+          state: {
+            manga: toMangaDetails(
+              { ...media, coverUrl: resolvedCoverUrl, bannerUrl: resolvedBannerUrl },
+              chapters,
+            ),
+            loading: false,
+            error: null,
+            isProviderContent: true,
+          },
         });
       })
       .catch(async (error: unknown) => {
         await localReady;
         if (cancelled) return;
         const message = error instanceof Error ? error.message : 'Failed to load manga.';
-        setState({
-          manga: local,
-          loading: false,
-          error: local ? null : message,
-          isProviderContent: true,
+        setResolved({
+          key,
+          state: {
+            manga: local,
+            loading: false,
+            error: local ? null : message,
+            isProviderContent: true,
+          },
         });
       });
 
     return () => {
       cancelled = true;
     };
-  }, [routeId]);
+  }, [routeId, builtin]);
 
-  return state;
+  return useMemo(() => {
+    if (!routeId) return EMPTY_MANGA_STATE;
+    if (builtin) return { manga: builtin, loading: false, error: null, isProviderContent: false };
+    if (resolved?.key === routeId) return resolved.state;
+    return PENDING_MANGA_STATE;
+  }, [routeId, builtin, resolved]);
 }

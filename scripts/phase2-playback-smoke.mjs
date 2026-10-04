@@ -65,7 +65,11 @@ async function main() {
     const payload = await anilist.json();
     console.log('  OK AniList metadata:', payload?.data?.Media?.title?.romaji);
   } else {
-    console.log('  NOTE AniList HTTP', anilist.status, '(app client may still work; not required for smoke)');
+    console.log(
+      '  NOTE AniList HTTP',
+      anilist.status,
+      '(app client may still work; not required for smoke)',
+    );
   }
 
   console.log('PHASE2_SMOKE_PASS');
