@@ -14,6 +14,9 @@ let initialized = false;
 
 /** Scraper-backend comic adapters hosted on the Talos Render gateway. */
 export const RESTORED_SOURCE_IDS = [
+  'animexin',
+  'manhuaplus',
+  'wanderinginn',
   'weebcentral',
   'mangapill',
   'mangatown',
@@ -39,7 +42,7 @@ function registerComic(
   const provider = backendComicProvider(id, name);
   provider.definition.executionMode = 'scraper-backend';
   provider.definition.backendRequired = true;
-  provider.definition.status = 'working';
+  provider.definition.status = id === 'manhuaplus' ? 'limited' : 'working';
   if (mediaTypes) provider.definition.mediaTypes = mediaTypes;
   provider.definition.statusNote =
     note ??
@@ -53,6 +56,12 @@ export function initializeProviders(): void {
   providerRegistry.register(builtinMockProvider);
   providerRegistry.register(mangaDexProvider);
 
+  registerComic(
+    'manhuaplus',
+    'ManhuaPlus',
+    'Public images verified locally; backend deployment pending.',
+  );
+  providerRegistry.register(backendNovelProvider('wanderinginn', 'The Wandering Inn'));
   registerComic('weebcentral', 'WeebCentral');
   registerComic(
     'mangapill',
@@ -76,6 +85,13 @@ export function initializeProviders(): void {
   providerRegistry.register(jikanAnimeProvider);
   providerRegistry.register(animeParadiseProvider);
   providerRegistry.register(backendAnimeProvider('donghuastream', 'DonghuaStream'));
+  providerRegistry.register(
+    backendAnimeProvider('animexin', 'AnimeXin', {
+      website: 'https://animexin.dev',
+      statusNote:
+        'Public English MP4 links; Soul Land 2 episode 1 verified locally. Deployment and phone verification pending.',
+    }),
+  );
   providerRegistry.register(novelBackendProvider);
   providerRegistry.register(narouProvider);
   providerRegistry.register(backendNovelProvider('novelarrow', 'NovelArrow'));

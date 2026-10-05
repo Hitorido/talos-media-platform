@@ -1,3 +1,4 @@
+import { searchTitleKey } from '@/services/searchGrouping';
 import { useEffect, useState } from 'react';
 import { Image, ScrollView, View } from 'react-native';
 import { PopPressable as Pressable } from '@/components/ui/PopPressable';
@@ -20,8 +21,9 @@ export function selectSearchSuggestions(
     (filter === 'anime' && item.type === 'anime') ||
     (filter === 'novel' && item.type === 'novel') ||
     (item.type === 'manga' && (item.comicFormat ?? 'manga') === filter);
-  const pool = query.trim() && results.length ? results : items;
-  return [...new Map(pool.filter(accepts).map((item) => [item.id, item])).values()].slice(0, 6);
+  const resultTitles = new Set(query.trim() ? results.map(searchTitleKey) : []);
+  const pool = items.filter((item) => accepts(item) && !resultTitles.has(searchTitleKey(item)));
+  return [...new Map(pool.map((item) => [searchTitleKey(item), item])).values()].slice(0, 6);
 }
 export function SearchSuggestions({
   filter,
@@ -57,7 +59,7 @@ export function SearchSuggestions({
     <View className="gap-2">
       <Text variant="caption" tone="muted">
         {query.trim() && results.length
-          ? 'Suggested matches'
+          ? 'More to explore'
           : query.trim()
             ? 'Explore while searching'
             : 'Find your next favorite'}

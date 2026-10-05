@@ -202,7 +202,7 @@ export async function unifiedSearch(
   const providers = orderProvidersForSearch(
     getEnabledProviders().filter(
       (provider) =>
-        !['animeparadise', 'donghuastream', 'kitsu-anime', 'jikan-anime'].includes(
+        !['animeparadise', 'donghuastream', 'animexin', 'kitsu-anime', 'jikan-anime'].includes(
           provider.definition.id,
         ) &&
         providerSupports(provider, 'search', filter === 'all' ? undefined : filter) &&

@@ -1,3 +1,6 @@
+import { animeXinAdapter } from './animexin/adapter.js';
+import { manhuaPlusAdapter } from './manhuaplus/adapter.js';
+import { wanderingInnAdapter } from './wanderinginn/adapter.js';
 import { royalRoadAdapter } from './royalroad/adapter.js';
 import { donghuaStreamAdapter } from './donghuastream/adapter.js';
 import { novelPingAdapter } from './novelping/adapter.js';
@@ -24,6 +27,9 @@ let initialized = false;
 export function initializeBackendProviders(): void {
   if (initialized) return;
 
+  registerProvider(animeXinAdapter);
+  registerProvider(manhuaPlusAdapter);
+  registerProvider(wanderingInnAdapter);
   registerProvider(weebCentralAdapter);
   registerProvider(mangaPillAdapter);
   registerProvider(mangaTownAdapter);
