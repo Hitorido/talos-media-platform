@@ -21,7 +21,10 @@ function load(path, deps) {
   );
   return module.exports;
 }
+const grouping = load('services/searchGrouping.ts', {});
 const ui = {
+  '@/hooks/useDialogEscape': { useDialogEscape() {} },
+  '@/components/ui/PopPressable': { PopPressable: 'Pressable' },
   react: { useState: (value) => [value, () => {}] },
   'react/jsx-runtime': { jsx, jsxs: jsx },
   'react-native': {
@@ -74,15 +77,17 @@ const { selectSearchSuggestions } = load('components/search/SearchSuggestions.ts
   react: { useState() {}, useEffect() {} },
   'expo-router': {},
   '@/services/discoveryService': {},
+  '@/services/searchGrouping': grouping,
+  '@/hooks/useMediaCover': { useMediaCover: (_, cover) => cover },
   '@/stores/providerStore': {},
   '@/lib/routes': {},
 });
 const pool = [
-  { id: 'a', type: 'anime' },
-  { id: 'm', type: 'manga', comicFormat: 'manga' },
-  { id: 'h', type: 'manga', comicFormat: 'manhwa' },
-  { id: 'c', type: 'manga', comicFormat: 'manhua' },
-  { id: 'n', type: 'novel' },
+  { id: 'a', title: 'Anime', type: 'anime' },
+  { id: 'm', title: 'Manga', type: 'manga', comicFormat: 'manga' },
+  { id: 'h', title: 'Manhwa', type: 'manga', comicFormat: 'manhwa' },
+  { id: 'c', title: 'Manhua', type: 'manga', comicFormat: 'manhua' },
+  { id: 'n', title: 'Novel', type: 'novel' },
 ];
 for (const [filter, id] of [
   ['anime', 'a'],
@@ -96,30 +101,80 @@ for (const [filter, id] of [
     pool.filter((item) => item.id === id),
   );
 assert.equal(selectSearchSuggestions(pool, [], 'all', '').length, 5);
-assert.deepEqual(selectSearchSuggestions(pool, [pool[0]], 'all', 'query'), [pool[0]]);
+assert.deepEqual(selectSearchSuggestions(pool, [pool[0]], 'all', 'query'), pool.slice(1));
 console.log(
   'PASS 100-item range boundaries, explicit status selection/cancel, category and query recommendations',
 );
 
 const { SearchResultsList } = load('components/search/SearchResultsList.tsx', {
-  react: { useState: () => [{}, () => {}], useEffect() {}, useMemo: (fn) => fn() },
+  react: { useState: (value) => [value, () => {}], useEffect() {}, useMemo: (fn) => fn() },
+  '@/services/searchGrouping': grouping,
+  '@/components/content/SelectionModal': { SelectionModal: 'Selection' },
+  '@/services/contentService': { getProviderDisplayName: (id) => id },
   'react/jsx-runtime': { jsx, jsxs: jsx },
-  'react-native': { FlatList: 'FlatList', View: 'View' },
+  'react-native': {
+    FlatList: 'FlatList',
+    View: 'View',
+    useWindowDimensions: () => ({ width: 390 }),
+  },
   '@/components/search/SearchResultItem': { SearchResultItem: 'Item' },
   '@/components/ui': { Text: 'Text' },
   '@/services/englishChapterCount': {},
 });
-const ranked = SearchResultsList({
+const rankedTree = SearchResultsList({
   query: 'test',
   results: [
-    { id: 'unknown', type: 'anime' },
-    { id: 'small', type: 'anime', episodeCount: 12 },
-    { id: 'large', type: 'novel', chapterCount: 3198 },
-    { id: 'zero', type: 'manga', chapterCount: 0 },
+    { id: 'unknown', title: 'unknown', type: 'anime' },
+    { id: 'small', title: 'small', type: 'anime', episodeCount: 12 },
+    { id: 'large', title: 'large', type: 'novel', chapterCount: 3198 },
+    { id: 'zero', title: 'zero', type: 'manga', chapterCount: 0 },
   ],
-}).props.data;
+});
+const ranked = nodes(rankedTree, 'FlatList')[0].props.data;
 assert.deepEqual(
-  ranked.map((item) => item.id),
+  ranked.map((item) => item.sources[0].id),
   ['large', 'small', 'zero', 'unknown'],
 );
 console.log('PASS descending known counts with unknown counts last');
+
+let opened;
+const sourceChoices = [
+  { id: 'first__one', providerId: 'first', title: 'Same title', type: 'manga', chapterCount: 10 },
+  { id: 'second__two', providerId: 'second', title: 'Same title', type: 'manga', chapterCount: 20 },
+];
+const { SearchResultsList: WithPicker } = load('components/search/SearchResultsList.tsx', {
+  react: {
+    useState: (value) => [
+      value === null ? grouping.groupSearchResults(sourceChoices)[0] : value,
+      () => {},
+    ],
+    useEffect() {},
+    useMemo: (fn) => fn(),
+  },
+  'react/jsx-runtime': { jsx, jsxs: jsx },
+  'react-native': {
+    FlatList: 'FlatList',
+    View: 'View',
+    useWindowDimensions: () => ({ width: 390 }),
+  },
+  '@/services/searchGrouping': grouping,
+  '@/components/content/SelectionModal': { SelectionModal: 'Selection' },
+  '@/services/contentService': { getProviderDisplayName: (id) => id },
+  '@/components/search/SearchResultItem': { SearchResultItem: 'Item' },
+  '@/components/ui': { Text: 'Text' },
+  '@/services/englishChapterCount': {},
+});
+const choiceTree = WithPicker({
+  results: sourceChoices,
+  query: 'Same title',
+  onResultPress: (item) => (opened = item),
+});
+assert.equal(nodes(choiceTree, 'FlatList')[0].props.data.length, 1);
+const picker = nodes(choiceTree, 'Selection')[0];
+assert.deepEqual(
+  picker.props.options.map((x) => x.value),
+  ['first__one', 'second__two'],
+);
+picker.props.onSelect('second__two');
+assert.equal(opened, sourceChoices[1]);
+console.log('PASS grouped card source picker opens the selected original source record');

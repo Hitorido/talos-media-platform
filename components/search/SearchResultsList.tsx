@@ -1,3 +1,6 @@
+import { groupSearchResults, type SearchGroup } from '@/services/searchGrouping';
+import { SelectionModal } from '@/components/content/SelectionModal';
+import { getProviderDisplayName } from '@/services/contentService';
 import { useEffect, useMemo, useState } from 'react';
 import { getEnglishChapterCount } from '@/services/englishChapterCount';
 import { FlatList, View, useWindowDimensions } from 'react-native';
@@ -13,6 +16,7 @@ type SearchResultsListProps = {
 };
 
 export function SearchResultsList({ results, query, onResultPress }: SearchResultsListProps) {
+  const [selectedGroup, setSelectedGroup] = useState<SearchGroup | null>(null);
   const { width } = useWindowDimensions();
   const columns = width >= 1200 ? 3 : width >= 760 ? 2 : 1;
   const [counts, setCounts] = useState<Record<string, number>>({});
@@ -43,26 +47,53 @@ export function SearchResultsList({ results, query, onResultPress }: SearchResul
       }),
     [results, counts],
   );
+  const groups = useMemo(() => groupSearchResults(sortedResults), [sortedResults]);
   return (
-    <FlatList
-      key={columns}
-      numColumns={columns}
-      columnWrapperStyle={columns > 1 ? { gap: 12 } : undefined}
-      data={sortedResults}
-      keyExtractor={(item) => item.id}
-      keyboardShouldPersistTaps="handled"
-      contentContainerClassName="gap-3 px-4 pb-8"
-      ListHeaderComponent={
-        <Text tone="muted" className="mb-1">
-          {results.length} result{results.length === 1 ? '' : 's'} for &quot;{query}&quot;
-        </Text>
-      }
-      renderItem={({ item }) => (
-        <View style={{ width: `${100 / columns}%`, flexShrink: 1 }}>
-          <SearchResultItem item={item} onPress={() => onResultPress?.(item)} />
-        </View>
-      )}
-      ItemSeparatorComponent={() => <View className="h-0" />}
-    />
+    <>
+      <SelectionModal
+        visible={!!selectedGroup}
+        title={selectedGroup?.title ?? 'Choose source'}
+        options={(selectedGroup?.sources ?? []).map((item) => ({
+          value: item.id,
+          label: `${getProviderDisplayName(item.providerId)}${(item.episodeCount ?? counts[item.id] ?? item.chapterCount) !== undefined ? ` / ${item.episodeCount ?? counts[item.id] ?? item.chapterCount} ${item.type === 'anime' ? 'episodes' : 'catalog chapters'}` : ''}`,
+        }))}
+        onSelect={(id) => {
+          const item = selectedGroup?.sources.find((item) => item.id === id);
+          setSelectedGroup(null);
+          if (item) onResultPress?.(item);
+        }}
+        onClose={() => setSelectedGroup(null)}
+      />
+      <FlatList
+        key={columns}
+        numColumns={columns}
+        columnWrapperStyle={columns > 1 ? { gap: 12 } : undefined}
+        data={groups}
+        keyExtractor={(item) => item.id}
+        keyboardShouldPersistTaps="handled"
+        contentContainerClassName="gap-3 px-4 pb-8"
+        ListHeaderComponent={
+          <Text tone="muted" className="mb-1">
+            {groups.length} title{groups.length === 1 ? '' : 's'} for &quot;{query}&quot;
+          </Text>
+        }
+        renderItem={({ item }) => (
+          <View style={{ width: `${100 / columns}%`, flexShrink: 1 }}>
+            <SearchResultItem
+              item={item.sources[0]}
+              onPress={() =>
+                item.sources.length > 1 ? setSelectedGroup(item) : onResultPress?.(item.sources[0])
+              }
+            />
+            {item.sources.length > 1 ? (
+              <Text variant="caption" tone="primary" className="px-2 py-1">
+                {item.sources.length} sources - tap to choose
+              </Text>
+            ) : null}
+          </View>
+        )}
+        ItemSeparatorComponent={() => <View className="h-0" />}
+      />
+    </>
   );
 }

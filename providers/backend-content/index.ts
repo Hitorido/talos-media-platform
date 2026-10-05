@@ -113,13 +113,15 @@ export function backendNovelProvider(id: string, name: string): MediaProvider {
       capabilities: ['search', 'details', 'chapters', 'textContent'],
       status: 'limited',
       statusNote:
-        id === 'royalroad'
-          ? 'Public English fiction adapter; local verification in progress. Removed chapters remain unavailable.'
-          : id === 'novelping'
-            ? 'Public English text verified locally; deployment and phone verification pending.'
-            : id === 'novelarrow'
-              ? 'Local text verified; Render upstream HTTP 403. Production reading unavailable.'
-              : 'Public text verified through Render; physical reader pending. Locked content is not retrieved.',
+        id === 'wanderinginn'
+          ? 'Author-hosted English web serial; local gateway verified. Deployment and phone verification pending.'
+          : id === 'royalroad'
+            ? 'Public English fiction adapter; local verification in progress. Removed chapters remain unavailable.'
+            : id === 'novelping'
+              ? 'Public English text verified locally; deployment and phone verification pending.'
+              : id === 'novelarrow'
+                ? 'Local text verified; Render upstream HTTP 403. Production reading unavailable.'
+                : 'Public text verified through Render; physical reader pending. Locked content is not retrieved.',
       executionMode: 'backend-api',
       backendRequired: true,
       health: {},
@@ -145,7 +147,9 @@ export function backendNovelProvider(id: string, name: string): MediaProvider {
         status: x.status,
         coverUrl: x.coverUrl ?? '',
         type: 'novel' as const,
-        language: ['novelcodex', 'novelarrow', 'novelping', 'royalroad'].includes(id)
+        language: ['novelcodex', 'novelarrow', 'novelping', 'royalroad', 'wanderinginn'].includes(
+          id,
+        )
           ? 'en'
           : undefined,
         chapterCount: x.chapterCount,
