@@ -2,7 +2,7 @@ export type NovelLanguage = 'en' | 'ja' | 'all';
 export function providerNovelLanguage(id: string): string | undefined {
   return id === 'narou'
     ? 'ja'
-    : ['novelcodex', 'novelarrow', 'novelping', 'royalroad'].includes(id)
+    : ['novelcodex', 'novelarrow', 'novelping', 'royalroad', 'wanderinginn'].includes(id)
       ? 'en'
       : undefined;
 }

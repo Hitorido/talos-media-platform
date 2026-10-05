@@ -1,5 +1,22 @@
 import { decodeMediaRouteId } from '@/types/provider';
 const sources: Record<string, { name: string; origin: string; prefix?: string; mode: string }> = {
+  animexin: {
+    name: 'AnimeXin',
+    origin: 'https://animexin.dev',
+    prefix: '/anime/',
+    mode: 'Native Playback - public English MP4 links',
+  },
+  manhuaplus: {
+    name: 'ManhuaPlus',
+    origin: 'https://manhuaplus.org',
+    prefix: '/manga/',
+    mode: 'Native Reader - deployment pending',
+  },
+  wanderinginn: {
+    name: 'The Wandering Inn',
+    origin: 'https://wanderinginn.com',
+    mode: 'Native Reader - public web serial',
+  },
   mangadex: {
     name: 'MangaDex',
     origin: 'https://mangadex.org',

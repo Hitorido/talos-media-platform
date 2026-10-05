@@ -343,7 +343,10 @@ export default function MangaReaderScreen() {
     const listener = AppState.addEventListener('change', (state) => {
       if (state !== 'active') flush();
     });
-    return () => { listener.remove(); flush(); };
+    return () => {
+      listener.remove();
+      flush();
+    };
   }, []);
 
   const handlePageChange = useCallback(
