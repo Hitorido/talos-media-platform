@@ -20,6 +20,8 @@ export type DownloadItem = {
   totalBytes: number;
   localPath: string | null;
   error?: string | null;
+  subtitles?: { language: string; url: string }[];
+  subtitleWarning?: string;
   createdAt: number;
   updatedAt: number;
   // Payload URLs needed to resume or restart download

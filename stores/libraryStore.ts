@@ -61,7 +61,7 @@ export const useLibraryStore = create<LibraryState>()(
           };
           return { media: { ...state.media, [media.id]: nextMedia } };
         }),
-      tags: ['Favorites'],
+      tags: ['Favorites', 'Private'],
 
       addToLibrary: (mediaId, mediaType) => {
         set((state) => {
@@ -162,6 +162,14 @@ export const useLibraryStore = create<LibraryState>()(
     }),
     {
       name: 'library',
+      merge: (saved, current) => {
+        const data = saved as Partial<LibraryState>;
+        return {
+          ...current,
+          ...data,
+          tags: Array.from(new Set(['Favorites', 'Private', ...(data?.tags ?? [])])),
+        };
+      },
       storage: createJSONStorage(() => appPersistStorage),
       partialize: (state) => ({
         entries: state.entries,

@@ -1,3 +1,4 @@
+import { usePrivacyStore } from '@/stores/privacyStore';
 import { initializeProviders } from '@/providers';
 import { processDownloadQueue } from '@/services/downloadService';
 import { checkFileExists } from '@/services/storageService';
@@ -27,6 +28,7 @@ export async function bootstrapPersistence(): Promise<void> {
         // console.warn('[auth] Secure session could not be restored. Please sign in again.');
       }),
     useLibraryStore.persist.rehydrate(),
+    usePrivacyStore.persist.rehydrate(),
     useAnimeProgressStore.persist.rehydrate(),
     useMangaProgressStore.persist.rehydrate(),
     useNovelProgressStore.persist.rehydrate(),

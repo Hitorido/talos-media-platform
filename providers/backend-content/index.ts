@@ -13,6 +13,15 @@ import {
 /** Bridge the existing gateway models into the existing reader; no source-specific UI. */
 export function backendComicProvider(id: string, name: string): MediaProvider {
   const imageUrl = (url: string) => {
+    if (id === 'manhuaplus' && url) {
+      const image = new URL(url);
+      if (image.origin === 'https://cdn.manhuaplus.cc')
+        return (
+          getApiBaseUrl() +
+          '/api/content/proxy/manhuaplus/image?path=' +
+          encodeURIComponent(image.pathname)
+        );
+    }
     if (id === 'mangatown' && url.startsWith('/api/content/mangatown/image?'))
       return getApiBaseUrl() + url;
     if (id !== 'mangapill' || !url) return url;

@@ -34,6 +34,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   plugins: [
     'expo-router',
+    './plugins/withDownloadService',
     [
       'expo-splash-screen',
       {
@@ -56,6 +57,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       },
     ],
     'expo-secure-store',
+    ['expo-local-authentication', { faceIDPermission: 'Unlock your private Talos collection.' }],
   ],
   experiments: {
     typedRoutes: true,

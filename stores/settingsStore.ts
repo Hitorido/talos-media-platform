@@ -1,3 +1,4 @@
+import { usePrivacyStore } from '@/stores/privacyStore';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
@@ -21,6 +22,7 @@ export const useSettingsStore = create<SettingsState>()(
       preferredLanguage: 'en',
 
       addSearchHistory: (term) => {
+        if (usePrivacyStore.getState().incognito) return;
         const normalized = term.trim();
         if (!normalized) return;
 

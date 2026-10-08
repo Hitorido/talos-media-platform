@@ -1,3 +1,5 @@
+import { preloadPage } from '@/services/mangaImageCache';
+import { PrivacyAccessGate } from '@/components/content/PrivacyControls';
 import { SourceWebsiteButton } from '@/components/content/SourceWebsiteButton';
 import { mangaDetailsHref } from '@/lib/routes';
 import { captureBookmarkPreview } from '@/services/bookmarkPreview';
@@ -37,7 +39,7 @@ import { cn } from '@/utils/cn';
  */
 const PROGRESS_SAVE_THROTTLE_MS = 400;
 
-export default function MangaReaderScreen() {
+function MangaReaderScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { id, chapterId, page, bookmark } = useLocalSearchParams<{
@@ -73,15 +75,18 @@ export default function MangaReaderScreen() {
     }
   }, [router, id]);
 
-  const [initialPage] = useState(() =>
-    page && Number.isFinite(Number(page))
-      ? Math.max(1, Math.floor(Number(page)))
-      : (useMangaProgressStore.getState().getChapterProgress(id, chapterId)?.pageNumber ?? 1),
+  const initialPage = useMemo(
+    () =>
+      page && Number.isFinite(Number(page))
+        ? Math.max(1, Math.floor(Number(page)))
+        : (useMangaProgressStore.getState().getChapterProgress(id, chapterId)?.pageNumber ?? 1),
+    [id, chapterId, page],
   );
 
   // Track the currently visible chapter (changes as user scrolls in webtoon mode)
   const [activeChapterId, setActiveChapterId] = useState(chapterId);
   const [currentPage, setCurrentPage] = useState<number>(initialPage);
+  const [modeView, setModeView] = useState(savedView);
   const [readingMode, setReadingMode] = useState<ReadingMode>(
     savedView?.mode ?? useMangaProgressStore.getState().readingModes?.[id] ?? 'vertical',
   );
@@ -192,6 +197,28 @@ export default function MangaReaderScreen() {
 
   const activeChapter = chaptersToLoad.find((ch) => ch.id === activeChapterId) ?? chaptersToLoad[0];
 
+  useEffect(() => {
+    if (!activeChapter?.pages.length) return;
+    let cancelled = false;
+    const pages = activeChapter.pages;
+    // Start at the visible page, continue to the end, then fill earlier pages.
+    const pivot = Math.max(
+      0,
+      pages.findIndex((page) => page.pageNumber === currentPage),
+    );
+    const ordered = [...pages.slice(pivot), ...pages.slice(0, pivot)];
+    void (async () => {
+      for (let index = 0; index < ordered.length && !cancelled; index += 3) {
+        await Promise.all(
+          ordered.slice(index, index + 3).map((page) => preloadPage(page.imageUrl)),
+        );
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeChapter?.id, activeChapter?.pages, currentPage]);
+
   // Derived (not effect-driven): the active chapter is "loading" while it still
   // has no pages and no error has been recorded for it. Scoped to the active
   // chapter so prev/next jumps surface their own loading/error states.
@@ -230,9 +257,19 @@ export default function MangaReaderScreen() {
     return ids;
   }, [activeChapterId, chaptersToLoad]);
 
+  const pageLoads = useRef(new Set<string>());
+  const pageLoadEpoch = useRef(0);
+  useEffect(() => {
+    pageLoads.current.clear();
+    const epoch = ++pageLoadEpoch.current;
+    return () => {
+      pageLoadEpoch.current = epoch + 1;
+    };
+  }, [id]);
   useEffect(() => {
     if (!manga) return;
     const pending = chapterIdsToLoad.filter((chId) => {
+      if (pageLoads.current.has(chId)) return false;
       const chapter = manga.chapters.find((entry) => entry.id === chId);
       if (!chapter) return false;
       if (chapter.pages.length > 0) return false;
@@ -244,15 +281,16 @@ export default function MangaReaderScreen() {
     });
     if (pending.length === 0) return;
 
-    let cancelled = false;
+    const epoch = pageLoadEpoch.current;
     void Promise.all(
       pending.map(async (chId) => {
         const chapter = manga.chapters.find((entry) => entry.id === chId);
         if (!chapter) return;
+        pageLoads.current.add(chId);
         try {
           const local = await resolveMangaPages(id, chId, chapter.pages);
           const pages = local.isOffline ? local.pages : await getMangaChapterPages(id, chId);
-          if (cancelled) return;
+          if (epoch !== pageLoadEpoch.current) return;
           if (pages.length === 0) {
             setPagesErrorByChapter((current) => ({
               ...current,
@@ -262,16 +300,14 @@ export default function MangaReaderScreen() {
           }
           setProviderPagesByChapter((current) => ({ ...current, [chId]: pages }));
         } catch (error) {
-          if (cancelled) return;
+          if (epoch !== pageLoadEpoch.current) return;
           const message = error instanceof Error ? error.message : 'Failed to load chapter pages.';
           setPagesErrorByChapter((current) => ({ ...current, [chId]: message }));
+        } finally {
+          if (epoch === pageLoadEpoch.current) pageLoads.current.delete(chId);
         }
       }),
     );
-
-    return () => {
-      cancelled = true;
-    };
   }, [
     activeChapterId,
     chapterIdsToLoad,
@@ -590,10 +626,19 @@ export default function MangaReaderScreen() {
   // unrelated parent state (overlay visibility, toasts, chapter picker).
   const handleSelectMode = useCallback(
     (mode: ReadingMode) => {
+      const location =
+        readingMode === 'horizontal'
+          ? horizontalRef.current?.getLocation()
+          : verticalRef.current?.getLocation();
+      if (location) {
+        setActiveChapterId(location.chapterId);
+        setCurrentPage(location.pageNumber);
+        setModeView({ ...location, scale: 1, pan: 0 });
+      }
       setReadingMode(mode);
       useMangaProgressStore.getState().setReadingMode(id, mode);
     },
-    [id],
+    [id, readingMode],
   );
 
   const handleSelectDirection = useCallback((next: ReadingDirection) => {
@@ -710,7 +755,7 @@ export default function MangaReaderScreen() {
         {readingMode === 'vertical' ? (
           <VerticalReader
             key={(bookmark ?? 'webtoon-reader') + '-' + chapterId + '-' + readingMode}
-            initialView={savedView}
+            initialView={modeView}
             ref={verticalRef}
             chapters={chaptersToLoad}
             activeChapterId={activeChapterId}
@@ -722,7 +767,7 @@ export default function MangaReaderScreen() {
         ) : (
           <HorizontalReader
             key={'page-reader-' + chapterId}
-            initialView={savedView}
+            initialView={modeView}
             ref={horizontalRef}
             pages={horizontalPages}
             activeChapterId={activeChapterId}
@@ -829,5 +874,13 @@ export default function MangaReaderScreen() {
         </ReaderPressable>
       </Modal>
     </GestureHandlerRootView>
+  );
+}
+
+export default function ProtectedScreen() {
+  return (
+    <PrivacyAccessGate>
+      <MangaReaderScreen />
+    </PrivacyAccessGate>
   );
 }

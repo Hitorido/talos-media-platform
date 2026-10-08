@@ -119,6 +119,20 @@ export const novelCodexAdapter: ContentProviderAdapter = {
       .toArray()
       .map((el) => $(el).text().trim())
       .filter(Boolean);
+    const shortNotice = $('article').text().trim();
+    if (!paragraphs.length || (paragraphs.length <= 3 && shortNotice.length < 1000)) {
+      const pageText = paragraphs.length ? shortNotice : $('body').text();
+      if (
+        /daily (?:reading |chapter )?limit|limit (?:has been )?reached|reading limit/i.test(
+          pageText,
+        )
+      )
+        throw new ProviderGatewayError(
+          'NovelCodex daily reading limit reached. Wait for the source to reset it, or choose another source in details.',
+          429,
+          'SOURCE_DAILY_LIMIT',
+        );
+    }
     if (!paragraphs.length) throw new ProviderGatewayError('Public chapter text unavailable.', 502);
     return {
       providerId,

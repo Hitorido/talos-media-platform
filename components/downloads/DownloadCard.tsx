@@ -121,8 +121,13 @@ export function DownloadCard({
         </View>
       ) : null}
 
+      {isCompleted && item.subtitleWarning ? (
+        <Text variant="caption" tone="muted">
+          {item.subtitleWarning}
+        </Text>
+      ) : null}
       {/* Action Buttons */}
-      <View className="mt-3 flex-row items-center justify-end gap-2 border-t border-neutral-100 pt-3 dark:border-neutral-800/80">
+      <View className="mt-3 flex-row flex-wrap items-center justify-end gap-2 border-t border-neutral-100 pt-3 dark:border-neutral-800/80">
         {isDownloading ? (
           <>
             <Button label="Pause" size="sm" variant="secondary" onPress={onPause} />
@@ -168,6 +173,9 @@ export function DownloadCard({
               variant="primary"
               onPress={onOpen}
             />
+            {item.subtitleWarning ? (
+              <Button label="Retry download" size="sm" variant="secondary" onPress={onRetry} />
+            ) : null}
             <Button label="Delete" size="sm" variant="ghost" onPress={onDelete} />
           </>
         ) : null}

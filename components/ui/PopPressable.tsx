@@ -1,4 +1,4 @@
-import { Pressable, type PressableProps } from 'react-native';
+import { Platform, Pressable, type PressableProps } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -11,6 +11,18 @@ export function PopPressable({ onPressIn, onPressOut, ...props }: PopPressablePr
   const scale = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
+  // On web, preserve className on the DOM-backed Pressable. Reanimated's wrapper
+  // drops these utility styles, leaving buttons without padding or backgrounds.
+  if (Platform.OS === 'web') {
+    return (
+      <Pressable
+        accessibilityRole="button"
+        {...props}
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
+      />
+    );
+  }
   return (
     <AnimatedPressable
       accessibilityRole="button"

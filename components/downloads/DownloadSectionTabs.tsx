@@ -23,6 +23,7 @@ export function DownloadSectionTabs({ activeTab, counts, onSelectTab }: Download
   return (
     <ScrollView
       horizontal
+      style={{ flexGrow: 0, flexShrink: 0, height: 52 }}
       showsHorizontalScrollIndicator={false}
       contentContainerClassName="flex-row gap-2 px-4 py-2"
     >

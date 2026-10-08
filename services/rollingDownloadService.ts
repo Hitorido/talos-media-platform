@@ -1,3 +1,4 @@
+import { usePrivacyStore } from '@/stores/privacyStore';
 import {
   deleteDownload,
   downloadMangaChapter,
@@ -29,6 +30,7 @@ export async function maintainMangaDownloadWindow(
   manga: MangaDetails,
   activeChapterId: string,
 ): Promise<void> {
+  if (usePrivacyStore.getState().incognito) return;
   const settings = useRollingDownloadSettingsStore.getState();
   if (!settings.enabled) return;
   const activeIndex = manga.chapters.findIndex((chapter) => chapter.id === activeChapterId);
@@ -53,6 +55,7 @@ export async function maintainNovelDownloadWindow(
   novel: NovelDetails,
   activeChapterId: string,
 ): Promise<void> {
+  if (usePrivacyStore.getState().incognito) return;
   const settings = useRollingDownloadSettingsStore.getState();
   if (!settings.enabled) return;
   const activeIndex = novel.chapters.findIndex((chapter) => chapter.id === activeChapterId);

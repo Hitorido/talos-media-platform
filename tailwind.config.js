@@ -1,12 +1,18 @@
 const { palette, spacing, borderRadius, fontSize, fontFamily } = require('./theme/primitives.js');
 
+// React Native tokens are numbers; Tailwind must emit CSS lengths for web and native parsing.
+const cssLengths = (tokens) =>
+  Object.fromEntries(Object.entries(tokens).map(([key, value]) => [key, `${value}px`]));
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  important: process.env.NATIVEWIND_OS === 'web' ? 'html' : false,
   content: [
     './app/**/*.{js,jsx,ts,tsx}',
     './components/**/*.{js,jsx,ts,tsx}',
     './hooks/**/*.{js,jsx,ts,tsx}',
     './providers/**/*.{js,jsx,ts,tsx}',
+    './theme/**/*.{js,ts}',
   ],
   presets: [require('nativewind/preset')],
   theme: {
@@ -21,8 +27,8 @@ module.exports = {
         green: palette.green,
         blue: palette.blue,
       },
-      spacing,
-      borderRadius,
+      spacing: cssLengths(spacing),
+      borderRadius: cssLengths(borderRadius),
       fontSize,
       fontFamily,
       boxShadow: {

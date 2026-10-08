@@ -1,3 +1,5 @@
+import extensionCatalog from './extensions/index.json';
+import { loadReviewedExtensions } from './extensions/loader.js';
 import { animeXinAdapter } from './animexin/adapter.js';
 import { manhuaPlusAdapter } from './manhuaplus/adapter.js';
 import { wanderingInnAdapter } from './wanderinginn/adapter.js';
@@ -27,8 +29,12 @@ let initialized = false;
 export function initializeBackendProviders(): void {
   if (initialized) return;
 
-  registerProvider(animeXinAdapter);
-  registerProvider(manhuaPlusAdapter);
+  for (const adapter of loadReviewedExtensions(extensionCatalog, {
+    animexin: animeXinAdapter,
+    manhuaplus: manhuaPlusAdapter,
+    novelping: novelPingAdapter,
+  }))
+    registerProvider(adapter);
   registerProvider(wanderingInnAdapter);
   registerProvider(weebCentralAdapter);
   registerProvider(mangaPillAdapter);
@@ -37,7 +43,6 @@ export function initializeBackendProviders(): void {
   registerProvider(demonicScansAdapter);
   registerProvider(novelArrowAdapter);
   registerProvider(novelCodexAdapter);
-  registerProvider(novelPingAdapter);
   registerProvider(royalRoadAdapter);
   registerProvider(donghuaStreamAdapter);
   registerProvider(kaliScanAdapter);

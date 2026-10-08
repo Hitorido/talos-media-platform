@@ -125,6 +125,8 @@ const storeDeps = {
   react: { useMemo: (fn) => fn() },
   '@/stores/libraryStore': { useLibraryStore: { getState: () => ({ media: {} }) } },
   '@/services/mock/mangaData': { getMangaById() {} },
+  '@/hooks/useHiddenPrivateIds': { useHiddenPrivateIds: () => new Set() },
+  '@/stores/privacyStore': { usePrivacyStore: { getState: () => ({incognito:false}) } },
 };
 const firstStore = loadProviderTs('stores/mangaProgressStore.ts', storeDeps).useMangaProgressStore;
 firstStore.getState().setReadingMode('comic-one', 'horizontal');

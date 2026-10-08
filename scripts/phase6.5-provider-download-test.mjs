@@ -23,6 +23,8 @@ const store = {
   updateProgress() {},
 };
 const service = loadProviderTs('services/downloadService.ts', {
+  '@/services/downloadBackground': { setDownloadBackgroundActive: async () => {} },
+  '@/services/offlineSubtitles': { saveOfflineSubtitles: async () => ({ tracks: [], bytes: 0 }) },
   '@/services/offlineCatalog': {
     flushOfflineCatalog: async () => {},
     saveOfflineCatalog: async () => {},

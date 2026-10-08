@@ -1,3 +1,4 @@
+import { CoverVignette } from '@/components/content/CoverVignette';
 import { MediaSourceHeader } from '@/components/content/MediaSourceHeader';
 import { useState } from 'react';
 import { Image, View } from 'react-native';
@@ -42,6 +43,7 @@ export function AnimeDetailsHeader({ anime }: AnimeDetailsHeaderProps) {
             className="aspect-video w-full"
             resizeMode="cover"
           />
+          <CoverVignette uri={displayCover} />
           <CoverCustomizeButton
             media={{
               id: anime.id,
