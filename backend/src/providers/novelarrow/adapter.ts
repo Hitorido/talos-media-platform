@@ -5,9 +5,11 @@ import {
   type ContentProviderAdapter,
   type BackendSearchResult,
 } from '../types.js';
-const origin = 'https://novelarrow.com',
-  providerId = 'novelarrow';
+
+const origin = 'https://novelarrow.com';
+const providerId = 'novelarrow';
 const id = (v: string) => checkedId(v, /^[a-z0-9][a-z0-9-]{0,220}$/);
+
 type Chapter = {
   chapter_id: string;
   chapter_name: string;
@@ -15,6 +17,26 @@ type Chapter = {
   platinum_content?: boolean;
   coin_price?: number;
 };
+
+type NovelInfo = {
+  novel_id: string;
+  novel_name: string;
+  novel_author?: string;
+  novel_status?: number;
+  novel_desc?: string;
+  novel_genres?: string[];
+  totalChapter?: number;
+};
+
+function cleanDescription(desc?: string): string {
+  if (!desc) return '';
+  return desc
+    .replace(/<\/(?:p|div|h[1-6]|li)>/gi, '\n\n')
+    .replace(/<br\s*[\/]?>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .trim();
+}
+
 export const novelArrowAdapter: ContentProviderAdapter = {
   definition: {
     id: providerId,
@@ -27,48 +49,51 @@ export const novelArrowAdapter: ContentProviderAdapter = {
     enabledByDefault: true,
   },
   async search(query) {
-    const $ = load(await sourceText(origin, `/novels/search?keyword=${encodeURIComponent(query)}`));
-    const results = new Map<string, BackendSearchResult>();
-    $('a[href^="/novel/"]').each((_, el) => {
-      const a = $(el),
-        sourceId = a.attr('href')!.slice(7);
-      if (!/^[a-z0-9][a-z0-9-]{0,220}$/.test(sourceId)) return;
-      const old = results.get(sourceId);
-      const title =
-        a.find('h2,h3').first().text().trim() ||
-        (!a.find('p').length ? a.text().trim() : '') ||
-        old?.title ||
-        '';
-      results.set(sourceId, {
-        id: sourceId,
-        sourceId,
+    const text = await sourceText(
+      origin,
+      `/api-web/search?keyword=${encodeURIComponent(query)}`,
+    );
+    const payload = JSON.parse(text) as { items?: NovelInfo[] };
+    if (!Array.isArray(payload.items)) return [];
+    const results: BackendSearchResult[] = [];
+    for (const item of payload.items) {
+      if (!item.novel_id || !item.novel_name) continue;
+      if (!/^[a-z0-9][a-z0-9-]{0,220}$/.test(item.novel_id)) continue;
+      results.push({
+        id: item.novel_id,
+        sourceId: item.novel_id,
         providerId,
         mediaType: 'novel',
-        title,
-        coverUrl: a.find('img').attr('src') || old?.coverUrl,
+        title: item.novel_name,
+        coverUrl: `https://images.novelarrow.com/novel/${item.novel_id}.jpg`,
       });
-    });
-    return [...results.values()].filter((x) => x.title).slice(0, 20);
+    }
+    return results.slice(0, 20);
   },
   async getDetails(sourceId) {
-    const $ = load(await sourceText(origin, `/novel/${id(sourceId)}`));
-    const title = $('h1').first().text().trim();
-    if (!title) throw new ProviderGatewayError('Novel details unavailable.', 502);
+    const slug = id(sourceId);
+    const text = await sourceText(origin, `/api-web/novels/${slug}`);
+    const payload = JSON.parse(text) as { item?: { novelInfo?: NovelInfo } };
+    const info = payload.item?.novelInfo;
+    if (!info || !info.novel_name) {
+      throw new ProviderGatewayError('Novel details unavailable.', 404, 'MEDIA_NOT_FOUND');
+    }
     return {
       providerId,
-      sourceId,
+      sourceId: slug,
       mediaType: 'novel',
-      title,
-      description: $('meta[name="description"]').attr('content'),
-      coverUrl: $('meta[property="og:image"]').attr('content'),
-      genres: [],
+      title: info.novel_name,
+      description: cleanDescription(info.novel_desc),
+      coverUrl: `https://images.novelarrow.com/novel/${slug}.jpg`,
+      genres: Array.isArray(info.novel_genres) ? info.novel_genres : [],
+      status: info.novel_status === 0 ? 'ongoing' : 'completed',
       language: 'en',
     };
   },
   async getChapters(sourceId) {
-    const payload = JSON.parse(
-      await sourceText(origin, `/api-web/novels/${id(sourceId)}/chapters?sort=asc`),
-    ) as { items: Chapter[] };
+    const slug = id(sourceId);
+    const text = await sourceText(origin, `/api-web/novels/${slug}/chapters?sort=asc`);
+    const payload = JSON.parse(text) as { items: Chapter[] };
     if (!Array.isArray(payload.items))
       throw new ProviderGatewayError('Novel chapter list unavailable.', 502);
     return payload.items
@@ -76,7 +101,7 @@ export const novelArrowAdapter: ContentProviderAdapter = {
       .map((c, i) => ({
         id: c.chapter_id,
         providerId,
-        mediaId: sourceId,
+        mediaId: slug,
         chapterNumber: Number(
           c.chapter_name.match(/(?:chapter\s*)?(\d+(?:\.\d+)?)/i)?.[1] ?? i + 1,
         ),
@@ -85,44 +110,47 @@ export const novelArrowAdapter: ContentProviderAdapter = {
       }));
   },
   async getNovelContent(sourceId, chapterId) {
-    const payload = JSON.parse(
-      await sourceText(origin, `/api-web/novels/${id(sourceId)}/chapters/${id(chapterId)}`),
-    ) as {
-      item: {
+    const slug = id(sourceId);
+    const chapId = id(chapterId);
+    const text = await sourceText(origin, `/api-web/novels/${slug}/chapters/${chapId}`);
+    const payload = JSON.parse(text) as {
+      item?: {
         show_button_unlock?: boolean;
-        chapterInfo: Chapter & {
+        chapterInfo?: Chapter & {
           chapter_content: string;
-          prevChapter?: Chapter;
-          nextChapter?: Chapter;
+          prevChapter?: Chapter | null;
+          nextChapter?: Chapter | null;
         };
       };
     };
-    const item = payload.item,
-      c = item?.chapterInfo;
-    if (!c || item.show_button_unlock || c.premium_content || c.platinum_content || c.coin_price)
+    const item = payload.item;
+    const c = item?.chapterInfo;
+    if (!c || item?.show_button_unlock || c.premium_content || c.platinum_content || c.coin_price) {
       throw new ProviderGatewayError(
         'Chapter requires source access; not retrieved.',
         403,
         'CONTENT_LOCKED',
       );
+    }
     const $ = load(c.chapter_content || '');
     $('script,style').remove();
     const paragraphs = $('p')
       .toArray()
       .map((e) => $(e).text().trim())
       .filter(Boolean);
-    if (!paragraphs.length)
+    if (!paragraphs.length) {
       paragraphs.push(
         ...$.text()
           .split(/\n+/)
           .map((s) => s.trim())
           .filter(Boolean),
       );
+    }
     if (!paragraphs.length) throw new ProviderGatewayError('Chapter text unavailable.', 502);
     return {
       providerId,
-      mediaId: sourceId,
-      chapterId,
+      mediaId: slug,
+      chapterId: chapId,
       title: c.chapter_name,
       paragraphs,
       language: 'en',

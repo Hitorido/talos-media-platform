@@ -32,11 +32,23 @@ export async function sourceText(
           headers: {
             Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
             'Accept-Language': 'en-US,en;q=0.9',
-            // Browser-like UA — some sources reject short bot identifiers from cloud IPs.
+            // Consistent public-page request headers across fixed source origins.
             'User-Agent':
               'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
           },
         });
+        if (response.status === 403)
+          throw new ProviderGatewayError(
+            'Source refused this request (HTTP 403). Try another source.',
+            502,
+            'SOURCE_BLOCKED',
+          );
+        if (response.status === 429)
+          throw new ProviderGatewayError(
+            'Source request limit reached. Try again later.',
+            429,
+            'SOURCE_RATE_LIMITED',
+          );
         if (!response.ok)
           throw new ProviderGatewayError(
             `Source HTTP ${response.status}.`,
@@ -69,6 +81,20 @@ export async function sourceText(
         return text;
       } catch (error) {
         if (error instanceof ProviderGatewayError) throw error;
+        const cause = (error as { cause?: { code?: string } }).cause?.code;
+        if (cause === 'ENOTFOUND' || cause === 'EAI_AGAIN')
+          throw new ProviderGatewayError(
+            'Source domain could not be resolved. Try again later.',
+            502,
+            'SOURCE_DNS_FAILED',
+          );
+
+        if (controller.signal.aborted || cause === 'UND_ERR_CONNECT_TIMEOUT')
+          throw new ProviderGatewayError(
+            'Source request timed out. Try again later.',
+            504,
+            'SOURCE_TIMEOUT',
+          );
         throw new ProviderGatewayError(
           'Source unavailable or request timed out.',
           502,

@@ -68,7 +68,8 @@ export const novelPingAdapter: ContentProviderAdapter = {
         const match = u.pathname.match(/^\/book\/([a-z0-9-]+)\/([a-z0-9-]+)$/);
         if (u.origin !== origin || !match || match[1] !== slug || seen.has(match[2])) return [];
         seen.add(match[2]);
-        const title = a.text().trim(),
+        const rawTitle = a.text().trim(),
+          title = rawTitle.split('\n')[0].trim(),
           number = Number(
             title.match(/(?:Chapter|Ch\.)[\s:'-]*(\d+(?:\.\d+)?)/i)?.[1] ??
               match[2].match(/^chapter-(\d+(?:\.\d+)?)/)?.[1],
