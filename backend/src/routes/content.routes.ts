@@ -1,3 +1,4 @@
+import { imageProxy, videoProxy } from '../media/proxy.js';
 import { animeParadisePlaylist } from '../providers/animeparadise/playlist.js';
 import { novelPingDiscovery } from '../providers/novelping/discovery.js';
 import { novelCodexDiscovery } from '../providers/novelcodex/discovery.js';
@@ -14,6 +15,9 @@ import { asyncHandler } from '../utils/asyncHandler.js';
  * Provider-specific logic lives in adapters; this router only validates params and delegates.
  */
 export const contentRouter = Router();
+
+contentRouter.get('/proxy/:providerId/image', asyncHandler(imageProxy));
+contentRouter.get('/proxy/:providerId/video/:mediaId/:episodeId', asyncHandler(videoProxy));
 
 contentRouter.get('/providers', contentController.listProviders);
 contentRouter.get(

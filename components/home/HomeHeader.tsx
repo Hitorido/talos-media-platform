@@ -8,7 +8,11 @@ export function HomeHeader() {
   return (
     <View className="gap-1">
       <View className="flex-row items-center gap-2">
-        <Image source={talosLogo} className="h-8 w-8 rounded-lg" resizeMode="contain" />
+        <Image
+          source={talosLogo}
+          style={{ width: 32, height: 32, borderRadius: 8 }}
+          resizeMode="contain"
+        />
         <Text
           variant="caption"
           className="font-bold uppercase tracking-wide text-primary-600 dark:text-primary-400"

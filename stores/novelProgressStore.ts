@@ -1,3 +1,5 @@
+import { useHiddenPrivateIds } from '@/hooks/useHiddenPrivateIds';
+import { usePrivacyStore } from '@/stores/privacyStore';
 import { useLibraryStore } from '@/stores/libraryStore';
 import { useMemo } from 'react';
 import { create } from 'zustand';
@@ -92,6 +94,7 @@ export const useNovelProgressStore = create<NovelProgressState>()(
       settings: defaultSettings,
 
       setChapterProgress: (progress) => {
+        if (usePrivacyStore.getState().incognito) return;
         set((state) => ({
           progressByNovel: {
             ...state.progressByNovel,
@@ -190,10 +193,14 @@ export const useNovelProgressStore = create<NovelProgressState>()(
 );
 
 export function useContinueReadingNovels(): ContinueReadingNovelEntry[] {
+  const hidden = useHiddenPrivateIds();
   const media = useLibraryStore((state) => state.media);
   const progressByNovel = useNovelProgressStore((state) => state.progressByNovel);
   return useMemo(
-    () => buildContinueReadingNovels(progressByNovel, media),
-    [progressByNovel, media],
+    () =>
+      buildContinueReadingNovels(progressByNovel, media).filter(
+        (item) => !hidden.has(item.novelId),
+      ),
+    [progressByNovel, media, hidden],
   );
 }

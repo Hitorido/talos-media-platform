@@ -1,6 +1,7 @@
+import { appAlert as Alert } from '@/stores/dialogStore';
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { Alert, FlatList, Modal, ScrollView, StyleSheet, View } from 'react-native';
+import { FlatList, Modal, ScrollView, StyleSheet, View } from 'react-native';
 import { PopPressable as Pressable } from '@/components/ui/PopPressable';
 
 import { Badge } from '@/components/ui/Badge';

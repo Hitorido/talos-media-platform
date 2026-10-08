@@ -162,7 +162,7 @@ export function NovelReaderControls({
 
   return (
     <View
-      style={{ paddingBottom: Math.max(insets.bottom, 12) }}
+      style={{ paddingBottom: Math.max(insets.bottom, 12), zIndex: 20, elevation: 20 }}
       // Claim the touch responder so the ScrollView below does not fire onTouchEnd
       // (which would toggle the overlay) when the user taps Prev/Next Chapter.
       onStartShouldSetResponder={() => true}

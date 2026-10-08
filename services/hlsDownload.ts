@@ -133,34 +133,44 @@ export async function downloadHls(
   if (failure) throw failure;
   if (signal.isAborted) throw new Error('Download paused.');
   const localPath = directory + 'video.m3u8';
+  let subtitleWarning: string | undefined;
   if (subtitlePlaylist) {
-    const captionResponse = await playlist(subtitlePlaylist);
-    const captions = captionResponse.text;
-    subtitlePlaylist = captionResponse.url;
-    if (
-      !captions.includes('#EXT-X-ENDLIST') ||
-      /#EXT-X-(?:KEY|MAP|BYTERANGE|STREAM-INF):/.test(captions)
-    )
-      throw new Error('Unsupported offline subtitle playlist.');
-    const captionLines = captions.split(/\r?\n/);
-    let captionIndex = 0;
-    for (let i = 0; i < captionLines.length; i++) {
-      const line = captionLines[i];
-      if (!line || line.startsWith('#')) continue;
-      if (signal.isAborted) throw new Error('Download paused.');
-      if (++captionIndex > 500) throw new Error('Subtitle segment limit exceeded.');
-      const name = 'caption-' + captionIndex + '.vtt';
-      const downloaded = await downloadFile(new URL(line, subtitlePlaylist).href, directory + name);
-      bytes += downloaded.size;
-      captionLines[i] = name;
+    try {
+      const captionResponse = await playlist(subtitlePlaylist);
+      const captions = captionResponse.text;
+      subtitlePlaylist = captionResponse.url;
+      if (
+        !captions.includes('#EXT-X-ENDLIST') ||
+        /#EXT-X-(?:KEY|MAP|BYTERANGE|STREAM-INF):/.test(captions)
+      )
+        throw new Error('Unsupported offline subtitle playlist.');
+      const captionLines = captions.split(/\r?\n/);
+      let captionIndex = 0;
+      for (let i = 0; i < captionLines.length; i++) {
+        const line = captionLines[i];
+        if (!line || line.startsWith('#')) continue;
+        if (signal.isAborted) throw new Error('Download paused.');
+        if (++captionIndex > 500) throw new Error('Subtitle segment limit exceeded.');
+        const name = 'caption-' + captionIndex + '.vtt';
+        const downloaded = await downloadFile(
+          new URL(line, subtitlePlaylist).href,
+          directory + name,
+        );
+        bytes += downloaded.size;
+        captionLines[i] = name;
+      }
+      if (!captionIndex || signal.isAborted) throw new Error('Subtitle download incomplete.');
+      await saveTextFile(directory + 'english.m3u8', captionLines.join('\n'));
+      await saveTextFile(directory + 'media.m3u8', lines.join('\n'));
+      await saveTextFile(
+        localPath,
+        '#EXTM3U\n#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="en",NAME="English",LANGUAGE="en",AUTOSELECT=YES,DEFAULT=YES,URI="english.m3u8"\n#EXT-X-STREAM-INF:BANDWIDTH=2500000,SUBTITLES="en"\nmedia.m3u8\n',
+      );
+    } catch (error) {
+      if (signal.isAborted) throw error;
+      subtitleWarning = 'Embedded subtitle download failed. Retry while online to save captions.';
+      await saveTextFile(localPath, lines.join('\n'));
     }
-    if (!captionIndex || signal.isAborted) throw new Error('Subtitle download incomplete.');
-    await saveTextFile(directory + 'english.m3u8', captionLines.join('\n'));
-    await saveTextFile(directory + 'media.m3u8', lines.join('\n'));
-    await saveTextFile(
-      localPath,
-      '#EXTM3U\n#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="en",NAME="English",LANGUAGE="en",AUTOSELECT=YES,DEFAULT=YES,URI="english.m3u8"\n#EXT-X-STREAM-INF:BANDWIDTH=2500000,SUBTITLES="en"\nmedia.m3u8\n',
-    );
   } else await saveTextFile(localPath, lines.join('\n'));
-  return { localPath, bytes };
+  return { localPath, bytes, subtitleWarning };
 }

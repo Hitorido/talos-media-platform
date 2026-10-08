@@ -1,4 +1,4 @@
-import { ScrollView, type ScrollViewProps } from 'react-native';
+import { Platform, View, ScrollView, type ScrollViewProps } from 'react-native';
 import { SafeAreaView, type SafeAreaViewProps } from 'react-native-safe-area-context';
 
 import { cn } from '@/utils/cn';
@@ -39,7 +39,13 @@ export function Screen({
 
   return (
     <SafeAreaView className={cn('flex-1 bg-neutral-50 dark:bg-neutral-950', className)} {...props}>
-      {children}
+      {Platform.OS === 'web' ? (
+        <View style={{ flex: 1, minHeight: 0, width: '100%', maxWidth: 1280, alignSelf: 'center' }}>
+          {children}
+        </View>
+      ) : (
+        children
+      )}
     </SafeAreaView>
   );
 }

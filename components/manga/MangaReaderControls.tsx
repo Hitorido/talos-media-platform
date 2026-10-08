@@ -124,7 +124,7 @@ function MangaReaderControlsImpl({
         .minDistance(0)
         // Gesture callbacks are worklets; shared values are intentionally mutated on the UI thread.
 
-        .onBegin((event) => {
+        .onStart((event) => {
           if (progressWidth <= 0 || totalPages <= 0) return;
           const visualProgress = Math.max(0, Math.min(1, event.x / progressWidth));
           const logicalProgress = progressDirection === 'rtl' ? 1 - visualProgress : visualProgress;
@@ -180,6 +180,16 @@ function MangaReaderControlsImpl({
       totalPages,
     ],
   );
+
+  // This callback runs after the native tap, not during React rendering.
+  // eslint-disable-next-line react-hooks/refs
+  const tapGesture = Gesture.Tap().onEnd((event, success) => {
+    if (!success || progressWidth <= 0 || totalPages <= 0) return;
+    const visual = Math.max(0, Math.min(1, event.x / progressWidth));
+    const logical = progressDirection === 'rtl' ? 1 - visual : visual;
+    runOnJS(commitPage)(Math.round(logical * (totalPages - 1)) + 1);
+  });
+  const progressGesture = Gesture.Exclusive(seekGesture, tapGesture);
 
   const fillStyle = useAnimatedStyle(() => ({
     width: `${progressValue.value * 100}%`,
@@ -292,7 +302,7 @@ function MangaReaderControlsImpl({
       ) : null}
 
       <View className="mb-3 h-10 px-1">
-        <GestureDetector gesture={seekGesture}>
+        <GestureDetector gesture={progressGesture}>
           <View
             hitSlop={{ top: 15, bottom: 15 }}
             className="absolute left-1 right-1 top-[15px] h-2 rounded-full bg-neutral-800"

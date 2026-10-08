@@ -18,7 +18,8 @@ type SearchResultsListProps = {
 export function SearchResultsList({ results, query, onResultPress }: SearchResultsListProps) {
   const [selectedGroup, setSelectedGroup] = useState<SearchGroup | null>(null);
   const { width } = useWindowDimensions();
-  const columns = width >= 1200 ? 3 : width >= 760 ? 2 : 1;
+  const [availableWidth, setAvailableWidth] = useState(Math.min(width, 1280));
+  const columns = availableWidth >= 1200 ? 3 : availableWidth >= 760 ? 2 : 1;
   const [counts, setCounts] = useState<Record<string, number>>({});
   useEffect(() => {
     const controller = new AbortController();
@@ -66,6 +67,7 @@ export function SearchResultsList({ results, query, onResultPress }: SearchResul
       />
       <FlatList
         key={columns}
+        onLayout={(event) => setAvailableWidth(event.nativeEvent.layout.width)}
         numColumns={columns}
         columnWrapperStyle={columns > 1 ? { gap: 12 } : undefined}
         data={groups}
@@ -78,7 +80,12 @@ export function SearchResultsList({ results, query, onResultPress }: SearchResul
           </Text>
         }
         renderItem={({ item }) => (
-          <View style={{ width: `${100 / columns}%`, flexShrink: 1 }}>
+          <View
+            style={{
+              width: Math.max(0, (availableWidth - 32 - (columns - 1) * 12) / columns),
+              minWidth: 0,
+            }}
+          >
             <SearchResultItem
               item={item.sources[0]}
               onPress={() =>

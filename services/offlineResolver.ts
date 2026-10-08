@@ -11,6 +11,7 @@ import type { NovelChapter } from '@/types/novel';
 
 export type ResolvedAnimePlayback = {
   streamUrl: string;
+  subtitles?: { language: string; url: string }[];
   isOffline: boolean;
 };
 
@@ -40,6 +41,7 @@ export async function resolveAnimeSource(
     if (exists) {
       return {
         streamUrl: download.localPath,
+        subtitles: download.subtitles,
         isOffline: true,
       };
     }
@@ -48,7 +50,7 @@ export async function resolveAnimeSource(
   // Check storage path directly as fallback
   const localFile = getAnimeStoragePath(animeId, episodeId);
   const fileExists = await checkFileExists(localFile);
-  if (fileExists) {
+  if (fileExists && !download) {
     return {
       streamUrl: localFile,
       isOffline: true,

@@ -38,16 +38,14 @@ export function EpisodeListItem({
   const isDownloading = download?.status === 'downloading' || download?.status === 'queued';
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
+    <View
       className={cn(
         'rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900',
         isActive && 'border-primary-500 dark:border-primary-400',
       )}
     >
       <View className="flex-row items-center justify-between gap-3">
-        <View className="flex-1 gap-1">
+        <Pressable onPress={onPress} className="flex-1 gap-1">
           <View className="flex-row items-center gap-2">
             <Text variant="label">
               Episode {episode.number} · {formatDuration(episode.durationSeconds)}
@@ -57,7 +55,7 @@ export function EpisodeListItem({
           <Text variant="bodySmall" tone="muted" numberOfLines={2}>
             {episode.title}
           </Text>
-        </View>
+        </Pressable>
 
         <View className="flex-row items-center gap-3">
           {typeof progress === 'number' && progress > 0 ? (
@@ -98,7 +96,7 @@ export function EpisodeListItem({
       {typeof progress === 'number' && progress > 0 ? (
         <ProgressBar progress={progress} className="mt-3" />
       ) : null}
-    </Pressable>
+    </View>
   );
 }
 
