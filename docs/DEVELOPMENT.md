@@ -80,3 +80,8 @@ The APK includes `react-native-background-actions` with `plugins/withDownloadSer
 Test on the installed APK with notification permission enabled: queue multiple chapters/episodes, press Home, return, dismiss from Recents and reopen, then test offline details and supported captions. Force-stop and OS service/battery limits can interrupt work; persisted unfinished downloads are queued on next launch. The service is not a guarantee of indefinite execution and does not provide unlimited source access.
 
 Primary references: [background-actions installation](https://github.com/Rapsssito/react-native-background-actions/blob/master/INSTALL.md), [Expo 57 background task limitations](https://docs.expo.dev/versions/v57.0.0/sdk/background-task/). The scheduled Expo BackgroundTask API is not used as a continuous media downloader.
+
+
+### Expo Router initial-link patch
+
+`npm install` runs `scripts/patch-router-initial-link.mjs` for Expo Router 57.0.15. The patch defers initial-link notifications until the navigation component mounts and ignores late results after unmount. It preserves initial route parsing and subsequent link listeners. It is version-guarded: review/remove it when upgrading Expo Router instead of blindly applying it to changed code. Run `node scripts/router-initial-link-test.mjs` to verify the lifecycle guard. Restart Metro with `npx expo start --clear` after applying it; installed APKs require rebuilding. Upstream report: https://github.com/expo/expo/issues/47659.
