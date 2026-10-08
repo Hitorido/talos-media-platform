@@ -112,72 +112,367 @@ export function backendComicProvider(id: string, name: string): MediaProvider {
   };
 }
 
+const DIRECT_NOVEL_ORIGINS: Record<string, string> = {
+  novelarrow: 'https://novelarrow.com',
+  novelping: 'https://novelping.com',
+};
+
+async function directNovelFetchJson<T>(origin: string, path: string, signal?: AbortSignal): Promise<T> {
+  const res = await fetch(`${origin}${path}`, {
+    signal,
+    headers: {
+      Accept: 'application/json, text/plain, */*',
+    },
+  });
+  if (!res.ok) {
+    throw new Error(`Direct source HTTP ${res.status}`);
+  }
+  return res.json() as Promise<T>;
+}
+
 export function backendNovelProvider(id: string, name: string): MediaProvider {
   const route = (sourceId: string) => `/api/content/novel/${id}/${encodeURIComponent(sourceId)}`;
+  const directOrigin = DIRECT_NOVEL_ORIGINS[id];
+
   return {
     definition: {
       id,
       name,
       mediaTypes: ['novel'],
       capabilities: ['search', 'details', 'chapters', 'textContent'],
-      status: 'limited',
-      statusNote:
-        id === 'wanderinginn'
+      status: 'working',
+      statusNote: directOrigin
+        ? 'Supports direct-client requests and backend gateway fallback.'
+        : id === 'wanderinginn'
           ? 'Author-hosted English web serial; local gateway verified. Deployment and phone verification pending.'
           : id === 'royalroad'
             ? 'Public English fiction adapter; local verification in progress. Removed chapters remain unavailable.'
-            : id === 'novelping'
-              ? 'Public English text works locally; Render currently receives upstream HTTP 403.'
-              : id === 'novelarrow'
-                ? 'Local text verified; Render upstream HTTP 403. Production reading unavailable.'
-                : 'Public text verified through Render; physical reader pending. Locked content is not retrieved.',
-      executionMode: 'backend-api',
-      backendRequired: true,
+            : 'Public text verified through Render; physical reader pending. Locked content is not retrieved.',
+      executionMode: directOrigin ? 'direct-api' : 'backend-api',
+      backendRequired: !directOrigin,
       health: {},
     },
     async search(query, context) {
       if (!['all', 'novel'].includes(context.filter)) return [];
-      const data = await apiRequest<{
-        results: {
+
+      const mapResults = (
+        items: {
           sourceId: string;
           title: string;
           coverUrl?: string;
           status?: string;
           chapterCount?: number;
-        }[];
-      }>(`/api/content/search?mediaType=novel&providerId=${id}&q=${encodeURIComponent(query)}`, {
-        signal: context.signal,
-      });
-      return data.results.slice(0, context.limit ?? 12).map((x) => ({
-        id: encodeMediaRouteId(id, x.sourceId),
-        providerId: id,
-        sourceId: x.sourceId,
-        title: x.title,
-        status: x.status,
-        coverUrl: x.coverUrl ?? '',
-        type: 'novel' as const,
-        language: ['novelcodex', 'novelarrow', 'novelping', 'royalroad', 'wanderinginn'].includes(
-          id,
-        )
-          ? 'en'
-          : undefined,
-        chapterCount: x.chapterCount,
-        subtitle: name,
-        tags: [name],
-      }));
+        }[],
+      ) =>
+        items.slice(0, context.limit ?? 12).map((x) => ({
+          id: encodeMediaRouteId(id, x.sourceId),
+          providerId: id,
+          sourceId: x.sourceId,
+          title: x.title,
+          status: x.status,
+          coverUrl: x.coverUrl ?? '',
+          type: 'novel' as const,
+          language: ['novelcodex', 'novelarrow', 'novelping', 'royalroad', 'wanderinginn'].includes(
+            id,
+          )
+            ? 'en'
+            : undefined,
+          chapterCount: x.chapterCount,
+          subtitle: name,
+          tags: [name],
+        }));
+
+      // If this provider supports direct client access, try direct first, then backend
+      if (directOrigin) {
+        try {
+          const directData = await directNovelFetchJson<{
+            items?: { novel_id: string; novel_name: string; totalChapter?: number }[];
+          }>(directOrigin, `/api-web/search?keyword=${encodeURIComponent(query)}`, context.signal);
+          if (Array.isArray(directData.items) && directData.items.length > 0) {
+            return mapResults(
+              directData.items.map((item) => ({
+                sourceId: item.novel_id,
+                title: item.novel_name,
+                coverUrl: `https://images.${id}.com/novel/${item.novel_id}.jpg`,
+                chapterCount: item.totalChapter,
+              })),
+            );
+          }
+        } catch {
+          // Fall through to backend gateway if direct fetch fails
+        }
+      }
+
+      try {
+        const data = await apiRequest<{
+          results: {
+            sourceId: string;
+            title: string;
+            coverUrl?: string;
+            status?: string;
+            chapterCount?: number;
+          }[];
+        }>(`/api/content/search?mediaType=novel&providerId=${id}&q=${encodeURIComponent(query)}`, {
+          signal: context.signal,
+        });
+        return mapResults(data.results);
+      } catch (err) {
+        // If backend fails (e.g. Render 403) and direct origin exists, retry direct
+        if (directOrigin) {
+          const directData = await directNovelFetchJson<{
+            items?: { novel_id: string; novel_name: string; totalChapter?: number }[];
+          }>(directOrigin, `/api-web/search?keyword=${encodeURIComponent(query)}`, context.signal);
+          return mapResults(
+            (directData.items || []).map((item) => ({
+              sourceId: item.novel_id,
+              title: item.novel_name,
+              coverUrl: `https://images.${id}.com/novel/${item.novel_id}.jpg`,
+              chapterCount: item.totalChapter,
+            })),
+          );
+        }
+        throw err;
+      }
     },
     async getDetails(ref) {
-      const data = await apiRequest<Omit<NormalizedMedia, 'ref'>>(route(ref.sourceId));
-      return { ...data, ref, coverUrl: data.coverUrl ?? '', genres: data.genres ?? [] };
+      if (directOrigin) {
+        try {
+          const directData = await directNovelFetchJson<{
+            item?: {
+              novelInfo?: {
+                novel_id: string;
+                novel_name: string;
+                novel_author?: string;
+                novel_status?: number;
+                novel_desc?: string;
+                novel_genres?: string[];
+              };
+            };
+          }>(directOrigin, `/api-web/novels/${encodeURIComponent(ref.sourceId)}`);
+          const info = directData.item?.novelInfo;
+          if (info && info.novel_name) {
+            const cleanDesc = (info.novel_desc || '')
+              .replace(/<\/(?:p|div|h[1-6]|li)>/gi, '\n\n')
+              .replace(/<br\s*[\/]?>/gi, '\n')
+              .replace(/<[^>]+>/g, '')
+              .trim();
+            return {
+              ref,
+              mediaType: 'novel',
+              title: info.novel_name,
+              description: cleanDesc,
+              coverUrl: `https://images.${id}.com/novel/${info.novel_id}.jpg`,
+              genres: Array.isArray(info.novel_genres) ? info.novel_genres : [],
+              status: info.novel_status === 0 ? 'ongoing' : 'completed',
+              author: info.novel_author,
+              language: 'en',
+            };
+          }
+        } catch {
+          // Fall through to backend gateway
+        }
+      }
+
+      try {
+        const data = await apiRequest<Omit<NormalizedMedia, 'ref'>>(route(ref.sourceId));
+        return { ...data, ref, coverUrl: data.coverUrl ?? '', genres: data.genres ?? [] };
+      } catch (err) {
+        if (directOrigin) {
+          const directData = await directNovelFetchJson<{
+            item?: {
+              novelInfo?: {
+                novel_id: string;
+                novel_name: string;
+                novel_author?: string;
+                novel_status?: number;
+                novel_desc?: string;
+                novel_genres?: string[];
+              };
+            };
+          }>(directOrigin, `/api-web/novels/${encodeURIComponent(ref.sourceId)}`);
+          const info = directData.item?.novelInfo;
+          if (info && info.novel_name) {
+            const cleanDesc = (info.novel_desc || '')
+              .replace(/<\/(?:p|div|h[1-6]|li)>/gi, '\n\n')
+              .replace(/<br\s*[\/]?>/gi, '\n')
+              .replace(/<[^>]+>/g, '')
+              .trim();
+            return {
+              ref,
+              mediaType: 'novel',
+              title: info.novel_name,
+              description: cleanDesc,
+              coverUrl: `https://images.${id}.com/novel/${info.novel_id}.jpg`,
+              genres: Array.isArray(info.novel_genres) ? info.novel_genres : [],
+              status: info.novel_status === 0 ? 'ongoing' : 'completed',
+              author: info.novel_author,
+              language: 'en',
+            };
+          }
+        }
+        throw err;
+      }
     },
     async getChapters(ref) {
-      const data = await apiRequest<{
-        chapters: { id: string; chapterNumber: number; title: string; language?: string }[];
-      }>(`${route(ref.sourceId)}/chapters`);
-      return data.chapters.map((c) => ({ ...c, number: c.chapterNumber }));
+      if (directOrigin) {
+        try {
+          const directData = await directNovelFetchJson<{
+            items?: {
+              chapter_id: string;
+              chapter_name: string;
+              premium_content?: boolean;
+              platinum_content?: boolean;
+              coin_price?: number;
+            }[];
+          }>(directOrigin, `/api-web/novels/${encodeURIComponent(ref.sourceId)}/chapters?sort=asc`);
+          if (Array.isArray(directData.items)) {
+            return directData.items
+              .filter((c) => !c.premium_content && !c.platinum_content && !c.coin_price)
+              .map((c, i) => ({
+                id: c.chapter_id,
+                number: Number(
+                  c.chapter_name.match(/(?:chapter\s*)?(\d+(?:\.\d+)?)/i)?.[1] ?? i + 1,
+                ),
+                title: c.chapter_name.trim(),
+                language: 'en',
+              }));
+          }
+        } catch {
+          // Fall through to backend gateway
+        }
+      }
+
+      try {
+        const data = await apiRequest<{
+          chapters: { id: string; chapterNumber: number; title: string; language?: string }[];
+        }>(`${route(ref.sourceId)}/chapters`);
+        return data.chapters.map((c) => ({ ...c, number: c.chapterNumber }));
+      } catch (err) {
+        if (directOrigin) {
+          const directData = await directNovelFetchJson<{
+            items?: {
+              chapter_id: string;
+              chapter_name: string;
+              premium_content?: boolean;
+              platinum_content?: boolean;
+              coin_price?: number;
+            }[];
+          }>(directOrigin, `/api-web/novels/${encodeURIComponent(ref.sourceId)}/chapters?sort=asc`);
+          if (Array.isArray(directData.items)) {
+            return directData.items
+              .filter((c) => !c.premium_content && !c.platinum_content && !c.coin_price)
+              .map((c, i) => ({
+                id: c.chapter_id,
+                number: Number(
+                  c.chapter_name.match(/(?:chapter\s*)?(\d+(?:\.\d+)?)/i)?.[1] ?? i + 1,
+                ),
+                title: c.chapter_name.trim(),
+                language: 'en',
+              }));
+          }
+        }
+        throw err;
+      }
     },
     async getNovelContent(ref, chapterId) {
-      return apiRequest(`${route(ref.sourceId)}/chapters/${encodeURIComponent(chapterId)}/content`);
+      if (directOrigin) {
+        try {
+          const directData = await directNovelFetchJson<{
+            item?: {
+              show_button_unlock?: boolean;
+              chapterInfo?: {
+                chapter_name: string;
+                chapter_content?: string;
+                premium_content?: boolean;
+                platinum_content?: boolean;
+                coin_price?: number;
+                prevChapter?: { chapter_id: string } | null;
+                nextChapter?: { chapter_id: string } | null;
+              };
+            };
+          }>(
+            directOrigin,
+            `/api-web/novels/${encodeURIComponent(ref.sourceId)}/chapters/${encodeURIComponent(chapterId)}`,
+          );
+          const item = directData.item;
+          const c = item?.chapterInfo;
+          if (c && !item?.show_button_unlock && !c.premium_content && !c.platinum_content && !c.coin_price) {
+            const raw = c.chapter_content || '';
+            const paragraphs = raw
+              .replace(/<h[1-6][^>]*>.*?<\/h[1-6]>/gi, '')
+              .replace(/<\/(?:p|div|li)>/gi, '\n\n')
+              .replace(/<br\s*[\/]?>/gi, '\n')
+              .replace(/<[^>]+>/g, '')
+              .split(/\n+/)
+              .map((s) => s.trim())
+              .filter(Boolean);
+            if (paragraphs.length > 0) {
+              return {
+                providerId: id,
+                novelId: ref.sourceId,
+                chapterId,
+                title: c.chapter_name.trim(),
+                paragraphs,
+                language: 'en',
+                previousChapterId: c.prevChapter?.chapter_id,
+                nextChapterId: c.nextChapter?.chapter_id,
+              };
+            }
+          }
+        } catch {
+          // Fall through to backend gateway
+        }
+      }
+
+      try {
+        return await apiRequest(`${route(ref.sourceId)}/chapters/${encodeURIComponent(chapterId)}/content`);
+      } catch (err) {
+        if (directOrigin) {
+          const directData = await directNovelFetchJson<{
+            item?: {
+              show_button_unlock?: boolean;
+              chapterInfo?: {
+                chapter_name: string;
+                chapter_content?: string;
+                premium_content?: boolean;
+                platinum_content?: boolean;
+                coin_price?: number;
+                prevChapter?: { chapter_id: string } | null;
+                nextChapter?: { chapter_id: string } | null;
+              };
+            };
+          }>(
+            directOrigin,
+            `/api-web/novels/${encodeURIComponent(ref.sourceId)}/chapters/${encodeURIComponent(chapterId)}`,
+          );
+          const item = directData.item;
+          const c = item?.chapterInfo;
+          if (c && !item?.show_button_unlock && !c.premium_content && !c.platinum_content && !c.coin_price) {
+            const raw = c.chapter_content || '';
+            const paragraphs = raw
+              .replace(/<h[1-6][^>]*>.*?<\/h[1-6]>/gi, '')
+              .replace(/<\/(?:p|div|li)>/gi, '\n\n')
+              .replace(/<br\s*[\/]?>/gi, '\n')
+              .replace(/<[^>]+>/g, '')
+              .split(/\n+/)
+              .map((s) => s.trim())
+              .filter(Boolean);
+            if (paragraphs.length > 0) {
+              return {
+                providerId: id,
+                novelId: ref.sourceId,
+                chapterId,
+                title: c.chapter_name.trim(),
+                paragraphs,
+                language: 'en',
+                previousChapterId: c.prevChapter?.chapter_id,
+                nextChapterId: c.nextChapter?.chapter_id,
+              };
+            }
+          }
+        }
+        throw err;
+      }
     },
   };
 }
