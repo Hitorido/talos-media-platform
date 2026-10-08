@@ -1,3 +1,5 @@
+import { UpdateModal } from '@/components/UpdateModal';
+import { checkForUpdate, type VersionManifest } from '@/services/updateService';
 import { AppDialog } from '@/components/ui/AppDialog';
 import { processDownloadQueue } from '@/services/downloadService';
 import { AppState } from 'react-native';
@@ -87,6 +89,19 @@ export default function RootLayout() {
 }
 
 function RootLayoutNav() {
+  const [updateManifest, setUpdateManifest] = useState<VersionManifest | null>(null);
+  useEffect(() => {
+    let active = true;
+    // Let the shared health check warm Render without blocking app navigation.
+    void wakeBackend().then(async () => {
+      if (!active) return;
+      const manifest = await checkForUpdate();
+      if (active && manifest) setUpdateManifest(manifest);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
   const colorScheme = useColorScheme();
   const scheme = colorScheme === 'dark' ? 'dark' : 'light';
   const themeColors = getColors(scheme);
@@ -118,6 +133,9 @@ function RootLayoutNav() {
 
   return (
     <ThemeProvider value={navigationTheme}>
+      {updateManifest && (
+        <UpdateModal manifest={updateManifest} onDismiss={() => setUpdateManifest(null)} />
+      )}
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         {/* Nested layouts own their own headers; disable the root header to avoid duplicates. */}

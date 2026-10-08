@@ -23,7 +23,7 @@ let cachedManifest: VersionManifest | null = null;
 /** Shown at most once per session regardless of how many times checkForUpdate is called. */
 let shownThisSession = false;
 
-/** Semantic version comparison — returns true when a > b (ignores prerelease labels). */
+/** Semantic version comparison â€” returns true when a > b (ignores prerelease labels). */
 export function semverGt(a: string, b: string): boolean {
   const parse = (v: string) =>
     v
@@ -64,11 +64,10 @@ export async function checkForUpdate(force = false): Promise<VersionManifest | n
     return available;
   }
 
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
   try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 8000);
     const resp = await fetch(VERSION_URL, { signal: controller.signal });
-    clearTimeout(timer);
     if (!resp.ok) return null;
     const data = (await resp.json()) as Partial<VersionManifest>;
     if (typeof data.latestVersion !== 'string' || !data.downloadUrl) return null;
@@ -80,6 +79,8 @@ export async function checkForUpdate(force = false): Promise<VersionManifest | n
     return available;
   } catch {
     return null;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -88,7 +89,7 @@ export function openDownload(url: string): void {
   void Linking.openURL(url);
 }
 
-/** Reset session flag — useful for testing only. */
+/** Reset session flag â€” useful for testing only. */
 export function _resetUpdateSession(): void {
   shownThisSession = false;
   lastChecked = 0;

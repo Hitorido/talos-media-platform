@@ -15,7 +15,7 @@ export function backendComicProvider(id: string, name: string): MediaProvider {
   const imageUrl = (url: string) => {
     if (id === 'manhuaplus' && url) {
       const image = new URL(url);
-      if (image.origin === 'https://cdn.manhuaplus.cc')
+      if (['https://cdn.manhuaplus.cc', 'https://cdn.manhuaplus.org'].includes(image.origin))
         return (
           getApiBaseUrl() +
           '/api/content/proxy/manhuaplus/image?path=' +
@@ -127,7 +127,7 @@ export function backendNovelProvider(id: string, name: string): MediaProvider {
           : id === 'royalroad'
             ? 'Public English fiction adapter; local verification in progress. Removed chapters remain unavailable.'
             : id === 'novelping'
-              ? 'Public English text verified locally; deployment and phone verification pending.'
+              ? 'Public English text works locally; Render currently receives upstream HTTP 403.'
               : id === 'novelarrow'
                 ? 'Local text verified; Render upstream HTTP 403. Production reading unavailable.'
                 : 'Public text verified through Render; physical reader pending. Locked content is not retrieved.',

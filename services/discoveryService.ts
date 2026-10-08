@@ -38,7 +38,15 @@ async function request<T>(url: string, init: RequestInit = {}): Promise<T> {
     timer = setTimeout(() => controller.abort(), 20000);
   try {
     const response = await fetch(url, { ...init, signal: controller.signal });
-    if (!response.ok) throw new Error('Discovery HTTP ' + response.status);
+    if (!response.ok) {
+      const failure = await response.json().catch(() => null);
+      const isGateway = url.startsWith(getApiBaseUrl() + '/api/content/');
+      throw new Error(
+        isGateway && typeof failure?.error === 'string'
+          ? failure.error
+          : 'Discovery HTTP ' + response.status,
+      );
+    }
     return (await response.json()) as T;
   } finally {
     clearTimeout(timer);

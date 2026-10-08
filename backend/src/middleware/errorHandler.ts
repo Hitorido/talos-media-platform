@@ -1,3 +1,4 @@
+import { ProviderGatewayError } from '../providers/types.js';
 import { Request, Response, NextFunction } from 'express';
 import { ENV } from '../config/env.js';
 
@@ -7,12 +8,13 @@ export function errorHandler(err: Error, _req: Request, res: Response, _next: Ne
   const status = (err as Error & { statusCode?: number }).statusCode || 500;
   const isProduction = ENV.NODE_ENV === 'production';
   const message =
-    status >= 500 && isProduction
+    status >= 500 && isProduction && !(err instanceof ProviderGatewayError)
       ? 'Internal Server Error'
       : err.message || 'Internal Server Error';
 
   res.status(status).json({
     success: false,
     error: message,
+    ...(err instanceof ProviderGatewayError ? { code: err.code } : {}),
   });
 }
