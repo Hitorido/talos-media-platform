@@ -1,7 +1,7 @@
 import type { ConfigContext, ExpoConfig } from 'expo/config';
 
-const APP_VERSION = '0.6.5-beta';
-const ANDROID_VERSION_CODE = 605;
+const APP_VERSION = '0.6.6-beta';
+const ANDROID_VERSION_CODE = 606;
 const PRODUCTION_API_URL = 'https://talos-media-platform.onrender.com';
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
