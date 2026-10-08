@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { getApiBaseUrl } from '@/lib/apiConfig';
+import { wakeBackend } from '@/services/api/client';
+import { useCallback, useState } from 'react';
 import { Switch, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -76,11 +78,14 @@ export function SourcesContent() {
   const [healthLoading, setHealthLoading] = useState(false);
   const [healthMessage, setHealthMessage] = useState<string | null>(null);
 
-  async function refreshBackendHealth() {
+  const [serverEnabled, setServerEnabled] = useState<Record<string, boolean>>({});
+  const refreshBackendHealth = useCallback(async () => {
     setHealthLoading(true);
     setHealthMessage(null);
     try {
+      await wakeBackend();
       const response = await fetchProviderHealth();
+      setServerEnabled(Object.fromEntries(response.providers.map((p) => [p.id, p.enabled])));
       response.providers.forEach((provider) => {
         if (provider.health) setHealth(provider.id, provider.health);
       });
@@ -90,7 +95,7 @@ export function SourcesContent() {
     } finally {
       setHealthLoading(false);
     }
-  }
+  }, [setHealth]);
 
   const grouped = {
     anime: providers.filter((provider) => provider.definition.mediaTypes.includes('anime')),
@@ -104,6 +109,9 @@ export function SourcesContent() {
     <View className="gap-6">
       <View className="gap-3 rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
         <Text variant="label">Backend Endpoints</Text>
+        <Text variant="caption" tone="muted">
+          Talos API: {getApiBaseUrl()}
+        </Text>
         <Text variant="caption" tone="muted">
           Configure optional self-hosted backends. Novel Backend Gateway uses the Novel URL when
           set; otherwise it calls this app&apos;s Express /api/novels proxy (requires
@@ -219,7 +227,9 @@ export function SourcesContent() {
                           variant="caption"
                           className={statusColor(enabled ? status : 'disabled')}
                         >
-                          {statusLabels[enabled ? status : 'disabled']}
+                          {enabled && serverEnabled[def.id] === false
+                            ? 'Unavailable on server'
+                            : statusLabels[enabled ? status : 'disabled']}
                         </Text>
                       </View>
                       <Ionicons
@@ -244,7 +254,18 @@ export function SourcesContent() {
                       </Text>
                       {def.backendRequired ? (
                         <Text variant="caption" tone="muted">
-                          Backend: {backendConfigured ? 'Configured' : 'Not configured'}
+                          Backend:{' '}
+                          {def.backendKey
+                            ? backendConfigured
+                              ? 'Configured'
+                              : 'Not configured'
+                            : 'Talos gateway'}
+                        </Text>
+                      ) : null}
+                      {serverEnabled[def.id] === false ? (
+                        <Text variant="caption" tone="muted">
+                          Disabled on the server. This switch saves your preference; it cannot
+                          enable a server-disabled adapter.
                         </Text>
                       ) : null}
                       {def.statusNote ? (
