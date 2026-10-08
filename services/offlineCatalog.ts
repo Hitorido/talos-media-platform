@@ -1,3 +1,5 @@
+import { downloadFile, getBaseDownloadsDir } from '@/services/storageService';
+import { Platform } from 'react-native';
 import { loadPersistedState, savePersistedState } from '@/services/persistenceService';
 import { useDownloadStore } from '@/stores/downloadStore';
 import type { AnimeDetails } from '@/types/anime';
@@ -45,7 +47,28 @@ export function saveOfflineCatalog<K extends keyof Catalogs>(
   memory.set(details.id, snapshot);
   if (memory.size > 50) memory.delete(memory.keys().next().value!);
   const previous = pending.get(details.id) ?? Promise.resolve();
-  const write = previous.catch(() => {}).then(() => savePersistedState(key(details.id), snapshot));
+  const write = previous
+    .catch(() => {})
+    .then(async () => {
+      await savePersistedState(key(details.id), snapshot);
+      if (Platform.OS === 'web' || !/^https?:/.test(details.coverUrl)) return;
+      try {
+        const cover = await downloadFile(
+          details.coverUrl,
+          `${getBaseDownloadsDir()}covers/${key(details.id)}.jpg`,
+          undefined,
+          { timeoutMs: 15000 },
+        );
+        const local = {
+          ...snapshot,
+          details: { ...snapshot.details, coverUrl: cover.uri, bannerUrl: cover.uri },
+        };
+        memory.set(details.id, local);
+        await savePersistedState(key(details.id), local);
+      } catch {
+        // A failed cover must not discard the full saved catalog or block chapter downloads.
+      }
+    });
   pending.set(details.id, write);
   writes.set(details, write);
   void write.then(

@@ -1,3 +1,6 @@
+import { readSubtitleText } from '@/services/offlineSubtitles';
+import { Pressable as SurfacePressable } from 'react-native';
+import { PrivacyAccessGate } from '@/components/content/PrivacyControls';
 import { SourceWebsiteButton } from '@/components/content/SourceWebsiteButton';
 import { parseSubtitleCues, subtitleAt, type SubtitleCue } from '@/services/subtitleCues';
 import { useMediaBookmarkStore } from '@/stores/mediaBookmarkStore';
@@ -5,6 +8,7 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useVideoPlayer, VideoView, type VideoPlayer, type SubtitleTrack } from 'expo-video';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ScrollView,
   ActivityIndicator,
   Animated,
   BackHandler,
@@ -30,7 +34,7 @@ import { useSubtitlePreferencesStore } from '@/stores/subtitlePreferencesStore';
 // cannot trigger downstream re-renders.
 const EMPTY_CUES: SubtitleCue[] = [];
 
-export default function AnimePlayerScreen() {
+function AnimePlayerScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { id, episodeId, seconds } = useLocalSearchParams<{
@@ -58,6 +62,9 @@ export default function AnimePlayerScreen() {
   const [overlayVisible, setOverlayVisible] = useState(true);
   const overlayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const settingsOpenRef = useRef(false);
+  const [selectedSubtitle, setSelectedSubtitle] = useState('auto');
+  const [nativeSubtitleTracks, setNativeSubtitleTracks] = useState<SubtitleTrack[]>([]);
   const [playhead, setPlayhead] = useState(0);
   const overlayVisibleRef = useRef(overlayVisible);
   overlayVisibleRef.current = overlayVisible;
@@ -105,6 +112,7 @@ export default function AnimePlayerScreen() {
   const [syncedKey, setSyncedKey] = useState(resolveKey);
   if (syncedKey !== resolveKey) {
     setSyncedKey(resolveKey);
+    setSelectedSubtitle('auto');
     setUseDirectStream(false);
     setQualityUrl(null);
     setBookmarkToastVisible(false);
@@ -120,13 +128,16 @@ export default function AnimePlayerScreen() {
   /** Show controls and restart the auto-hide timer. */
   const showControls = useCallback(() => {
     setOverlayVisible(true);
-    setSettingsOpen(false);
     Animated.timing(overlayOpacity, { toValue: 1, duration: 200, useNativeDriver: true }).start();
     if (overlayTimerRef.current) clearTimeout(overlayTimerRef.current);
+    if (settingsOpenRef.current) return;
     overlayTimerRef.current = setTimeout(() => {
+      if (settingsOpenRef.current) return;
       Animated.timing(overlayOpacity, { toValue: 0, duration: 300, useNativeDriver: true }).start(
         () => {
+          if (settingsOpenRef.current) return;
           setOverlayVisible(false);
+          settingsOpenRef.current = false;
           setSettingsOpen(false);
         },
       );
@@ -135,9 +146,11 @@ export default function AnimePlayerScreen() {
 
   /** Toggle controls. Tapping while visible hides immediately; tap while hidden shows. */
   const toggleControls = useCallback(() => {
+    if (settingsOpenRef.current) return;
     setOverlayVisible((v) => {
       if (v) {
         if (overlayTimerRef.current) clearTimeout(overlayTimerRef.current);
+        settingsOpenRef.current = false;
         setSettingsOpen(false);
         Animated.timing(overlayOpacity, { toValue: 0, duration: 200, useNativeDriver: true }).start(
           () => {
@@ -282,6 +295,7 @@ export default function AnimePlayerScreen() {
 
   const leaveFullscreen = useCallback(() => {
     setFullscreen(false);
+    settingsOpenRef.current = false;
     setSettingsOpen(false);
     setOverlayVisible(true);
     Animated.timing(overlayOpacity, { toValue: 1, duration: 200, useNativeDriver: true }).start();
@@ -308,9 +322,13 @@ export default function AnimePlayerScreen() {
     else router.replace(animeDetailsHref(id) as any);
   }, [router, id, fullscreen, leaveFullscreen]);
 
-  const englishUrl = playback?.source.subtitles?.find((track) =>
-    /^en(?:g|[-_].*)?$/i.test(track.language),
-  )?.url;
+  const externalTracks = playback?.source.subtitles ?? [];
+  const selectedExternal = selectedSubtitle.startsWith('external:')
+    ? externalTracks.find((track) => 'external:' + track.url === selectedSubtitle)
+    : selectedSubtitle === 'auto'
+      ? externalTracks.find((track) => /^en(?:g|[-_].*)?$/i.test(track.language))
+      : undefined;
+  const englishUrl = selectedExternal?.url;
 
   // Cue state is keyed by the subtitle URL so switching episodes resets it
   // during render instead of through a synchronous effect-body setState.
@@ -335,11 +353,9 @@ export default function AnimePlayerScreen() {
         error: 'English captions timed out. Video can continue.',
       });
     }, 15000);
-    fetch(url, { signal: controller.signal })
-      .then(async (response) => {
-        if (!response.ok)
-          throw new Error('English captions unavailable (' + response.status + ').');
-        const cues = parseSubtitleCues(await response.text());
+    readSubtitleText(url, controller.signal)
+      .then((text) => {
+        const cues = parseSubtitleCues(text);
         if (!cues.length) throw new Error('No readable English caption cues.');
         if (!controller.signal.aborted) setCueState({ key: url, cues, error: '' });
       })
@@ -362,7 +378,7 @@ export default function AnimePlayerScreen() {
   // is derived, not pushed by a synchronous setState.
   const subtitleKey = `${streamUrl}|${useDirectStream ? 1 : 0}|${
     subtitlesEnabled ? 1 : 0
-  }|${externalCues.length}`;
+  }|${externalCues.length}|${selectedSubtitle}`;
   const [subtitleState, setSubtitleState] = useState<{ key: string; label: string }>({
     key: '',
     label: 'Checking English subtitles...',
@@ -374,17 +390,23 @@ export default function AnimePlayerScreen() {
     if (!streamUrl) return;
     const key = subtitleKey;
     const selectEnglish = (tracks: SubtitleTrack[]) => {
-      const english = tracks.find(
-        (track) =>
-          /^en(?:g|[-_].*)?$/i.test(track.language ?? '') || /english/i.test(track.label ?? ''),
-      );
+      setNativeSubtitleTracks(tracks);
+      const english = selectedSubtitle.startsWith('native:')
+        ? tracks.find((track) => 'native:' + track.id === selectedSubtitle)
+        : selectedSubtitle === 'auto'
+          ? tracks.find(
+              (track) =>
+                /^en(?:g|[-_].*)?$/i.test(track.language ?? '') ||
+                /english/i.test(track.label ?? ''),
+            )
+          : undefined;
       player.subtitleTrack = subtitlesEnabled && !externalCues.length ? (english ?? null) : null;
       setSubtitleState({
         key,
         label: !subtitlesEnabled
           ? 'Subtitle tracks off. Captions embedded in the picture remain visible.'
           : english
-            ? 'English subtitles on'
+            ? (english.label || english.language || 'Selected') + ' subtitles on'
             : 'No selectable English track. This video may have captions embedded in the picture.',
       });
     };
@@ -400,7 +422,7 @@ export default function AnimePlayerScreen() {
       tracksSub.remove();
       loadSub.remove();
     };
-  }, [player, streamUrl, useDirectStream, subtitlesEnabled, externalCues.length]);
+  }, [player, streamUrl, useDirectStream, subtitlesEnabled, externalCues.length, selectedSubtitle]);
 
   useEffect(() => {
     if (!player || !streamUrl) return;
@@ -634,11 +656,11 @@ export default function AnimePlayerScreen() {
       {/* Video container — tap to toggle controls. zIndex keeps overflowing
           overlays (the settings panel) painting above the info section that
           follows as a later sibling. */}
-      <Pressable
-        accessible={false}
-        onPress={toggleControls}
+      <View
         style={
-          fullscreen ? { flex: 1, zIndex: 1 } : { width: '100%', maxWidth: 1100, alignSelf: 'center', aspectRatio: 16 / 9, zIndex: 1 }
+          fullscreen
+            ? { flex: 1, zIndex: 1 }
+            : { width: '100%', maxWidth: 1100, alignSelf: 'center', aspectRatio: 16 / 9, zIndex: 1 }
         }
       >
         <VideoView
@@ -654,11 +676,17 @@ export default function AnimePlayerScreen() {
           nativeControls={false}
         />
 
+        <SurfacePressable
+          onPress={toggleControls}
+          accessibilityRole="button"
+          accessibilityLabel="Show or hide playback controls"
+          style={{ position: 'absolute', inset: 0 }}
+        />
         {/* External subtitle overlay */}
         <TimedCaptions
           player={player}
           cues={externalCues}
-          enabled={subtitlesEnabled}
+          enabled={subtitlesEnabled && externalCues.length > 0}
           fullscreen={fullscreen}
           overlayVisible={overlayVisible}
         />
@@ -708,7 +736,12 @@ export default function AnimePlayerScreen() {
                   size="sm"
                   variant="secondary"
                   onPress={() => {
-                    setSettingsOpen((v) => !v);
+                    const next = !settingsOpenRef.current;
+                    settingsOpenRef.current = next;
+                    setSettingsOpen(next);
+                    overlayOpacity.stopAnimation();
+                    overlayOpacity.setValue(1);
+                    if (!next) showControls();
                     if (overlayTimerRef.current) clearTimeout(overlayTimerRef.current);
                   }}
                 />
@@ -900,6 +933,41 @@ export default function AnimePlayerScreen() {
               size="sm"
               onPress={() => setSubtitlesEnabled((v) => !v)}
             />
+            <ScrollView style={{ maxHeight: 120 }} nestedScrollEnabled>
+              <Button
+                label="Automatic (English)"
+                size="sm"
+                variant={selectedSubtitle === 'auto' ? 'primary' : 'secondary'}
+                onPress={() => {
+                  setSelectedSubtitle('auto');
+                  setSubtitlesEnabled(true);
+                }}
+              />
+              {externalTracks.map((track, index) => (
+                <Button
+                  key={track.url}
+                  label={track.language || `Track ${index + 1}`}
+                  size="sm"
+                  variant={selectedSubtitle === 'external:' + track.url ? 'primary' : 'secondary'}
+                  onPress={() => {
+                    setSelectedSubtitle('external:' + track.url);
+                    setSubtitlesEnabled(true);
+                  }}
+                />
+              ))}
+              {nativeSubtitleTracks.map((track) => (
+                <Button
+                  key={track.id}
+                  label={track.label || track.language || 'Subtitle track'}
+                  size="sm"
+                  variant={selectedSubtitle === 'native:' + track.id ? 'primary' : 'secondary'}
+                  onPress={() => {
+                    setSelectedSubtitle('native:' + track.id);
+                    setSubtitlesEnabled(true);
+                  }}
+                />
+              ))}
+            </ScrollView>
             {subtitlesEnabled ? (
               <>
                 <Text className="mb-1 mt-3 text-xs font-semibold text-neutral-400">
@@ -977,12 +1045,12 @@ export default function AnimePlayerScreen() {
             </View>
             <Text className="my-2 text-xs text-neutral-300">
               {externalCues.length
-                ? 'English captions from this episode'
+                ? (selectedExternal?.language || 'Selected') + ' captions from this episode'
                 : externalError || subtitleLabel}
             </Text>
           </View>
         ) : null}
-      </Pressable>
+      </View>
 
       {/* Non-fullscreen info section */}
       {!fullscreen ? (
@@ -1074,3 +1142,11 @@ const TimedCaptions = memo(function TimedCaptions({
     </View>
   ) : null;
 });
+
+export default function ProtectedScreen() {
+  return (
+    <PrivacyAccessGate>
+      <AnimePlayerScreen />
+    </PrivacyAccessGate>
+  );
+}

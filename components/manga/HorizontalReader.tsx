@@ -1,4 +1,14 @@
-import { forwardRef, memo, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import {
+  forwardRef,
+  memo,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { FlatList, useWindowDimensions } from 'react-native';
 import { ZoomablePage } from './ZoomablePage';
 
@@ -24,6 +34,24 @@ type HorizontalReaderProps = {
   onNavigateRight?: () => void;
 };
 
+type LocationReader = () => { fraction: number; scale: number; pan: number };
+const HorizontalPage = memo(function HorizontalPage({
+  page,
+  locations,
+  ...props
+}: Omit<React.ComponentProps<typeof ZoomablePage>, 'onLocationReady'> & {
+  locations: Map<string, LocationReader>;
+}) {
+  const locationKey = `${page.chapterId}:${page.pageNumber}`;
+  const onLocationReady = useCallback(
+    (read: LocationReader) => {
+      locations.set(locationKey, read);
+    },
+    [locations, locationKey],
+  );
+  return <ZoomablePage {...props} page={page} onLocationReady={onLocationReady} />;
+});
+
 export const HorizontalReader = memo(
   forwardRef<HorizontalReaderRef, HorizontalReaderProps>(
     (
@@ -47,7 +75,7 @@ export const HorizontalReader = memo(
       );
       const [pinching, setPinching] = useState(false);
       const flatListRef = useRef<FlatList<MangaPage>>(null);
-      const isInitializedRef = useRef(false);
+
       const lastPageRef = useRef<{ chapterId: string; pageNumber: number } | null>(null);
       const onPageChangeRef = useRef(onPageChange);
       onPageChangeRef.current = onPageChange;
@@ -69,26 +97,32 @@ export const HorizontalReader = memo(
       };
 
       const initialIndex = Math.max(0, getPageIndex(activeChapterId, initialPage));
-      const initialIndexRef = useRef(initialIndex);
+      const pendingTarget = useRef<{ chapterId: string; pageNumber: number } | null>({
+        chapterId: activeChapterId,
+        pageNumber: initialPage,
+      });
+      useLayoutEffect(() => {
+        const target = pendingTarget.current ??
+          lastPageRef.current ?? {
+            chapterId: activeChapterIdRef.current,
+            pageNumber: currentPageRef.current,
+          };
+        pendingTarget.current = target;
+        const index = displayPages.findIndex(
+          (page) => page.chapterId === target.chapterId && page.pageNumber === target.pageNumber,
+        );
+        if (index >= 0)
+          flatListRef.current?.scrollToOffset({ offset: index * SCREEN_WIDTH, animated: false });
+      }, [displayPages, SCREEN_WIDTH]);
+
+      const mountIndex = useRef(initialIndex);
       const initialViewTarget = useRef({ chapterId: activeChapterId, pageNumber: initialPage });
-      const initialPageRef = useRef(initialPage);
+
       const previousDirectionRef = useRef(direction);
       const activeChapterIdRef = useRef(activeChapterId);
       const currentPageRef = useRef(initialPage);
       activeChapterIdRef.current = activeChapterId;
       currentPageRef.current = initialPage;
-
-      useEffect(() => {
-        if (initialPageRef.current > 1 && flatListRef.current) {
-          const timer = setTimeout(() => {
-            flatListRef.current?.scrollToIndex({ index: initialIndexRef.current, animated: false });
-            isInitializedRef.current = true;
-          }, 80);
-          return () => clearTimeout(timer);
-        } else {
-          isInitializedRef.current = true;
-        }
-      }, []);
 
       useImperativeHandle(ref, () => ({
         getLocation: () => {
@@ -100,12 +134,14 @@ export const HorizontalReader = memo(
           return location ? { ...current, ...location } : undefined;
         },
         scrollToPage: (pageNumber: number, animated = true) => {
+          pendingTarget.current = { chapterId: activeChapterId, pageNumber };
           const index = getPageIndex(activeChapterId, pageNumber);
           if (index >= 0 && index < displayPages.length) {
             flatListRef.current?.scrollToIndex({ index, animated });
           }
         },
         scrollToChapterPage: (chapterId: string, pageNumber: number) => {
+          pendingTarget.current = { chapterId, pageNumber };
           const index = getPageIndex(chapterId, pageNumber);
           if (index >= 0 && index < displayPages.length) {
             flatListRef.current?.scrollToIndex({ index, animated: false });
@@ -132,6 +168,9 @@ export const HorizontalReader = memo(
 
         const chapterId = current.chapterId ?? '';
         const pageNumber = current.pageNumber;
+        const target = pendingTarget.current;
+        if (target && (target.chapterId !== chapterId || target.pageNumber !== pageNumber)) return;
+        pendingTarget.current = null;
         const previous = lastPageRef.current;
 
         if (!previous || previous.chapterId !== chapterId || previous.pageNumber !== pageNumber) {
@@ -143,6 +182,28 @@ export const HorizontalReader = memo(
       const reportFromOffset = (offsetX: number) => {
         reportSettledPage(Math.round(offsetX / SCREEN_WIDTH));
       };
+
+      const renderItem = useCallback(
+        ({ item }: { item: MangaPage }) => (
+          <HorizontalPage
+            viewportHeight={viewportHeight}
+            initialView={
+              item.chapterId === initialViewTarget.current.chapterId &&
+              item.pageNumber === initialViewTarget.current.pageNumber
+                ? initialView
+                : undefined
+            }
+            locations={locations.current}
+            onGestureActive={setPinching}
+            page={item}
+            onTapScreen={onTapScreen}
+            onNavigateLeft={onNavigateLeft}
+            onNavigateRight={onNavigateRight}
+            paged
+          />
+        ),
+        [viewportHeight, initialView, onTapScreen, onNavigateLeft, onNavigateRight],
+      );
 
       return (
         <FlatList
@@ -160,9 +221,7 @@ export const HorizontalReader = memo(
           showsHorizontalScrollIndicator={false}
           data={displayPages}
           keyExtractor={(item) => `h-page-${item.chapterId ?? 'unknown'}-${item.pageNumber}`}
-          initialScrollIndex={
-            initialIndex >= 0 && initialIndex < displayPages.length ? initialIndex : 0
-          }
+          initialScrollIndex={mountIndex.current}
           scrollEventThrottle={16}
           onScroll={({ nativeEvent }) => {
             reportFromOffset(nativeEvent.contentOffset.x);
@@ -171,40 +230,18 @@ export const HorizontalReader = memo(
             reportFromOffset(nativeEvent.contentOffset.x);
           }}
           className="flex-1 bg-black"
-          onScrollToIndexFailed={(info) => {
-            setTimeout(() => {
-              flatListRef.current?.scrollToIndex({ index: info.index, animated: false });
-              isInitializedRef.current = true;
-            }, 100);
+          onScrollBeginDrag={() => {
+            pendingTarget.current = null;
           }}
+          initialNumToRender={5}
+          maxToRenderPerBatch={3}
+          windowSize={7}
           getItemLayout={(_, index) => ({
             length: SCREEN_WIDTH,
             offset: SCREEN_WIDTH * index,
             index,
           })}
-          renderItem={({ item }) => (
-            <ZoomablePage
-              viewportHeight={viewportHeight}
-              initialView={
-                item.chapterId === initialViewTarget.current.chapterId &&
-                item.pageNumber === initialViewTarget.current.pageNumber
-                  ? initialView
-                  : undefined
-              }
-              onLocationReady={(read) =>
-                locations.current.set(
-                  (item.chapterId ?? activeChapterId) + ':' + item.pageNumber,
-                  read,
-                )
-              }
-              onGestureActive={setPinching}
-              page={item}
-              onTapScreen={onTapScreen}
-              onNavigateLeft={onNavigateLeft}
-              onNavigateRight={onNavigateRight}
-              paged
-            />
-          )}
+          renderItem={renderItem}
         />
       );
     },

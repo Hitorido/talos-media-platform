@@ -1,3 +1,4 @@
+import { CoverVignette } from '@/components/content/CoverVignette';
 import { MediaSourceHeader } from '@/components/content/MediaSourceHeader';
 import { useState } from 'react';
 import { Image, View } from 'react-native';
@@ -47,6 +48,7 @@ export function NovelDetailsHeader({ novel }: NovelDetailsHeaderProps) {
             className="aspect-video w-full"
             resizeMode="cover"
           />
+          <CoverVignette uri={displayCover} />
           <View className="absolute bottom-3 left-3 flex-row items-end gap-3">
             <View className="relative">
               <Image

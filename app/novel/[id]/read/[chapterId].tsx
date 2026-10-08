@@ -1,3 +1,4 @@
+import { PrivacyAccessGate } from '@/components/content/PrivacyControls';
 import { SourceWebsiteButton } from '@/components/content/SourceWebsiteButton';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -23,7 +24,7 @@ import { cn } from '@/utils/cn';
 // Stable empty cache so "no chapters loaded" never changes identity.
 const EMPTY_CHAPTER_CACHE: Record<string, NovelChapter> = {};
 
-export default function NovelReaderScreen() {
+function NovelReaderScreen() {
   const router = useRouter();
   const { id, chapterId, progress } = useLocalSearchParams<{
     id: string;
@@ -512,18 +513,18 @@ export default function NovelReaderScreen() {
 
       {settings.scrollMode !== 'continuous' ? (
         <Animated.View
-          pointerEvents={showChapterNavPrompt && !showSettingsSheet ? 'auto' : 'none'}
+          pointerEvents={showChapterNavPrompt ? 'box-none' : 'none'}
           style={{
             position: 'absolute',
             left: 16,
             right: 16,
             bottom: 80,
-            elevation: 40,
+            elevation: 10,
             opacity: chapterPromptOpacity,
-            zIndex: showSettingsSheet ? 10 : 30,
+            zIndex: 10,
             transform: [{ translateY: chapterPromptTranslate }],
           }}
-          className="absolute inset-x-4 bottom-20 z-30"
+          className="absolute inset-x-4 bottom-20"
         >
           <View className="flex-row gap-2">
             <Pressable
@@ -562,11 +563,13 @@ export default function NovelReaderScreen() {
         animationType="fade"
         onRequestClose={() => setShowChapterPicker(false)}
       >
-        <Pressable
-          className="flex-1 justify-end bg-black/35"
-          onPress={() => setShowChapterPicker(false)}
-        >
-          <Pressable className="rounded-t-3xl bg-neutral-950 p-4 pb-8" onPress={() => undefined}>
+        <View className="flex-1 justify-end bg-black/35">
+          <Pressable
+            className="absolute inset-0"
+            accessibilityLabel="Dismiss dialog"
+            onPress={() => setShowChapterPicker(false)}
+          />
+          <View className="rounded-t-3xl bg-neutral-950 p-4 pb-8">
             <View className="mb-3 flex-row items-center justify-between">
               <Text className="text-lg font-bold text-white">Chapters</Text>
               <Pressable
@@ -603,9 +606,17 @@ export default function NovelReaderScreen() {
                 </Pressable>
               )}
             />
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
     </View>
+  );
+}
+
+export default function ProtectedScreen() {
+  return (
+    <PrivacyAccessGate>
+      <NovelReaderScreen />
+    </PrivacyAccessGate>
   );
 }

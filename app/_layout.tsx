@@ -1,3 +1,9 @@
+import { AppDialog } from '@/components/ui/AppDialog';
+import { processDownloadQueue } from '@/services/downloadService';
+import { AppState } from 'react-native';
+import { wakeBackend } from '@/services/api/client';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { PrivacyLifecycle } from '@/components/content/PrivacyControls';
 import '../global.css';
 
 import { useFonts } from 'expo-font';
@@ -28,6 +34,16 @@ export default function RootLayout() {
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
   const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    void wakeBackend();
+    const listener = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        void wakeBackend();
+        void processDownloadQueue();
+      }
+    });
+    return () => listener.remove();
+  }, []);
 
   // Expo Router uses Error Boundaries to catch errors in the navigation tree.
   useEffect(() => {
@@ -58,10 +74,15 @@ export default function RootLayout() {
     }
   }, [loaded, hydrated]);
 
+  if (!loaded || !hydrated) return null;
   return (
-    <AppThemeProvider>
-      <RootLayoutNav />
-    </AppThemeProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AppThemeProvider>
+        <PrivacyLifecycle />
+        <AppDialog />
+        <RootLayoutNav />
+      </AppThemeProvider>
+    </GestureHandlerRootView>
   );
 }
 

@@ -9,7 +9,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useReaderZoom } from './useReaderZoom';
 
-const dimensions = new Map<string, number>();
+import { getPageRatio, rememberPageRatio } from '@/services/mangaImageCache';
 
 export function FittedPage({
   page,
@@ -30,9 +30,9 @@ export function FittedPage({
   onHeight?: (height: number) => void;
   onWidth?: (width: number) => void;
 }) {
-  const [ratio, setRatio] = useState(dimensions.get(page.imageUrl) || page.aspectRatio || 0.67);
+  const [ratio, setRatio] = useState(getPageRatio(page.imageUrl, 0) || page.aspectRatio || 0.67);
   const [decoded, setDecoded] = useState(
-    Boolean(dimensions.get(page.imageUrl) || page.aspectRatio),
+    Boolean(getPageRatio(page.imageUrl, 0) || page.aspectRatio),
   );
   const baseWidth = paged && ratio >= 0.5 ? Math.min(width, height * ratio) : width;
   // Row is only as wide as the page so empty letterbox isn't part of the layout.
@@ -52,12 +52,11 @@ export function FittedPage({
           <Image
             source={{ uri: page.imageUrl }}
             style={{ width: '100%', height: '100%' }}
-            resizeMode="cover"
+            resizeMode="contain"
             onLoad={(event) => {
               const { width: w, height: h } = event.nativeEvent.source;
               if (w > 0 && h > 0) {
-                dimensions.set(page.imageUrl, w / h);
-                if (dimensions.size > 1500) dimensions.delete(dimensions.keys().next().value!);
+                rememberPageRatio(page.imageUrl, w, h);
                 setRatio(w / h);
                 setDecoded(true);
               }

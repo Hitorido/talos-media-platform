@@ -1,3 +1,7 @@
+import { groupDownloads } from '@/services/downloadGroups';
+import { DownloadTitleCard } from '@/components/downloads/DownloadTitleCard';
+import { useHiddenPrivateIds } from '@/hooks/useHiddenPrivateIds';
+import { unlockPrivate } from '@/stores/privacyStore';
 import { SelectionModal } from '@/components/content/SelectionModal';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -60,6 +64,7 @@ function getMangaMediaType(genres: string[]): 'manga' | 'manhwa' | 'manhua' {
 
 export default function LibraryScreen() {
   const router = useRouter();
+  const hidden = useHiddenPrivateIds();
   const realMedia = useLibraryStore((state) => state.media);
   const entries = useLibraryStore((state) => state.entries);
   const removeFromLibrary = useLibraryStore((state) => state.removeFromLibrary);
@@ -171,6 +176,7 @@ export default function LibraryScreen() {
     const unique = new Map(source.map((entry) => [`${entry.mediaType}:${entry.mediaId}`, entry]));
 
     return Array.from(unique.values())
+      .filter((entry) => !hidden.has(entry.mediaId))
       .filter((entry) => mediaFilter === 'all' || entry.mediaType === mediaFilter)
       .filter((entry) => view !== 'favorites' || entry.isFavorite)
       .filter((entry) => selectedTag === 'all' || entry.tags.includes(selectedTag))
@@ -229,6 +235,7 @@ export default function LibraryScreen() {
         ];
       });
   }, [
+    hidden,
     animeProgress,
     realMedia,
     catalog,
@@ -339,14 +346,20 @@ export default function LibraryScreen() {
             {['all', ...tags].map((tag) => (
               <Pressable
                 key={tag}
-                onPress={() => setSelectedTag(tag)}
+                onPress={async () => {
+                  if (tag === 'Private' && !(await unlockPrivate())) return;
+                  setSelectedTag(tag);
+                }}
                 className={`rounded-full border px-3 py-1.5 ${
                   selectedTag === tag
                     ? 'border-primary-500 bg-primary-500/10'
                     : 'border-neutral-300 dark:border-neutral-700'
                 }`}
               >
-                <Text className="text-xs">{tag === 'all' ? 'All Tags' : tag}</Text>
+                <Text className="text-xs">
+                  {tag === 'Private' ? <Ionicons name="lock-closed" size={12} /> : null}{' '}
+                  {tag === 'all' ? 'All Tags' : tag}
+                </Text>
               </Pressable>
             ))}
           </View>
@@ -385,7 +398,20 @@ export default function LibraryScreen() {
       ) : null}
 
       {/* List */}
-      {rows.length > 0 ? (
+      {view === 'downloaded' ? (
+        !downloadedMediaIds.size ? (
+          <Text tone="muted">Download chapters or episodes to see them here.</Text>
+        ) : (
+          groupDownloads(
+            Object.values(downloadItems).filter(
+              (item) =>
+                item.status === 'completed' &&
+                !hidden.has(item.mediaId) &&
+                (mediaFilter === 'all' || item.mediaType === mediaFilter),
+            ),
+          ).map((group) => <DownloadTitleCard key={group.key} group={group} />)
+        )
+      ) : rows.length > 0 ? (
         rows.map(({ entry, item, progress, subtitle, route }) =>
           swipeEnabled ? (
             <SwipeableRow
@@ -430,9 +456,7 @@ export default function LibraryScreen() {
             size={40}
             color="#d1d5db"
           />
-          <Text variant="h2">
-            {view === 'downloaded' ? 'No downloads yet' : 'Nothing here yet'}
-          </Text>
+          <Text variant="h2">Nothing here yet</Text>
           <Text tone="muted" className="text-center">
             {emptyMessages[view]}
           </Text>

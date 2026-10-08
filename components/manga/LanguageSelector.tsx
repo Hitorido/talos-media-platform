@@ -73,14 +73,13 @@ export function LanguageSelector({
         animationType="fade"
         onRequestClose={() => setModalVisible(false)}
       >
-        <Pressable
-          className="flex-1 justify-end bg-black/60"
-          onPress={() => setModalVisible(false)}
-        >
+        <View className="flex-1 justify-end bg-black/60">
           <Pressable
-            className="max-h-[70%] rounded-t-3xl border-t border-neutral-800 bg-neutral-900 p-5 pb-8"
-            onPress={(e) => e.stopPropagation?.()}
-          >
+            className="absolute inset-0"
+            accessibilityLabel="Dismiss dialog"
+            onPress={() => setModalVisible(false)}
+          />
+          <View className="max-h-[70%] rounded-t-3xl border-t border-neutral-800 bg-neutral-900 p-5 pb-8">
             <View className="mb-4 flex-row items-center justify-between">
               <View className="gap-0.5">
                 <Text variant="h3" className="text-white">
@@ -159,8 +158,8 @@ export function LanguageSelector({
                 );
               })}
             </ScrollView>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
     </View>
   );

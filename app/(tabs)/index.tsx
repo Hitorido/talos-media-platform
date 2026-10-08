@@ -1,6 +1,7 @@
+import { appAlert as Alert } from '@/stores/dialogStore';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, View } from 'react-native';
+import { View } from 'react-native';
 import { PopPressable as Pressable } from '@/components/ui/PopPressable';
 
 import {
@@ -153,10 +154,14 @@ export default function HomeScreen() {
 
       {/* Continue Watching */}
       <View className="gap-2">
-        <View className="flex-row items-center justify-between px-4">
+        <View className="flex-row flex-wrap items-center justify-between gap-3 px-4">
           <Text variant="h2">Continue Watching</Text>
           {continueWatching.length > 0 ? (
-            <Pressable onPress={removeAllWatching} accessibilityRole="button">
+            <Pressable
+              onPress={removeAllWatching}
+              accessibilityRole="button"
+              className="shrink-0 rounded-full bg-neutral-200 px-3 py-2 dark:bg-neutral-800"
+            >
               <Text variant="caption" tone="muted">
                 Remove all
               </Text>
@@ -205,11 +210,17 @@ export default function HomeScreen() {
 
       {/* Continue Reading */}
       <View className="gap-3">
-        <View className="flex-row items-center justify-between px-4">
-          <Text variant="h2">Continue Reading</Text>
+        <View className="flex-row flex-wrap items-center justify-between gap-3 px-4">
+          <Text variant="h2" className="shrink">
+            Continue Reading
+          </Text>
           <View className="flex-row items-center gap-3">
             {combinedReadingItems.length > 0 ? (
-              <Pressable onPress={removeAllReading} accessibilityRole="button">
+              <Pressable
+                onPress={removeAllReading}
+                accessibilityRole="button"
+                className="shrink-0 rounded-full bg-neutral-200 px-3 py-2 dark:bg-neutral-800"
+              >
                 <Text variant="caption" tone="muted">
                   Remove all
                 </Text>
@@ -282,7 +293,7 @@ export default function HomeScreen() {
         )}
       </View>
 
-      <View className="flex-row items-center justify-between px-4">
+      <View className="flex-row flex-wrap items-center justify-between gap-3 px-4">
         <Text variant="caption" tone="muted">
           {loadingDiscovery ? 'Loading discovery…' : 'Discover from your enabled sources'}
         </Text>

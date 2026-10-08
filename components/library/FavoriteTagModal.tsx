@@ -1,3 +1,5 @@
+import { unlockPrivate } from '@/stores/privacyStore';
+import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { Modal, TextInput, View } from 'react-native';
 import { PopPressable as Pressable } from '@/components/ui/PopPressable';
@@ -26,7 +28,8 @@ export function FavoriteTagModal({
   const [selectedTags, setSelectedTags] = useState<string[]>(entry?.tags ?? ['Favorites']);
   const [newTag, setNewTag] = useState('');
 
-  const toggleTag = (tag: string) => {
+  const toggleTag = async (tag: string) => {
+    if ((tag === 'Private' || entry?.tags.includes('Private')) && !(await unlockPrivate())) return;
     setSelectedTags((current) =>
       current.includes(tag) ? current.filter((item) => item !== tag) : [...current, tag],
     );
@@ -42,11 +45,13 @@ export function FavoriteTagModal({
 
   return (
     <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
-      <Pressable className="flex-1 items-center justify-center bg-black/55 px-6" onPress={onClose}>
+      <View className="flex-1 items-center justify-center bg-black/55 px-6">
         <Pressable
-          className="w-full max-w-md rounded-2xl bg-neutral-950 p-5"
-          onPress={() => undefined}
-        >
+          className="absolute inset-0"
+          accessibilityLabel="Dismiss dialog"
+          onPress={onClose}
+        />
+        <View className="w-full max-w-md rounded-2xl bg-neutral-950 p-5">
           <Text variant="h2" className="text-white">
             Save to
           </Text>
@@ -67,7 +72,7 @@ export function FavoriteTagModal({
                 )}
               >
                 <Text className={selectedTags.includes(tag) ? 'text-primary-300' : 'text-white'}>
-                  {tag}
+                  {tag === 'Private' ? <Ionicons name="lock-closed" size={12} /> : null} {tag}
                 </Text>
               </Pressable>
             ))}
@@ -94,10 +99,20 @@ export function FavoriteTagModal({
 
           <View className="mt-5 flex-row justify-end gap-2">
             <Button label="Cancel" variant="outline" onPress={onClose} />
-            <Button label="Save Favorite" onPress={() => onConfirm(selectedTags)} />
+            <Button
+              label="Save Favorite"
+              onPress={async () => {
+                if (
+                  (selectedTags.includes('Private') || entry?.tags.includes('Private')) &&
+                  !(await unlockPrivate())
+                )
+                  return;
+                onConfirm(selectedTags);
+              }}
+            />
           </View>
-        </Pressable>
-      </Pressable>
+        </View>
+      </View>
     </Modal>
   );
 }

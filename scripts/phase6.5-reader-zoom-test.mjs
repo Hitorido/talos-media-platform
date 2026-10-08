@@ -173,7 +173,7 @@ const source = fs.readFileSync('components/manga/VerticalReader.tsx', 'utf8');
 assert.equal((source.match(/useReaderZoom\(/g) || []).length, 1);
 assert.match(source, /zoom.viewportStyle/);
 assert.doesNotMatch(source, /<ZoomablePage/);
-assert.match(source, /height:\s*0/);
+assert.doesNotMatch(source, /type: 'separator'/, 'chapter boundaries contain no spacer rows');
 console.log(
   'PASS webtoon list owns one viewport zoom controller instead of independently resizing page rows',
 );

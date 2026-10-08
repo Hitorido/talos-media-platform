@@ -1,6 +1,8 @@
+import { appAlert as Alert } from '@/stores/dialogStore';
+import { PrivacySettings } from '@/components/content/PrivacyControls';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Switch, View } from 'react-native';
+import { Switch, View } from 'react-native';
 import { PopPressable as Pressable } from '@/components/ui/PopPressable';
 
 import { UpdateModal } from '@/components/UpdateModal';
@@ -49,6 +51,7 @@ export default function SettingsScreen() {
         <Text tone="muted">Manage app preferences and content sources.</Text>
       </View>
 
+      <PrivacySettings />
       <Pressable
         onPress={() => router.push('/sources')}
         className="rounded-2xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900"

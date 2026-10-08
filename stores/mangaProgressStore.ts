@@ -1,3 +1,5 @@
+import { useHiddenPrivateIds } from '@/hooks/useHiddenPrivateIds';
+import { usePrivacyStore } from '@/stores/privacyStore';
 import { useLibraryStore } from '@/stores/libraryStore';
 import { useMemo } from 'react';
 import { create } from 'zustand';
@@ -69,6 +71,7 @@ export const useMangaProgressStore = create<MangaProgressState>()(
       favoriteMangaIds: [],
 
       setChapterProgress: (progress) => {
+        if (usePrivacyStore.getState().incognito) return;
         set((state) => ({
           progressByManga: {
             ...state.progressByManga,
@@ -134,7 +137,11 @@ export const useMangaProgressStore = create<MangaProgressState>()(
 );
 
 export function useContinueReading(): ContinueReadingEntry[] {
+  const hidden = useHiddenPrivateIds();
   const media = useLibraryStore((state) => state.media);
   const progressByManga = useMangaProgressStore((state) => state.progressByManga);
-  return useMemo(() => buildContinueReading(progressByManga, media), [progressByManga, media]);
+  return useMemo(
+    () => buildContinueReading(progressByManga, media).filter((item) => !hidden.has(item.mangaId)),
+    [progressByManga, media, hidden],
+  );
 }

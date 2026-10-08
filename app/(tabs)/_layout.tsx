@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { Tabs } from 'expo-router';
 import type { SymbolViewProps } from 'expo-symbols';
 
@@ -44,6 +45,7 @@ export default function TabLayout() {
         tabBarActiveTintColor: theme.colors.tabIconSelected,
         tabBarInactiveTintColor: theme.colors.tabIconDefault,
         tabBarStyle: {
+          ...(Platform.OS === 'web' ? { height: 64, paddingBottom: 8 } : {}),
           backgroundColor: theme.colors.card,
           borderTopColor: theme.colors.border,
         },

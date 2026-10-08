@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "extensions": [
+    {
+      "id": "animexin",
+      "version": "1.0.0",
+      "kind": "video",
+      "runtime": "talos-adapter-v1"
+    },
+    {
+      "id": "manhuaplus",
+      "version": "1.0.0",
+      "kind": "comic",
+      "runtime": "talos-adapter-v1"
+    },
+    {
+      "id": "novelping",
+      "version": "1.0.0",
+      "kind": "novel",
+      "runtime": "talos-adapter-v1"
+    }
+  ]
+}

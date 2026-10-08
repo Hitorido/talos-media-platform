@@ -1,7 +1,8 @@
+import { appAlert as Alert } from '@/stores/dialogStore';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
-import { Alert, View } from 'react-native';
+import { View } from 'react-native';
 
 import { PopPressable } from '@/components/ui';
 import { persistCustomCover } from '@/services/customCoverService';

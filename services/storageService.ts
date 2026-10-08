@@ -35,9 +35,7 @@ export async function ensureDirectory(dirUri: string): Promise<void> {
     if (!dirInfo.exists) {
       await FileSystem.makeDirectoryAsync(dirUri, { intermediates: true });
     }
-  } catch (error) {
-    // console.warn(`[storageService] Failed to ensure directory ${dirUri}:`, error);
-  }
+  } catch {}
 }
 
 export async function checkFileExists(fileUri: string | null): Promise<boolean> {
@@ -85,8 +83,7 @@ export async function readJsonFile<T>(fileUri: string): Promise<T | null> {
       encoding: FileSystem.EncodingType.UTF8,
     });
     return JSON.parse(content) as T;
-  } catch (error) {
-    // console.warn(`[storageService] Failed to read JSON from ${fileUri}:`, error);
+  } catch {
     return null;
   }
 }
@@ -106,9 +103,7 @@ export async function deleteStoragePath(targetUri: string): Promise<void> {
     if (info.exists) {
       await FileSystem.deleteAsync(targetUri, { idempotent: true });
     }
-  } catch (error) {
-    // console.warn(`[storageService] Failed to delete storage path ${targetUri}:`, error);
-  }
+  } catch {}
 }
 
 export type DownloadProgressCallback = (progress: {
@@ -124,6 +119,7 @@ export async function downloadFile(
   remoteUrl: string,
   destinationUri: string,
   onProgress?: DownloadProgressCallback,
+  options?: { timeoutMs?: number },
 ): Promise<{ uri: string; size: number }> {
   if (isWeb || !FileSystem.documentDirectory) {
     throw new Error('Offline media downloads require the Android or iOS app.');
@@ -150,7 +146,14 @@ export async function downloadFile(
     },
   );
 
-  const result = await downloadResumable.downloadAsync();
+  const timer = options?.timeoutMs
+    ? setTimeout(() => {
+        void downloadResumable.cancelAsync().catch(() => {});
+      }, options.timeoutMs)
+    : undefined;
+  const result = await downloadResumable.downloadAsync().finally(() => {
+    if (timer) clearTimeout(timer);
+  });
   if (!result || !result.uri || result.status < 200 || result.status >= 300) {
     throw new Error('Download failed to return a valid local file URI');
   }

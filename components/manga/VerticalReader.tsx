@@ -4,44 +4,32 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from 'react';
-import { View, ViewToken, useWindowDimensions } from 'react-native';
+import { View, type ViewToken, useWindowDimensions } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 import Animated from 'react-native-reanimated';
 import { FittedPage } from './ZoomablePage';
 import { useReaderZoom } from './useReaderZoom';
-
+import { getPageRatio } from '@/services/mangaImageCache';
 import type { MangaChapter, MangaPage } from '@/types/manga';
 
+type Location = {
+  chapterId: string;
+  pageNumber: number;
+  fraction: number;
+  scale: number;
+  pan: number;
+};
 export type VerticalReaderRef = {
-  getLocation: () =>
-    | { chapterId: string; pageNumber: number; fraction: number; scale: number; pan: number }
-    | undefined;
+  getLocation: () => Location | undefined;
   scrollToPage: (pageNumber: number, animated?: boolean) => void;
   scrollToChapterPage: (chapterId: string, pageNumber: number) => void;
 };
-
-// Flat list items can be a page or a chapter-separator
-type PageItem = {
-  type: 'page';
-  chapterId: string;
-  chapterNumber: number;
-  page: MangaPage;
-};
-
-type SeparatorItem = {
-  type: 'separator';
-  chapterId: string;
-  chapterNumber: number;
-  chapterTitle: string;
-};
-
-type FlatItem = PageItem | SeparatorItem;
-
-type VerticalReaderProps = {
+type Props = {
   chapters: MangaChapter[];
   activeChapterId: string;
   initialPage?: number;
@@ -50,281 +38,241 @@ type VerticalReaderProps = {
   onChapterChange: (chapterId: string) => void;
   onTapScreen: () => void;
 };
+type Row = MangaPage & { chapterId: string };
+const rowKey = (row: Row) => `${row.chapterId}:${row.pageNumber}`;
+const PageRow = memo(function PageRow({
+  page,
+  width,
+  height,
+  scale,
+  x,
+  onMeasure,
+}: {
+  page: Row;
+  width: number;
+  height: number;
+  scale: ReturnType<typeof useReaderZoom>['scale'];
+  x: ReturnType<typeof useReaderZoom>['x'];
+  onMeasure: (url: string, ratio: number) => void;
+}) {
+  const onHeight = useCallback(
+    (value: number) => onMeasure(page.imageUrl, width / value),
+    [page.imageUrl, width, onMeasure],
+  );
+  return (
+    <FittedPage page={page} width={width} height={height} scale={scale} x={x} onHeight={onHeight} />
+  );
+});
 
-function buildFlatItems(chapters: MangaChapter[]): FlatItem[] {
-  const items: FlatItem[] = [];
-  for (const chapter of chapters) {
-    items.push({
-      type: 'separator',
-      chapterId: chapter.id,
-      chapterNumber: chapter.number,
-      chapterTitle: chapter.title,
-    });
-    for (const page of chapter.pages) {
-      items.push({
-        type: 'page',
-        chapterId: chapter.id,
-        chapterNumber: chapter.number,
-        page,
-      });
-    }
-  }
-  return items;
-}
-
+/** One zoom surface, with chapter/page identity retained when neighboring pages arrive. */
 export const VerticalReader = memo(
-  forwardRef<VerticalReaderRef, VerticalReaderProps>(
-    (
-      {
-        chapters,
-        activeChapterId,
-        initialPage = 1,
-        initialView,
-        onPageChange,
-        onChapterChange,
-        onTapScreen,
+  forwardRef<VerticalReaderRef, Props>(function VerticalReader(
+    {
+      chapters,
+      activeChapterId,
+      initialPage = 1,
+      initialView,
+      onPageChange,
+      onChapterChange,
+      onTapScreen,
+    },
+    ref,
+  ) {
+    const { width, height } = useWindowDimensions();
+    const [viewportHeight, setViewportHeight] = useState(height - 100);
+    const [pinching, setPinching] = useState(false);
+    const [revision, setRevision] = useState(0);
+    const measured = useRef(new Map<string, number>());
+    const zoom = useReaderZoom(
+      width,
+      viewportHeight,
+      onTapScreen,
+      setPinching,
+      undefined,
+      initialView,
+    );
+    const rows = useMemo<Row[]>(
+      () =>
+        chapters.flatMap((chapter) =>
+          chapter.pages.map((page) => ({ ...page, chapterId: chapter.id })),
+        ),
+      [chapters],
+    );
+    const key = rowKey;
+    const target = useRef({
+      chapterId: activeChapterId,
+      pageNumber: initialPage,
+      fraction: initialView?.fraction ?? 0,
+    });
+    const pending = useRef(true);
+    const layouts = useMemo(() => {
+      void revision; // Invalidates cached offsets after a batch of decoded dimensions.
+      let offset = 0;
+      return rows.map((row, index) => {
+        const length =
+          width /
+          (measured.current.get(row.imageUrl) ??
+            getPageRatio(row.imageUrl, row.aspectRatio || 0.67));
+        const layout = { index, length, offset };
+        offset += length;
+        return layout;
+      });
+    }, [rows, width, revision]);
+    const latest = useRef({ rows, layouts, activeChapterId, onPageChange, onChapterChange });
+    latest.current = { rows, layouts, activeChapterId, onPageChange, onChapterChange };
+    const previousGeometry = useRef({ rows, layouts });
+    const locationAtOffset = useCallback(
+      (snapshot: { rows: Row[]; layouts: { offset: number; length: number }[] }) => {
+        const offset = zoom.scrollY.value;
+        const index = snapshot.layouts.findIndex(
+          (layout) => layout.offset + layout.length > offset + 0.5,
+        );
+        const row = snapshot.rows[index];
+        const layout = snapshot.layouts[index];
+        return row && layout
+          ? {
+              chapterId: row.chapterId,
+              pageNumber: row.pageNumber,
+              fraction: Math.max(0, Math.min(1, (offset - layout.offset) / layout.length)),
+            }
+          : target.current;
       },
-      ref,
-    ) => {
-      const [pinching, setPinching] = useState(false);
-      const { width, height } = useWindowDimensions();
-      const [viewportHeight, setViewportHeight] = useState(height - 100);
-      const zoom = useReaderZoom(
-        width,
-        viewportHeight,
-        onTapScreen,
-        setPinching,
-        undefined,
-        initialView,
-      );
-      const flatListRef = zoom.scrollRef;
-      const scrollRetryRef = useRef({ index: -1, attempts: 0 });
-      const isReadyRef = useRef(false);
-      const currentChapterRef = useRef(activeChapterId);
-      const lastChapterSwitchRef = useRef<{ chapterId: string; at: number } | null>(null);
-      const lastVisiblePageRef = useRef<{ chapterId: string; pageNumber: number } | null>(null);
-      const flatItems = useMemo(() => buildFlatItems(chapters), [chapters]);
-      const measured = useRef(new Map<string, number>());
-      const restored = useRef(false);
-      const restoreCallback = useRef<() => void>(() => {});
-      const itemHeight = (item: FlatItem) =>
-        item.type === 'separator'
-          ? 0
-          : (measured.current.get(item.chapterId + ':' + item.page.pageNumber) ??
-            width / (item.page.aspectRatio || 0.67));
-      const restoreView = () => {
-        if (restored.current || !initialView) return;
-        const target = flatItems[initialIndexRef.current];
+      [zoom.scrollY],
+    );
+    const position = useCallback(
+      (chapterId: string, pageNumber: number, animated = false, fraction = 0) => {
+        target.current = { chapterId, pageNumber, fraction };
+        pending.current = true;
+        const index = latest.current.rows.findIndex(
+          (row) => row.chapterId === chapterId && row.pageNumber === pageNumber,
+        );
+        if (index < 0) return;
+        const layout = latest.current.layouts[index];
+        zoom.scrollRef.current?.scrollToOffset({
+          offset: layout.offset + layout.length * fraction,
+          animated,
+        });
+      },
+      [zoom.scrollRef],
+    );
+    useLayoutEffect(() => {
+      const location = pending.current
+        ? target.current
+        : locationAtOffset(previousGeometry.current);
+      previousGeometry.current = { rows, layouts };
+      position(location.chapterId, location.pageNumber, false, location.fraction);
+    }, [layouts, rows, position, locationAtOffset]);
+    useImperativeHandle(ref, () => ({
+      getLocation: () => ({
+        ...(pending.current ? target.current : locationAtOffset(latest.current)),
+        scale: zoom.scale.value,
+        pan: zoom.x.value / width,
+      }),
+      scrollToPage: (pageNumber, animated = false) =>
+        position(activeChapterId, pageNumber, animated),
+      scrollToChapterPage: (chapterId, pageNumber) => position(chapterId, pageNumber),
+    }));
+    const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
+      const visible = viewableItems
+        .filter((token) => token.isViewable)
+        .map((token) => token.item as Row);
+      if (!visible.length) return;
+      if (pending.current) {
         if (
-          !target ||
-          target.type !== 'page' ||
-          !measured.current.has(target.chapterId + ':' + target.page.pageNumber)
+          !visible.some(
+            (row) => key(row) === `${target.current.chapterId}:${target.current.pageNumber}`,
+          )
         )
           return;
-        restored.current = true;
-        flatListRef.current?.scrollToIndex({
-          index: initialIndexRef.current,
-          animated: false,
-          viewOffset: -itemHeight(target) * initialView.fraction,
-        });
-      };
-
-      restoreCallback.current = restoreView;
-
-      // Find the index of the initial page in the flat list
-      const getInitialIndex = () => {
-        const targetPage = Math.max(1, initialPage);
-        let idx = flatItems.findIndex(
-          (item) =>
-            item.type === 'page' &&
-            item.chapterId === activeChapterId &&
-            item.page.pageNumber === targetPage,
-        );
-        // Fall back to chapter separator
-        if (idx < 0) {
-          idx = flatItems.findIndex(
-            (item) => item.type === 'separator' && item.chapterId === activeChapterId,
-          );
-        }
-        return Math.max(0, idx);
-      };
-
-      const initialIndex = getInitialIndex();
-      const initialIndexRef = useRef(initialIndex);
-
-      useImperativeHandle(ref, () => ({
-        getLocation: () => {
-          const offset = zoom.scrollY.value;
-          let top = 0;
-          for (const item of flatItems) {
-            const length = itemHeight(item);
-            if (item.type === 'page' && top + length > offset)
-              return {
-                chapterId: item.chapterId,
-                pageNumber: item.page.pageNumber,
-                fraction: Math.max(0, Math.min(1, (offset - top) / length)),
-                scale: zoom.scale.value,
-                pan: zoom.x.value / width,
-              };
-            top += length;
-          }
-        },
-        scrollToPage: (pageNumber: number, animated = true) => {
-          const idx = flatItems.findIndex(
-            (item) =>
-              item.type === 'page' &&
-              item.chapterId === activeChapterId &&
-              item.page.pageNumber === pageNumber,
-          );
-          if (idx >= 0) {
-            flatListRef.current?.scrollToIndex({ index: idx, animated });
-          }
-        },
-        scrollToChapterPage: (chapterId: string, pageNumber: number) => {
-          const idx = flatItems.findIndex(
-            (item) =>
-              item.type === 'page' &&
-              item.chapterId === chapterId &&
-              item.page.pageNumber === pageNumber,
-          );
-          if (idx >= 0) {
-            flatListRef.current?.scrollToIndex({ index: idx, animated: false });
-          }
-        },
-      }));
-
-      useEffect(() => {
-        if (initialIndexRef.current > 0) {
-          const timer = setTimeout(() => {
-            if (!restored.current)
-              flatListRef.current?.scrollToIndex({
-                index: initialIndexRef.current,
-                animated: false,
-              });
-            isReadyRef.current = true;
-          }, 100);
-          return () => clearTimeout(timer);
-        } else {
-          isReadyRef.current = true;
-        }
-      }, []);
-
-      const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
-        const visiblePages = viewableItems
-          .map((token) => token.item as FlatItem)
-          .filter((item): item is PageItem => item.type === 'page');
-
-        if (visiblePages.length === 0) return;
-
-        const focusPage = visiblePages[Math.floor(visiblePages.length / 2)] ?? visiblePages[0];
-        const focusIndex = focusPage.page.pageNumber;
-        const now = Date.now();
-        const previousVisible = lastVisiblePageRef.current;
-        const isSameVisiblePage =
-          previousVisible &&
-          previousVisible.chapterId === focusPage.chapterId &&
-          previousVisible.pageNumber === focusIndex;
-
-        lastVisiblePageRef.current = { chapterId: focusPage.chapterId, pageNumber: focusIndex };
-
-        if (isSameVisiblePage) return;
-
-        const lastSwitch = lastChapterSwitchRef.current;
-        const shouldSwitchChapter =
-          focusPage.chapterId !== currentChapterRef.current &&
-          (!lastSwitch ||
-            lastSwitch.chapterId !== focusPage.chapterId ||
-            now - lastSwitch.at > 900);
-
-        if (shouldSwitchChapter) {
-          currentChapterRef.current = focusPage.chapterId;
-          lastChapterSwitchRef.current = { chapterId: focusPage.chapterId, at: now };
-          onChapterChange(focusPage.chapterId);
-        }
-        onPageChange(focusPage.chapterId, focusIndex);
-      }).current;
-
-      const viewabilityConfig = useRef({ viewAreaCoveragePercentThreshold: 40 }).current;
-
-      const renderItem = useCallback(
-        ({ item }: { item: FlatItem }) => {
-          if (item.type === 'separator') {
-            return <View style={{ height: 0 }} />;
-          }
-
-          return (
-            <FittedPage
-              page={item.page}
-              width={width}
-              height={height - 100}
-              scale={zoom.scale}
-              x={zoom.x}
-              onHeight={(value) => {
-                measured.current.set(item.chapterId + ':' + item.page.pageNumber, value);
-                setTimeout(() => restoreCallback.current(), 0);
-              }}
-            />
-          );
-        },
-        [width, height, zoom.scale, zoom.x],
-      );
-
-      const keyExtractor = useCallback((item: FlatItem) => {
-        if (item.type === 'separator') return `sep-${item.chapterId}`;
-        return `page-${item.chapterId}-${item.page.pageNumber}`;
-      }, []);
-
-      return (
-        <GestureDetector gesture={zoom.gesture}>
-          <View
-            onLayout={(event) => setViewportHeight(event.nativeEvent.layout.height)}
-            style={{ flex: 1, overflow: 'hidden' }}
-            collapsable={false}
-          >
-            <Animated.View style={zoom.viewportStyle}>
-              <GestureDetector gesture={zoom.nativeGesture}>
-                <Animated.FlatList
-                  onScroll={zoom.scrollHandler}
-                  onContentSizeChange={restoreView}
-                  scrollEventThrottle={16}
-                  scrollEnabled={!pinching}
-                  // Longer coast after a throw-swipe; keep edges from rubber-banding mid-chapter.
-                  decelerationRate={0.993}
-                  bounces={!pinching}
-                  overScrollMode={pinching ? 'never' : 'auto'}
-                  ref={flatListRef}
-                  data={flatItems}
-                  keyExtractor={keyExtractor}
-                  renderItem={renderItem}
-                  onViewableItemsChanged={onViewableItemsChanged}
-                  viewabilityConfig={viewabilityConfig}
-                  showsVerticalScrollIndicator={false}
-                  removeClippedSubviews={false}
-                  initialNumToRender={8}
-                  maxToRenderPerBatch={8}
-                  windowSize={7}
-                  className="flex-1 bg-black"
-                  onScrollToIndexFailed={(info) => {
-                    if (scrollRetryRef.current.index !== info.index)
-                      scrollRetryRef.current = { index: info.index, attempts: 0 };
-                    if (scrollRetryRef.current.attempts++ >= 3) return;
-                    flatListRef.current?.scrollToOffset({
-                      offset: info.averageItemLength * info.index,
-                      animated: false,
-                    });
-                    setTimeout(() => {
-                      flatListRef.current?.scrollToIndex({ index: info.index, animated: false });
-                      isReadyRef.current = true;
-                    }, 150);
-                  }}
-                />
-              </GestureDetector>
-            </Animated.View>
-          </View>
-        </GestureDetector>
-      );
-    },
-  ),
+        pending.current = false;
+        return;
+      }
+      const row = visible[0];
+      const previous = target.current;
+      const index = latest.current.rows.findIndex((item) => key(item) === key(row));
+      const layout = latest.current.layouts[index];
+      const fraction = layout
+        ? Math.max(0, Math.min(1, (zoom.scrollY.value - layout.offset) / layout.length))
+        : 0;
+      target.current = { chapterId: row.chapterId, pageNumber: row.pageNumber, fraction };
+      if (previous.chapterId === row.chapterId && previous.pageNumber === row.pageNumber) return;
+      if (previous.chapterId !== row.chapterId) latest.current.onChapterChange(row.chapterId);
+      latest.current.onPageChange(row.chapterId, row.pageNumber);
+    }).current;
+    const measureTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    useEffect(
+      () => () => {
+        if (measureTimer.current) clearTimeout(measureTimer.current);
+      },
+      [],
+    );
+    const onMeasure = useCallback((url: string, ratio: number) => {
+      if (Math.abs((measured.current.get(url) ?? 0) - ratio) < 0.00001) return;
+      measured.current.set(url, ratio);
+      if (measureTimer.current) return;
+      measureTimer.current = setTimeout(() => {
+        measureTimer.current = null;
+        setRevision((value) => value + 1);
+      }, 16);
+    }, []);
+    const { scale, x } = zoom;
+    const renderItem = useCallback(
+      ({ item }: { item: Row }) => (
+        <PageRow
+          page={item}
+          width={width}
+          height={viewportHeight}
+          scale={scale}
+          x={x}
+          onMeasure={onMeasure}
+        />
+      ),
+      [width, viewportHeight, scale, x, onMeasure],
+    );
+    const getItemLayout = useCallback(
+      (_: unknown, index: number) => layouts[index] ?? { index, length: 0, offset: 0 },
+      [layouts],
+    );
+    return (
+      <GestureDetector gesture={zoom.gesture}>
+        <View
+          onLayout={(event) => setViewportHeight(event.nativeEvent.layout.height)}
+          style={{ flex: 1, overflow: 'hidden' }}
+          collapsable={false}
+        >
+          <Animated.View style={zoom.viewportStyle}>
+            <GestureDetector gesture={zoom.nativeGesture}>
+              <Animated.FlatList
+                ref={zoom.scrollRef}
+                data={rows}
+                keyExtractor={key}
+                onScroll={zoom.scrollHandler}
+                scrollEventThrottle={16}
+                onScrollBeginDrag={() => {
+                  pending.current = false;
+                }}
+                onContentSizeChange={() => {
+                  if (pending.current) {
+                    const at = target.current;
+                    position(at.chapterId, at.pageNumber, false, at.fraction);
+                  }
+                }}
+                getItemLayout={getItemLayout}
+                onViewableItemsChanged={onViewableItemsChanged}
+                viewabilityConfig={useRef({ itemVisiblePercentThreshold: 1 }).current}
+                scrollEnabled={!pinching}
+                removeClippedSubviews={false}
+                initialNumToRender={8}
+                maxToRenderPerBatch={4}
+                windowSize={7}
+                showsVerticalScrollIndicator={false}
+                className="flex-1 bg-black"
+                renderItem={renderItem}
+              />
+            </GestureDetector>
+          </Animated.View>
+        </View>
+      </GestureDetector>
+    );
+  }),
 );
-
-VerticalReader.displayName = 'VerticalReader';

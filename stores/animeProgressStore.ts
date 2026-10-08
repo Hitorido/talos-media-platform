@@ -1,3 +1,5 @@
+import { useHiddenPrivateIds } from '@/hooks/useHiddenPrivateIds';
+import { usePrivacyStore } from '@/stores/privacyStore';
 import { useLibraryStore } from '@/stores/libraryStore';
 import { useMemo } from 'react';
 import { create } from 'zustand';
@@ -56,6 +58,7 @@ export const useAnimeProgressStore = create<AnimeProgressState>()(
       progressByAnime: seedProgress,
 
       setEpisodeProgress: (progress) => {
+        if (usePrivacyStore.getState().incognito) return;
         set((state) => ({
           progressByAnime: {
             ...state.progressByAnime,
@@ -93,8 +96,12 @@ export const useAnimeProgressStore = create<AnimeProgressState>()(
 );
 
 export function useContinueWatching(): ContinueWatchingEntry[] {
+  const hidden = useHiddenPrivateIds();
   const media = useLibraryStore((state) => state.media);
   const progressByAnime = useAnimeProgressStore((state) => state.progressByAnime);
 
-  return useMemo(() => buildContinueWatching(progressByAnime, media), [progressByAnime, media]);
+  return useMemo(
+    () => buildContinueWatching(progressByAnime, media).filter((item) => !hidden.has(item.animeId)),
+    [progressByAnime, media, hidden],
+  );
 }

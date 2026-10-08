@@ -78,7 +78,7 @@ export const useDownloadStore = create<DownloadState>()(
           totalBytes: 0,
           localPath: null,
           error: null,
-          createdAt: now,
+          createdAt: existing?.createdAt ?? now,
           updatedAt: now,
           payload: params.payload,
         };

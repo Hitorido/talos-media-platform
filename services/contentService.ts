@@ -497,10 +497,13 @@ async function resolveCrossProviderPlayback(
 export async function resolveAnimePlayback(
   routeId: string,
   episodeId: string,
+  options: { onlineOnly?: boolean } = {},
 ): Promise<ResolvedAnimePlaybackResult> {
   const ref = resolveMediaRef(routeId);
 
-  const offline = await resolveAnimeSource(routeId, episodeId, '');
+  const offline = options.onlineOnly
+    ? { isOffline: false, streamUrl: '', subtitles: undefined }
+    : await resolveAnimeSource(routeId, episodeId, '');
   if (offline.isOffline && offline.streamUrl) {
     let animeTitle = 'Anime';
     let episodeNumber = 0;
@@ -521,6 +524,8 @@ export async function resolveAnimePlayback(
         mediaId: ref.sourceId,
         episodeId,
         url: offline.streamUrl,
+        subtitles: offline.subtitles,
+        contentType: offline.streamUrl.endsWith('.m3u8') ? 'hls' : 'progressive',
         availability: 'available',
         note: 'Playing from downloaded offline storage.',
       },

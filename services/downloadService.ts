@@ -1,3 +1,5 @@
+import { setDownloadBackgroundActive } from '@/services/downloadBackground';
+import { saveOfflineSubtitles } from '@/services/offlineSubtitles';
 import { downloadHls } from '@/services/hlsDownload';
 import { flushOfflineCatalog, saveOfflineCatalog } from '@/services/offlineCatalog';
 import {
@@ -19,36 +21,51 @@ const activeDownloads = new Set<string>();
 const abortControllers = new Map<string, { isAborted: boolean }>();
 
 let isProcessingQueue = false;
+let queueRequested = false;
+const tasks = new Map<string, Promise<void>>();
 
 /**
  * Main queue runner that picks queued items up to MAX_CONCURRENT_DOWNLOADS.
  */
 export async function processDownloadQueue(): Promise<void> {
-  if (isProcessingQueue) return;
+  if (isProcessingQueue) {
+    queueRequested = true;
+    return;
+  }
   isProcessingQueue = true;
 
   try {
     const store = useDownloadStore.getState();
     const items = Object.values(store.items);
     const queuedItems = items.filter((item) => item.status === 'queued');
+    await setDownloadBackgroundActive(queuedItems.length > 0 || activeDownloads.size > 0);
 
     for (const item of queuedItems) {
       if (activeDownloads.size >= MAX_CONCURRENT_DOWNLOADS) {
         break;
       }
-      if (!activeDownloads.has(item.id)) {
+      if (
+        !activeDownloads.has(item.id) &&
+        useDownloadStore.getState().items[item.id]?.status === 'queued'
+      ) {
         activeDownloads.add(item.id);
         // Start download in background
-        runDownloadTask(item).finally(() => {
+        const task = runDownloadTask(item).finally(() => {
+          tasks.delete(item.id);
           activeDownloads.delete(item.id);
           abortControllers.delete(item.id);
           // Trigger next in queue
-          processDownloadQueue();
+          void processDownloadQueue();
         });
+        tasks.set(item.id, task);
       }
     }
   } finally {
     isProcessingQueue = false;
+    if (queueRequested) {
+      queueRequested = false;
+      void processDownloadQueue();
+    }
   }
 }
 
@@ -92,14 +109,17 @@ async function processAnimeDownload(
   let videoUrl = item.payload.videoUrl;
   let hls = Boolean(videoUrl?.includes('.m3u8'));
   let fallbackUrl: string | undefined;
+  let tracks: { language: string; url: string }[] = [];
   const resolveFresh = async () => {
     const { resolveAnimePlayback } = await import('@/services/contentService');
-    const playback = await resolveAnimePlayback(item.mediaId, item.unitId);
+    const playback = await resolveAnimePlayback(item.mediaId, item.unitId, { onlineOnly: true });
     videoUrl = playback.source.url;
     fallbackUrl = playback.source.fallbackUrl;
+    tracks = playback.source.subtitles ?? [];
     hls = playback.source.contentType === 'hls' || Boolean(videoUrl?.includes('.m3u8'));
   };
-  if (!videoUrl) await resolveFresh();
+  // Resolve even a supplied URL to obtain current episode captions and refreshed signed media.
+  await resolveFresh();
   if (signal.isAborted) return;
   if (hls) {
     const directory = getAnimeStoragePath(item.mediaId, item.unitId).replace(/video\.mp4$/, '');
@@ -128,13 +148,19 @@ async function processAnimeDownload(
       if (!retryUrl) throw error;
       result = await download(retryUrl);
     }
-    if (!signal.isAborted)
+    if (!signal.isAborted) {
+      const captions = await saveOfflineSubtitles(tracks, directory, signal);
+      if (signal.isAborted) return;
       store.setStatus(item.id, 'completed', {
+        subtitles: captions.tracks,
+        subtitleWarning:
+          captions.warning || (captions.tracks.length ? undefined : result.subtitleWarning),
         localPath: result.localPath,
         progress: 1,
-        bytesDownloaded: result.bytes,
-        totalBytes: result.bytes,
+        bytesDownloaded: result.bytes + captions.bytes,
+        totalBytes: result.bytes + captions.bytes,
       });
+    }
     return;
   }
   if (!videoUrl) {
@@ -154,11 +180,19 @@ async function processAnimeDownload(
 
   if (signal.isAborted) return;
 
+  const captions = await saveOfflineSubtitles(
+    tracks,
+    destinationUri.replace(/video\.mp4$/, ''),
+    signal,
+  );
+  if (signal.isAborted) return;
   store.setStatus(item.id, 'completed', {
+    subtitles: captions.tracks,
+    subtitleWarning: captions.warning,
     localPath: result.uri,
     progress: 1,
-    bytesDownloaded: result.size,
-    totalBytes: result.size,
+    bytesDownloaded: result.size + captions.bytes,
+    totalBytes: result.size + captions.bytes,
   });
 }
 
@@ -341,7 +375,6 @@ export function downloadNovelChapter(novel: NovelDetails, chapter: NovelChapter)
 export function pauseDownload(id: string): void {
   const controller = abortControllers.get(id);
   if (controller) controller.isAborted = true;
-  activeDownloads.delete(id);
   useDownloadStore.getState().pauseDownload(id);
   processDownloadQueue();
 }
@@ -359,7 +392,6 @@ export function retryDownload(id: string): void {
 export function cancelDownload(id: string): void {
   const controller = abortControllers.get(id);
   if (controller) controller.isAborted = true;
-  activeDownloads.delete(id);
   useDownloadStore.getState().cancelDownload(id);
   processDownloadQueue();
 }
@@ -368,6 +400,7 @@ export async function deleteDownload(id: string): Promise<void> {
   const item = useDownloadStore.getState().items[id];
   if (item) {
     cancelDownload(id);
+    await tasks.get(id);
     if (item.mediaType === 'anime') {
       await deleteStoragePath(
         getAnimeStoragePath(item.mediaId, item.unitId).replace(/video\.mp4$/, ''),

@@ -28,6 +28,7 @@ const deps = {
   zustand: zustand,
   'zustand/middleware': middleware,
   '@/stores/persistStorage': { appPersistStorage: storage },
+  '@/stores/privacyStore': { usePrivacyStore: { getState: () => ({ incognito: false }) } },
 };
 const library = loadProviderTs('stores/libraryStore.ts', deps).useLibraryStore;
 const media = {
@@ -100,6 +101,7 @@ console.log(
 
 // Execute the actual player component and effects against a deterministic Expo player.
 function loadComponent(path, dependencies) {
+  dependencies['@/components/content/PrivacyControls'] = { PrivacyAccessGate: 'PrivacyGate' };
   const module = { exports: {} };
   const code = ts.transpileModule(fs.readFileSync(path, 'utf8'), {
     compilerOptions: {
@@ -117,7 +119,12 @@ function loadComponent(path, dependencies) {
     module.exports,
     false,
   );
-  return module.exports.default;
+  // Privacy denial is tested separately; exercise the real authorized screen here.
+  return (...args) => {
+    const rendered = module.exports.default(...args);
+    const child = rendered.type === 'PrivacyGate' ? rendered.props.children : null;
+    return child ? child.type(child.props) : rendered;
+  };
 }
 const slots = [];
 let cursor = 0,
@@ -127,7 +134,7 @@ const React = {
   memo: (fn) => fn,
   useState(initial) {
     const i = cursor++;
-    if (!(i in slots)) slots[i] = typeof initial === "function" ? initial() : initial;
+    if (!(i in slots)) slots[i] = typeof initial === 'function' ? initial() : initial;
     return [
       slots[i],
       (v) => {
@@ -198,6 +205,9 @@ useStore.getState = () => state;
 const jsx = (type, props) => ({ type, props });
 let backHandlerListeners = [];
 const Player = loadComponent('app/anime/[id]/watch/[episodeId].tsx', {
+  '@/services/offlineSubtitles': {
+    readSubtitleText: async (url, signal) => (await fetch(url, { signal })).text(),
+  },
   react: React,
   'react/jsx-runtime': { jsx, jsxs: jsx },
   'expo-router': {
@@ -360,6 +370,12 @@ assert.equal(saved, 90, 'leaveFullscreen saves actual player time');
 // Open settings panel so subtitle controls are visible in the tree
 byLabel(playerTree, 'Settings')?.props.onPress();
 render();
+await new Promise((resolve) => setTimeout(resolve, 4200));
+render();
+assert.ok(
+  byLabel(playerTree, 'Subtitles: On'),
+  'settings remain visible past the controls timeout',
+);
 // Subtitle toggle is inside Settings panel
 const subtitlesBtn = byLabel(playerTree, 'Subtitles: On') ?? byLabel(playerTree, 'Subtitles: Off');
 assert.ok(subtitlesBtn, 'subtitle toggle exists in settings panel');
@@ -402,6 +418,21 @@ const subtitlesBtnOff2 =
 subtitlesBtnOff2?.props.onPress();
 render();
 assert.match(JSON.stringify(playerTree), /Episode-matched English dialogue/);
+const japaneseTrack = { id: 'ja', language: 'ja', label: 'Japanese' };
+player.availableSubtitleTracks = [englishTrack, japaneseTrack];
+for (const fn of listeners.availableSubtitleTracksChange ?? [])
+  fn({ availableSubtitleTracks: player.availableSubtitleTracks });
+render();
+byLabel(playerTree, 'Japanese').props.onPress();
+render();
+assert.equal(player.subtitleTrack, japaneseTrack, 'user can select a non-English native track');
+assert.doesNotMatch(
+  JSON.stringify(playerTree),
+  /Episode-matched English dialogue/,
+  'external English captions do not overlay another selected language',
+);
+byLabel(playerTree, 'Automatic (English)').props.onPress();
+render();
 console.log(
   'PASS first-frame fullscreen gating, native selection and real timed-text overlay on/off',
 );
@@ -577,7 +608,7 @@ find(tree, 'Reader').props.onEndVisibilityChange(true);
 renderNovel();
 assert.equal(
   find(tree, 'AnimatedView').props.pointerEvents,
-  'auto',
+  'box-none',
   'end navigation appears even within the persistence throttle',
 );
 find(tree, 'Reader').props.onEndVisibilityChange(false);
@@ -708,6 +739,7 @@ for (const [kind, storeFile, mockPath, mockFunction, builder, progressField, pro
     ...deps,
     react: { useMemo: (fn) => fn() },
     '@/stores/libraryStore': { useLibraryStore: library },
+    '@/hooks/useHiddenPrivateIds': { useHiddenPrivateIds: () => new Set() },
     ['@/services/mock/' + mockPath]: { [mockFunction]: () => undefined },
   });
   assert.equal(loaded[builder]({ [id]: progressValue })[0].title, 'Real ' + kind);
@@ -740,6 +772,7 @@ const rollingItems = {
 const deletedRollingIds = [];
 const queuedRollingChapters = [];
 const rollingDownloads = loadProviderTs('services/rollingDownloadService.ts', {
+  '@/stores/privacyStore': deps['@/stores/privacyStore'],
   '@/stores/downloadStore': { useDownloadStore: { getState: () => ({ items: rollingItems }) } },
   '@/stores/rollingDownloadSettingsStore': {
     useRollingDownloadSettingsStore: { getState: () => rollingSettings },
