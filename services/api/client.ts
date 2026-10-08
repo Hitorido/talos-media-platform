@@ -9,17 +9,25 @@ export type ApiSuccess<T> = {
 export type ApiFailure = {
   success: false;
   error: string;
+  code?: string;
   details?: { field: string; message: string }[];
 };
 
 export class ApiError extends Error {
   status: number;
+  code?: string;
   details?: { field: string; message: string }[];
 
-  constructor(message: string, status: number, details?: { field: string; message: string }[]) {
+  constructor(
+    message: string,
+    status: number,
+    details?: { field: string; message: string }[],
+    code?: string,
+  ) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    this.code = code;
     this.details = details;
   }
 }
@@ -80,6 +88,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
       failure?.error ?? `Request failed (${response.status})`,
       response.status,
       failure?.details,
+      failure?.code,
     );
   }
 
@@ -105,10 +114,15 @@ const WAKE_REUSE_WINDOW_MS = 15_000;
  */
 export async function wakeBackend(): Promise<boolean> {
   if (Date.now() - lastWakeVerifiedAt < WAKE_REUSE_WINDOW_MS) return true;
-  if (!pendingWake) pendingWake = checkBackendHealth().then((awake) => {
-    if (awake) lastWakeVerifiedAt = Date.now();
-    return awake;
-  }).finally(() => { pendingWake = null; });
+  if (!pendingWake)
+    pendingWake = checkBackendHealth()
+      .then((awake) => {
+        if (awake) lastWakeVerifiedAt = Date.now();
+        return awake;
+      })
+      .finally(() => {
+        pendingWake = null;
+      });
   return pendingWake;
 }
 
@@ -129,6 +143,8 @@ export async function apiRequestWithWake<T>(
     return await apiRequest<T>(path, options);
   } catch (error) {
     if (options.signal?.aborted || (options.method && options.method !== 'GET')) throw error;
+    // A structured source failure proves the gateway is awake; repeating it will not warm Render.
+    if (error instanceof ApiError && error.code) throw error;
     const status = error instanceof ApiError ? error.status : -1;
     const looksLikeColdStart = status === 0 || status === 502 || status === 503 || status === 504;
     if (!looksLikeColdStart) throw error;

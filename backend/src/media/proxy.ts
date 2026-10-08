@@ -21,6 +21,11 @@ export function imageTarget(provider: string, path: unknown) {
     !path.includes('//')
   )
     return { url: 'https://cdn.manhuaplus.cc' + path, referer: 'https://manhuaplus.org/' };
+  if (
+    provider === 'manhuaplus' &&
+    /^\/\d{4}\/\d{2}\/\d{2}\/[a-zA-Z0-9-]+\.(?:webp|png|jpe?g)$/.test(path)
+  )
+    return { url: 'https://cdn.manhuaplus.org' + path, referer: 'https://manhuaplus.org/' };
   throw new ProviderGatewayError('Unsupported source or media path.', 400);
 }
 export function checkedRange(value?: string) {

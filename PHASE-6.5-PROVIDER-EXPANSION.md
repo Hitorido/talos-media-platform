@@ -94,3 +94,24 @@ Rebuild the installable beta with `eas build --platform android --profile previe
 Removed nested interactive wrappers from Home section headers, Downloads title cards, chapter/episode rows, favorite/language/chapter dialogs and the player tap surface. Primary actions, secondary buttons and modal-dismiss backdrops are now siblings, preserving independent keyboard focus and clicks. Added `scripts/phase6.5-web-nesting-test.mjs` to reject nested button/link controls across app/components.
 
 Validation: nesting scan, TypeScript, targeted component ESLint, offline-card routing tests and actual player/novel component regressions PASS. Web export PASS (19 routes). Headless Edge checks at 320/390/1366px found no nested interactive DOM or captured nesting/hydration/page errors in checked main tabs, the Downloads confirmation and Library saved-unit dropdown. Reader/player runtime verification is component-level; no physical-device PASS or deployment claimed.
+
+
+## NovelPing production recheck - 2026-10-08
+
+NovelPing remains registered and enabled by default. The existing local adapter smoke passed search, details, 3,208 Shadow Slave chapter entries, first-chapter text (91 paragraphs) and invalid-path rejection. Render health returned HTTP 200 after a wake request, but production NovelPing details and chapter-list routes returned HTTP 502 with upstream Source HTTP 403. This is an upstream refusal from the hosted request path, not a sleeping-backend diagnosis. Source notes now disclose it; the provider was not disabled. No new underlying publisher integrations or full production reading success are claimed. The public homepage does not establish a verified upstream provider API list.
+
+
+## Provider recovery and status clarification - 2026-10-08
+
+Production health responded HTTP 200. NovelPing, Royal Road, NovelArrow, DemonicScans and WeebCentral returned source HTTP 403; Kaliscan/MangaJinx returned source transport failures. Asura remains server-disabled with its old search route returning 404. A candidate alternative returned HTML but no usable series links; it was not registered as working. The Wandering Inn production details, 838 chapter entries and sampled text (158 paragraphs) passed. ManhuaPlus search passed; this alone is not full reading verification.
+
+Local fixes: discovery preserves safe structured provider errors instead of masking them as generic 502; Sources shows the actual Talos API URL and server enablement after Refresh backend health, separately from the local preference switch. Gateway-backed sources no longer misleadingly require a custom backend URL. Explicit provider errors skip unnecessary wake/retry; genuine transport failures retain one wake/retry. Recovery regression, frontend typecheck, backend build and targeted lint passed. No production deployment or claim that all upstream failures are fixed.
+
+
+## Asura and ManhuaPlus parser repairs - 2026-10-08
+
+Replaced Asura's obsolete /series parser with the source's current /browse?search and /comics routes. Catalogs use actual chapter identifiers; image lists use data-page-index, including source-owned chapters and chapters-merged CDN paths. Removed fabricated image aspect ratios. Enabled the repaired backend adapter by default. Local two-title verification passed: Solo Swordmaster (21 chapters, 40 first-chapter pages) and Solo Farming In The Tower (146 chapters, 19 first-chapter pages), sampled first/last images and invalid/unlisted chapter rejection. New parser is not yet deployed or phone-verified.
+
+ManhuaPlus Martial Peak's canonical search ID is martial-peak01, not martial-peak. Production details and 3,363 chapter entries passed with that ID. Production page retrieval exposed a real legacy CDN rejection. Added fixed-host, restricted date-path support for cdn.manhuaplus.org alongside existing cdn.manhuaplus.cc paths in the adapter, bridge and Express relay. Local chapter-500 flow passed with 12 pages, first/last image retrieval and unsafe relay path rejection. Existing proxy regression and backend build pass. The new legacy image relay still needs deployment and phone verification.
+
+These are concrete adapter repairs; they do not resolve the separate Render upstream 403 failures for NovelPing, Royal Road, NovelArrow, DemonicScans or WeebCentral, nor Kaliscan/MangaJinx transport failures. No blanket working claim or production deployment was made.
