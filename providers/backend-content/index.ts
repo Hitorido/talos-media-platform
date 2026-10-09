@@ -117,7 +117,11 @@ const DIRECT_NOVEL_ORIGINS: Record<string, string> = {
   novelping: 'https://novelping.com',
 };
 
-async function directNovelFetchJson<T>(origin: string, path: string, signal?: AbortSignal): Promise<T> {
+async function directNovelFetchJson<T>(
+  origin: string,
+  path: string,
+  signal?: AbortSignal,
+): Promise<T> {
   const res = await fetch(`${origin}${path}`, {
     signal,
     headers: {
@@ -396,7 +400,13 @@ export function backendNovelProvider(id: string, name: string): MediaProvider {
           );
           const item = directData.item;
           const c = item?.chapterInfo;
-          if (c && !item?.show_button_unlock && !c.premium_content && !c.platinum_content && !c.coin_price) {
+          if (
+            c &&
+            !item?.show_button_unlock &&
+            !c.premium_content &&
+            !c.platinum_content &&
+            !c.coin_price
+          ) {
             const raw = c.chapter_content || '';
             const paragraphs = raw
               .replace(/<h[1-6][^>]*>.*?<\/h[1-6]>/gi, '')
@@ -425,7 +435,9 @@ export function backendNovelProvider(id: string, name: string): MediaProvider {
       }
 
       try {
-        return await apiRequest(`${route(ref.sourceId)}/chapters/${encodeURIComponent(chapterId)}/content`);
+        return await apiRequest(
+          `${route(ref.sourceId)}/chapters/${encodeURIComponent(chapterId)}/content`,
+        );
       } catch (err) {
         if (directOrigin) {
           const directData = await directNovelFetchJson<{
@@ -447,7 +459,13 @@ export function backendNovelProvider(id: string, name: string): MediaProvider {
           );
           const item = directData.item;
           const c = item?.chapterInfo;
-          if (c && !item?.show_button_unlock && !c.premium_content && !c.platinum_content && !c.coin_price) {
+          if (
+            c &&
+            !item?.show_button_unlock &&
+            !c.premium_content &&
+            !c.platinum_content &&
+            !c.coin_price
+          ) {
             const raw = c.chapter_content || '';
             const paragraphs = raw
               .replace(/<h[1-6][^>]*>.*?<\/h[1-6]>/gi, '')

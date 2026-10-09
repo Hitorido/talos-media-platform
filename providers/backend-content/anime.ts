@@ -1,3 +1,4 @@
+import { directAnimeAdapter, withDirectAnimeFallback } from './directAnime';
 import { apiRequestWithWake as apiRequest } from '@/services/api/client';
 import type { MediaProvider } from '@/providers/types';
 import {
@@ -13,6 +14,26 @@ export function backendAnimeProvider(
   options?: { website: string; statusNote: string },
 ): MediaProvider {
   const route = (sourceId: string) => `/api/content/anime/${id}/${encodeURIComponent(sourceId)}`;
+  const request = <T>(path: string, direct?: () => Promise<T>, signal?: AbortSignal) =>
+    withDirectAnimeFallback(() => apiRequest<T>(path, { signal }), direct, signal);
+  const details = (sourceId: string, signal?: AbortSignal) => {
+    const direct = directAnimeAdapter(id, signal);
+    return request<Omit<NormalizedMedia, 'ref'>>(
+      route(sourceId),
+      direct
+        ? async () => {
+            const data = await direct.getDetails!(sourceId);
+            return {
+              ...data,
+              mediaType: 'anime' as const,
+              coverUrl: data.coverUrl ?? '',
+              genres: data.genres ?? [],
+            };
+          }
+        : undefined,
+      signal,
+    );
+  };
   return {
     definition: {
       id,
@@ -25,19 +46,22 @@ export function backendAnimeProvider(
         options?.statusNote ??
         'Rumble-hosted donghua episodes. Other hosts remain unavailable; native phone verification pending.',
       executionMode: 'backend-api',
-      backendRequired: true,
+      backendRequired: !directAnimeAdapter(id),
       health: {},
     },
     async search(query, context) {
-      const data = await apiRequest<{
+      const direct = directAnimeAdapter(id, context.signal);
+      const data = await request<{
         results: { sourceId: string; title: string; coverUrl?: string }[];
-      }>(`/api/content/search?providerId=${id}&mediaType=anime&q=${encodeURIComponent(query)}`, {
-        signal: context.signal,
-      });
+      }>(
+        `/api/content/search?providerId=${id}&mediaType=anime&q=${encodeURIComponent(query)}`,
+        direct ? async () => ({ results: await direct.search!(query) }) : undefined,
+        context.signal,
+      );
       // This bridge is playback-only in global search; verify aliases from at most three candidates.
       return Promise.all(
         data.results.slice(0, 3).map(async (item) => {
-          const detail = await apiRequest<Omit<NormalizedMedia, 'ref'>>(route(item.sourceId));
+          const detail = await details(item.sourceId, context.signal);
           return {
             alternativeTitles: detail.alternativeTitles,
             id: encodeMediaRouteId(id, item.sourceId),
@@ -53,18 +77,24 @@ export function backendAnimeProvider(
       );
     },
     async getDetails(ref) {
-      const data = await apiRequest<Omit<NormalizedMedia, 'ref'>>(route(ref.sourceId));
+      const data = await details(ref.sourceId);
       return { ...data, ref, genres: data.genres ?? [], coverUrl: data.coverUrl ?? '' };
     },
     async getEpisodes(ref) {
-      const data = await apiRequest<{
+      const direct = directAnimeAdapter(id);
+      const data = await request<{
         episodes: { id: string; episodeNumber: number; title: string }[];
-      }>(route(ref.sourceId) + '/episodes');
+      }>(
+        route(ref.sourceId) + '/episodes',
+        direct ? async () => ({ episodes: await direct.getEpisodes!(ref.sourceId) }) : undefined,
+      );
       return data.episodes.map((episode) => ({ ...episode, number: episode.episodeNumber }));
     },
     async getPlaybackSource(ref, episodeId) {
-      return apiRequest<NormalizedPlaybackSource>(
+      const direct = directAnimeAdapter(id);
+      return request<NormalizedPlaybackSource>(
         route(ref.sourceId) + '/episodes/' + encodeURIComponent(episodeId) + '/playback',
+        direct ? () => direct.getPlaybackSource!(ref.sourceId, episodeId) : undefined,
       );
     },
   };

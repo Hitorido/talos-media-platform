@@ -14,13 +14,13 @@ import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-na
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
-    HorizontalReader,
-    HorizontalReaderRef,
-    MangaReaderControls,
-    MangaReaderHeader,
-    ReaderPressable,
-    VerticalReader,
-    VerticalReaderRef,
+  HorizontalReader,
+  HorizontalReaderRef,
+  MangaReaderControls,
+  MangaReaderHeader,
+  ReaderPressable,
+  VerticalReader,
+  VerticalReaderRef,
 } from '@/components/manga';
 import { Text } from '@/components/ui';
 import { useMangaContent } from '@/hooks/useMangaContent';
