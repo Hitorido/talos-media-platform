@@ -2,7 +2,7 @@
 
 One library for manga, manhwa, manhua, novels, and anime ? built for Android and the web.
 
-![Beta](https://img.shields.io/badge/status-0.6.6_Beta-e6a23c)
+![Beta](https://img.shields.io/badge/status-0.6.7_Beta-e6a23c)
 ![Expo](https://img.shields.io/badge/Expo-57-000020?logo=expo&logoColor=white)
 ![React Native](https://img.shields.io/badge/React_Native-0.86-20232a?logo=react&logoColor=61dafb)
 ![TypeScript](https://img.shields.io/badge/TypeScript-6-3178c6?logo=typescript&logoColor=white)
