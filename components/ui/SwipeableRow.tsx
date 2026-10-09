@@ -1,7 +1,7 @@
+import { PopPressable as Pressable } from '@/components/ui/PopPressable';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Dimensions, PanResponder, StyleSheet, View } from 'react-native';
-import { PopPressable as Pressable } from '@/components/ui/PopPressable';
 
 import { Text } from '@/components/ui/Text';
 
@@ -70,6 +70,13 @@ export function SwipeableRow({
     resetPositionRef.current = () => resetPosition();
     dismissRef.current = dismiss;
   });
+
+  // Reset isSwiping on mount/unmount to handle tab switching
+  useEffect(() => {
+    return () => {
+      setIsSwiping(false);
+    };
+  }, []);
 
   // Guard lives in a stable callback so the one-time pan responder never reads
   // a ref during render.

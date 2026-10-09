@@ -91,6 +91,9 @@ export function MangaDetailsHeader({ manga }: MangaDetailsHeaderProps) {
             id={manga.id}
             type={mangaType === 'manhwa' ? 'Manhwa' : mangaType === 'manhua' ? 'Manhua' : 'Manga'}
             count={manga.chapters.length}
+            title={manga.title}
+            alternativeTitles={manga.altTitles}
+            mediaType="manga"
           />
 
           {manga.altTitles && manga.altTitles.length > 0 ? (

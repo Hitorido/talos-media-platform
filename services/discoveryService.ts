@@ -1,10 +1,10 @@
-import type { NovelLanguage } from '@/utils/novelLanguage';
 import { getApiBaseUrl } from '@/lib/apiConfig';
 import { mapMangaDexToNormalized, type MangaDexManga } from '@/providers/mangadex/client';
-import { encodeMediaRouteId } from '@/types/provider';
-import type { BaseContent, ComicFormat } from '@/types/content';
 import { settleProviderSearches } from '@/services/providerSearch';
 import { useProviderHealthStore } from '@/stores/providerHealthStore';
+import type { BaseContent, ComicFormat } from '@/types/content';
+import { encodeMediaRouteId } from '@/types/provider';
+import type { NovelLanguage } from '@/utils/novelLanguage';
 
 export type DiscoveryItem = BaseContent & {
   providerId: string;
@@ -15,6 +15,7 @@ export type DiscoveryItem = BaseContent & {
   status?: string;
   episodeCount?: number;
   chapterCount?: number;
+  alternativeTitles?: string[];
 };
 export type DiscoverySection = {
   id: string;
@@ -182,6 +183,7 @@ export function getDiscovery(
                   comicFormat: normalized.comicFormat,
                   status: normalized.status,
                   signal,
+                  alternativeTitles: normalized.altTitles,
                 };
               }),
             );
@@ -213,6 +215,7 @@ export function getDiscovery(
                   coverUrl: item.coverUrl,
                   type: 'novel',
                   signal: item.signal,
+                  alternativeTitles: (item as any).alternativeTitles,
                 })),
               );
             },

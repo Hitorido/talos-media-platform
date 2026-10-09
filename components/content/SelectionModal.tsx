@@ -2,13 +2,14 @@ import { useDialogEscape } from '@/hooks/useDialogEscape';
 import { useState } from 'react';
 import { Modal, ScrollView, View } from 'react-native';
 import { PopPressable as Pressable } from '@/components/ui/PopPressable';
-import { Text } from '@/components/ui';
+import { Badge, Text } from '@/components/ui';
 
-export type SelectionOption = { value: string; label: string };
+export type SelectionOption = { value: string; label: string; detail?: string };
 
 /** A shared accessible picker; opening or dismissing never changes the selection. */
 export function SelectionModal({
   visible,
+  accentOptions = false,
   title,
   options,
   value,
@@ -16,6 +17,7 @@ export function SelectionModal({
   onClose,
 }: {
   visible: boolean;
+  accentOptions?: boolean;
   title: string;
   options: SelectionOption[];
   value?: string;
@@ -36,7 +38,7 @@ export function SelectionModal({
             {title}
           </Text>
           <ScrollView>
-            {options.map((option) => (
+            {options.map((option, index) => (
               <Pressable
                 key={option.value}
                 accessibilityRole="radio"
@@ -45,12 +47,27 @@ export function SelectionModal({
                   onSelect(option.value);
                   onClose();
                 }}
-                className="rounded-lg px-3 py-3"
+                className={
+                  accentOptions
+                    ? `mb-3 rounded-xl border-2 px-4 py-4 ${
+                        [
+                          'border-violet-400 bg-violet-50 dark:bg-violet-950',
+                          'border-sky-400 bg-sky-50 dark:bg-sky-950',
+                          'border-emerald-400 bg-emerald-50 dark:bg-emerald-950',
+                        ][index % 3]
+                      }`
+                    : 'rounded-lg px-3 py-3'
+                }
               >
                 <Text tone={value === option.value ? 'primary' : 'default'}>
                   {option.label}
                   {value === option.value ? ' ✓' : ''}
                 </Text>
+                {option.detail ? (
+                  <View className="mt-2">
+                    <Badge label={option.detail} variant="primary" />
+                  </View>
+                ) : null}
               </Pressable>
             ))}
           </ScrollView>

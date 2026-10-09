@@ -80,6 +80,9 @@ export function NovelDetailsHeader({ novel }: NovelDetailsHeaderProps) {
             type={'Novel'}
             count={novel.chapters.length}
             language={novel.language}
+            title={novel.title}
+            alternativeTitles={novel.altTitles}
+            mediaType="novel"
           />
 
           {novel.altTitles && novel.altTitles.length > 0 ? (

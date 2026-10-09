@@ -59,7 +59,14 @@ export function AnimeDetailsHeader({ anime }: AnimeDetailsHeaderProps) {
         </View>
         <View className="gap-2">
           <Text variant="h1">{anime.title}</Text>
-          <MediaSourceHeader id={anime.id} type={'Anime'} count={anime.episodes.length} />
+          <MediaSourceHeader
+            id={anime.id}
+            type={'Anime'}
+            count={anime.episodes.length}
+            title={anime.title}
+            alternativeTitles={anime.altTitles}
+            mediaType="anime"
+          />
           <View className="flex-row flex-wrap gap-2">
             <Badge label={anime.status === 'ongoing' ? 'Ongoing' : 'Completed'} variant="primary" />
             {anime.rating > 0 ? (
