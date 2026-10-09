@@ -172,10 +172,24 @@ console.log('PASS serialized Android service lifecycle, no duplicate start, Expo
 // Render the actual shared title card and invoke its actions.
 let expanded = false;
 const pushed = [];
+const removed = [];
 const jsx = (type, props) => ({ type, props });
 const module = { exports: {} };
 const routes = loadProviderTs('lib/routes.ts');
 const mocks = {
+  '@/components/ui/SwipeableRow': { SwipeableRow: 'Swipe' },
+  '@/components/ui/Badge': { Badge: 'Badge' },
+  '@/services/downloadService': {
+    deleteDownload: async (id) => removed.push(id),
+    pauseDownload() {},
+    resumeDownload() {},
+    retryDownload() {},
+  },
+  '@/stores/downloadStore': {
+    useDownloadStore: {
+      getState: () => ({ items: Object.fromEntries(entries.map((item) => [item.id, item])) }),
+    },
+  },
   react: {
     useState: () => [
       expanded,
@@ -231,6 +245,16 @@ all.find((n) => n.props?.accessibilityState).props.onPress({ stopPropagation() {
 tree = module.exports.DownloadTitleCard({ group });
 all = nodes(tree);
 assert.equal(all.filter((n) => n.type === 'Button').length, 5);
+const swipes = all.filter((n) => n.type === 'Swipe');
+assert.equal(swipes.length, 3);
+swipes[1].props.onSwipeRight();
+assert.deepEqual(removed.splice(0), ['a1']);
+// A filtered title card still removes every downloaded unit belonging to that title.
+const filtered = nodes(
+  module.exports.DownloadTitleCard({ group: { ...group, items: [group.items[0]] } }),
+);
+filtered.find((n) => n.type === 'Swipe').props.onSwipeRight();
+assert.deepEqual(removed.splice(0).sort(), ['a1', 'a2']);
 console.log(
   'PASS shared Downloads/Library card resumes exact saved page, title opens details, dropdown lists units',
 );

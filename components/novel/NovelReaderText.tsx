@@ -5,6 +5,20 @@ import { Text } from '@/components/ui';
 import type { NovelChapter, ReaderSettings } from '@/types/novel';
 import { cn } from '@/utils/cn';
 
+/** Decode HTML entities like &nbsp; in text content */
+function decodeHtmlEntities(text: string): string {
+  const entityMap: Record<string, string> = {
+    '&nbsp;': ' ',
+    '&amp;': '&',
+    '&lt;': '<',
+    '&gt;': '>',
+    '&quot;': '"',
+    '&#39;': "'",
+    '&apos;': "'",
+  };
+  return text.replace(/&[#\w]+;/g, (entity) => entityMap[entity] || entity);
+}
+
 type NovelReaderTextProps = {
   chapters: NovelChapter[];
   activeChapterId: string;
@@ -299,7 +313,7 @@ export const NovelReaderText = forwardRef<NovelReaderTextRef, NovelReaderTextPro
                       }}
                       className={cn(fontClasses[settings.fontFamily])}
                     >
-                      {paragraph}
+                      {decodeHtmlEntities(paragraph)}
                     </Text>
                   </View>
                 ))}

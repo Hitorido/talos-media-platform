@@ -1,31 +1,29 @@
-import { readSubtitleText } from '@/services/offlineSubtitles';
-import { Pressable as SurfacePressable } from 'react-native';
 import { PrivacyAccessGate } from '@/components/content/PrivacyControls';
 import { SourceWebsiteButton } from '@/components/content/SourceWebsiteButton';
+import { PopPressable as Pressable } from '@/components/ui/PopPressable';
+import { readSubtitleText } from '@/services/offlineSubtitles';
 import { parseSubtitleCues, subtitleAt, type SubtitleCue } from '@/services/subtitleCues';
+import { useLibraryStore } from '@/stores/libraryStore';
 import { useMediaBookmarkStore } from '@/stores/mediaBookmarkStore';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useVideoPlayer, VideoView, type VideoPlayer, type SubtitleTrack } from 'expo-video';
+import { useVideoPlayer, VideoView, type SubtitleTrack, type VideoPlayer } from 'expo-video';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ScrollView,
-  ActivityIndicator,
-  Animated,
-  BackHandler,
-  LayoutChangeEvent,
-  PanResponder,
-  View,
+    ActivityIndicator,
+    Animated,
+    BackHandler,
+    LayoutChangeEvent,
+    PanResponder, ScrollView, Pressable as SurfacePressable, View
 } from 'react-native';
-import { PopPressable as Pressable } from '@/components/ui/PopPressable';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Badge, Button, Text } from '@/components/ui';
 import { animeDetailsHref } from '@/lib/routes';
 import {
-  getProviderDisplayName,
-  resolveAnimePlayback,
-  type ResolvedAnimePlaybackResult,
+    getProviderDisplayName,
+    resolveAnimePlayback,
+    type ResolvedAnimePlaybackResult,
 } from '@/services/contentService';
 import { useAnimeProgressStore } from '@/stores/animeProgressStore';
 import { useSubtitlePreferencesStore } from '@/stores/subtitlePreferencesStore';
@@ -216,6 +214,16 @@ function AnimePlayerScreen() {
         positionSeconds,
         durationSeconds,
         updatedAt: Date.now(),
+      });
+      // Ensure the anime is in the library store for continue watching/history
+      useLibraryStore.getState().rememberMedia({
+        id,
+        title: playback.animeTitle,
+        coverUrl: playback.episodeThumbnailUrl ?? '',
+        bannerUrl: playback.episodeThumbnailUrl ?? '',
+        genres: [],
+        mediaType: 'anime',
+        episodeCount: playback.episodeNumber,
       });
     },
     [id, episodeId, playback, setEpisodeProgress],

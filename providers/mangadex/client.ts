@@ -269,15 +269,20 @@ export function mapMangaDexToNormalized(manga: MangaDexManga) {
     comicFormat = 'manhua';
   }
 
+  const altTitles = manga.attributes.altTitles
+    ?.map((title) => pickLocalized(title))
+    .filter((title): title is string => Boolean(title?.trim())) ?? [];
+
   return {
     title:
-      manga.attributes.altTitles?.map((title) => title.en).find((title) => title?.trim()) ||
+      altTitles.find((title) => title?.trim()) ||
       pickLocalized(manga.attributes.title),
     description: pickLocalized(manga.attributes.description),
     coverUrl: buildCoverUrl(manga),
     genres,
     status: manga.attributes.status,
     comicFormat,
+    altTitles,
   };
 }
 

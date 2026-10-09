@@ -1,21 +1,22 @@
 import { PrivacyAccessGate } from '@/components/content/PrivacyControls';
 import { SourceWebsiteButton } from '@/components/content/SourceWebsiteButton';
+import { PopPressable as Pressable } from '@/components/ui/PopPressable';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, FlatList, Modal, View } from 'react-native';
-import { PopPressable as Pressable } from '@/components/ui/PopPressable';
 
 import {
-  NovelReaderControls,
-  NovelReaderHeader,
-  NovelReaderText,
-  NovelReaderTextRef,
+    NovelReaderControls,
+    NovelReaderHeader,
+    NovelReaderText,
+    NovelReaderTextRef,
 } from '@/components/novel';
 import { Badge, Text } from '@/components/ui';
 import { useNovelContent } from '@/hooks/useNovelContent';
 import { novelDetailsHref } from '@/lib/routes';
 import { getProviderDisplayName, resolveNovelChapterContent } from '@/services/contentService';
 import { maintainNovelDownloadWindow } from '@/services/rollingDownloadService';
+import { useLibraryStore } from '@/stores/libraryStore';
 import { useNovelProgressStore } from '@/stores/novelProgressStore';
 import { useRollingDownloadSettingsStore } from '@/stores/rollingDownloadSettingsStore';
 import type { NovelChapter } from '@/types/novel';
@@ -262,6 +263,16 @@ function NovelReaderScreen() {
         scrollPercentage,
         paragraphIndex,
         updatedAt: Date.now(),
+      });
+      // Ensure the novel is in the library store for continue reading/history
+      useLibraryStore.getState().rememberMedia({
+        id: progressNovelId,
+        title: novel.title,
+        coverUrl: novel.coverUrl,
+        bannerUrl: novel.bannerUrl,
+        genres: novel.genres,
+        mediaType: 'novel',
+        chapterCount: novel.chapters.length,
       });
     },
     [novel, progressNovelId, settings.scrollMode, setChapterProgress],

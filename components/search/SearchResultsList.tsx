@@ -19,7 +19,7 @@ export function SearchResultsList({ results, query, onResultPress }: SearchResul
   const [selectedGroup, setSelectedGroup] = useState<SearchGroup | null>(null);
   const { width } = useWindowDimensions();
   const [availableWidth, setAvailableWidth] = useState(Math.min(width, 1280));
-  const columns = availableWidth >= 1200 ? 3 : availableWidth >= 760 ? 2 : 1;
+  const columns = 3;
   const [counts, setCounts] = useState<Record<string, number>>({});
   useEffect(() => {
     const controller = new AbortController();
@@ -52,11 +52,16 @@ export function SearchResultsList({ results, query, onResultPress }: SearchResul
   return (
     <>
       <SelectionModal
+        accentOptions
         visible={!!selectedGroup}
         title={selectedGroup?.title ?? 'Choose source'}
         options={(selectedGroup?.sources ?? []).map((item) => ({
           value: item.id,
-          label: `${getProviderDisplayName(item.providerId)}${(item.episodeCount ?? counts[item.id] ?? item.chapterCount) !== undefined ? ` / ${item.episodeCount ?? counts[item.id] ?? item.chapterCount} ${item.type === 'anime' ? 'episodes' : 'catalog chapters'}` : ''}`,
+          label: getProviderDisplayName(item.providerId),
+          detail:
+            (item.episodeCount ?? counts[item.id] ?? item.chapterCount) !== undefined
+              ? `${item.episodeCount ?? counts[item.id] ?? item.chapterCount} ${item.type === 'anime' ? 'episodes' : 'catalog chapters'}`
+              : undefined,
         }))}
         onSelect={(id) => {
           const item = selectedGroup?.sources.find((item) => item.id === id);
@@ -87,16 +92,13 @@ export function SearchResultsList({ results, query, onResultPress }: SearchResul
             }}
           >
             <SearchResultItem
+              poster
               item={item.sources[0]}
+              sourceCount={item.sources.length}
               onPress={() =>
                 item.sources.length > 1 ? setSelectedGroup(item) : onResultPress?.(item.sources[0])
               }
             />
-            {item.sources.length > 1 ? (
-              <Text variant="caption" tone="primary" className="px-2 py-1">
-                {item.sources.length} sources - tap to choose
-              </Text>
-            ) : null}
           </View>
         )}
         ItemSeparatorComponent={() => <View className="h-0" />}

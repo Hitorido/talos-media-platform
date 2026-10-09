@@ -93,7 +93,13 @@ export const novelPingAdapter: ContentProviderAdapter = {
     $('#chr-content script,#chr-content style,#chr-content .ads').remove();
     const paragraphs = $('#chr-content p')
       .toArray()
-      .map((el) => $(el).text().trim())
+      .map((el) => {
+        let text = $(el).text();
+        // Remove HTML entities like &nbsp; and normalize whitespace
+        text = text.replace(/&nbsp;/g, ' ');
+        text = text.replace(/\s+/g, ' ').trim();
+        return text;
+      })
       .filter(Boolean);
     if (!paragraphs.length)
       throw new ProviderGatewayError('Public NovelPing text unavailable.', 502);

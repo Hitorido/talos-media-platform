@@ -1,3 +1,4 @@
+import { SlidingTabBar } from '@/components/navigation/SlidingTabBar';
 import { Platform } from 'react-native';
 import { Tabs } from 'expo-router';
 import type { SymbolViewProps } from 'expo-symbols';
@@ -41,6 +42,7 @@ export default function TabLayout() {
 
   return (
     <Tabs
+      tabBar={(props) => <SlidingTabBar {...props} />}
       screenOptions={{
         tabBarActiveTintColor: theme.colors.tabIconSelected,
         tabBarInactiveTintColor: theme.colors.tabIconDefault,
