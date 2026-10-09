@@ -3,9 +3,9 @@ import { useLibraryStore } from '@/stores/libraryStore';
 import { useEffect, useMemo, useState } from 'react';
 
 import {
-    getBuiltinMangaDetails,
-    getMediaChapters,
-    getMediaDetails,
+  getBuiltinMangaDetails,
+  getMediaChapters,
+  getMediaDetails,
 } from '@/services/contentService';
 import type { MangaChapter, MangaDetails } from '@/types/manga';
 import type { NormalizedChapter, NormalizedMedia } from '@/types/provider';
@@ -44,9 +44,7 @@ function toMangaDetails(media: NormalizedMedia, chapters: NormalizedChapter[]): 
       scanlationGroup: chapter.scanlationGroup,
     })),
     mediaType:
-      media.mediaType === 'manhwa' || media.mediaType === 'manhua'
-        ? media.mediaType
-        : 'manga',
+      media.mediaType === 'manhwa' || media.mediaType === 'manhua' ? media.mediaType : 'manga',
   };
 }
 

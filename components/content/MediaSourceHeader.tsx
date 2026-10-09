@@ -17,20 +17,49 @@ import { SourceWebsiteButton } from './SourceWebsiteButton';
 
 /** Accent palette — each alternate source gets a distinct colour stripe. */
 const SOURCE_ACCENT_COLORS = [
-  { border: 'border-violet-400 dark:border-violet-500', bg: 'bg-violet-50 dark:bg-violet-950/40', dot: '#7c3aed' },
-  { border: 'border-sky-400 dark:border-sky-500',    bg: 'bg-sky-50 dark:bg-sky-950/40',    dot: '#0284c7' },
-  { border: 'border-emerald-400 dark:border-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-950/40', dot: '#059669' },
-  { border: 'border-rose-400 dark:border-rose-500',  bg: 'bg-rose-50 dark:bg-rose-950/40',  dot: '#e11d48' },
-  { border: 'border-amber-400 dark:border-amber-500', bg: 'bg-amber-50 dark:bg-amber-950/40', dot: '#d97706' },
-  { border: 'border-fuchsia-400 dark:border-fuchsia-500', bg: 'bg-fuchsia-50 dark:bg-fuchsia-950/40', dot: '#a21caf' },
+  {
+    border: 'border-violet-400 dark:border-violet-500',
+    bg: 'bg-violet-50 dark:bg-violet-950/40',
+    dot: '#7c3aed',
+  },
+  {
+    border: 'border-sky-400 dark:border-sky-500',
+    bg: 'bg-sky-50 dark:bg-sky-950/40',
+    dot: '#0284c7',
+  },
+  {
+    border: 'border-emerald-400 dark:border-emerald-500',
+    bg: 'bg-emerald-50 dark:bg-emerald-950/40',
+    dot: '#059669',
+  },
+  {
+    border: 'border-rose-400 dark:border-rose-500',
+    bg: 'bg-rose-50 dark:bg-rose-950/40',
+    dot: '#e11d48',
+  },
+  {
+    border: 'border-amber-400 dark:border-amber-500',
+    bg: 'bg-amber-50 dark:bg-amber-950/40',
+    dot: '#d97706',
+  },
+  {
+    border: 'border-fuchsia-400 dark:border-fuchsia-500',
+    bg: 'bg-fuchsia-50 dark:bg-fuchsia-950/40',
+    dot: '#a21caf',
+  },
 ];
 
 function normalizeTitle(value: string): string {
-  return value.normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+  return value
+    .normalize('NFKC')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]/gu, '');
 }
 
 function matchesKnownTitle(result: SearchResult, titles: Set<string>): boolean {
-  return [result.title, ...(result.alternativeTitles ?? [])].some((c) => titles.has(normalizeTitle(c)));
+  return [result.title, ...(result.alternativeTitles ?? [])].some((c) =>
+    titles.has(normalizeTitle(c)),
+  );
 }
 
 type Props = {
@@ -46,7 +75,15 @@ type Props = {
   mediaType?: ContentType;
 };
 
-export function MediaSourceHeader({ id, type, count, language, title, alternativeTitles, mediaType }: Props) {
+export function MediaSourceHeader({
+  id,
+  type,
+  count,
+  language,
+  title,
+  alternativeTitles,
+  mediaType,
+}: Props) {
   const router = useRouter();
   const source = sourceWebsite(id);
   const [open, setOpen] = useState(false);
@@ -82,7 +119,10 @@ export function MediaSourceHeader({ id, type, count, language, title, alternativ
             }
             setResults([...matches.values()]);
           };
-          const res = await unifiedSearch(query, mediaType, { signal: controller.signal, onProgress: publish });
+          const res = await unifiedSearch(query, mediaType, {
+            signal: controller.signal,
+            onProgress: publish,
+          });
           publish(res.results);
         } catch {
           // Search errors are non-fatal — just don't populate results.
@@ -116,7 +156,7 @@ export function MediaSourceHeader({ id, type, count, language, title, alternativ
         accessibilityLabel={showMulti ? `View all ${totalSources} sources` : undefined}
         className={`gap-3 rounded-xl border p-3 ${
           showMulti
-            ? 'border-primary-400 bg-primary-50/60 dark:border-primary-600 dark:bg-primary-950/30 active:opacity-80'
+            ? 'border-primary-400 bg-primary-50/60 active:opacity-80 dark:border-primary-600 dark:bg-primary-950/30'
             : 'border-neutral-200 dark:border-neutral-800'
         }`}
       >
@@ -124,7 +164,9 @@ export function MediaSourceHeader({ id, type, count, language, title, alternativ
         <View className="flex-row items-center justify-between">
           <View className="flex-row flex-wrap gap-2">
             <Badge label={type} variant="primary" />
-            {type === 'Novel' ? <Badge label={languageLabel(language)} variant="secondary" /> : null}
+            {type === 'Novel' ? (
+              <Badge label={languageLabel(language)} variant="secondary" />
+            ) : null}
           </View>
           {showMulti ? (
             <View className="flex-row items-center gap-1 rounded-full bg-primary-600 px-2.5 py-1">
@@ -139,9 +181,7 @@ export function MediaSourceHeader({ id, type, count, language, title, alternativ
           <Text variant="label" className="flex-1">
             {showMulti ? `${totalSources} sources` : (source?.name ?? 'Local catalog')}
           </Text>
-          {showMulti ? (
-            <Ionicons name="chevron-forward" size={16} color="#8b5cf6" />
-          ) : null}
+          {showMulti ? <Ionicons name="chevron-forward" size={16} color="#8b5cf6" /> : null}
         </View>
 
         {count > 0 ? (
@@ -166,7 +206,12 @@ export function MediaSourceHeader({ id, type, count, language, title, alternativ
 
       {/* Sources sheet modal */}
       {showMulti ? (
-        <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
+        <Modal
+          visible={open}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setOpen(false)}
+        >
           <View className="flex-1 items-center justify-end bg-black/50 px-4 pb-8">
             <View className="w-full max-w-2xl rounded-2xl bg-neutral-50 px-4 pb-6 pt-4 dark:bg-neutral-950">
               {/* Handle */}
@@ -182,17 +227,27 @@ export function MediaSourceHeader({ id, type, count, language, title, alternativ
                     {title}
                   </Text>
                 </View>
-                <PopPressable onPress={() => setOpen(false)} className="p-2" accessibilityLabel="Close">
+                <PopPressable
+                  onPress={() => setOpen(false)}
+                  className="p-2"
+                  accessibilityLabel="Close"
+                >
                   <Ionicons name="close" size={22} color="#9ca3af" />
                 </PopPressable>
               </View>
 
-              <ScrollView contentContainerClassName="gap-2 pb-2" showsVerticalScrollIndicator={false}>
+              <ScrollView
+                contentContainerClassName="gap-2 pb-2"
+                showsVerticalScrollIndicator={false}
+              >
                 {/* Current source — always first, with distinct teal accent */}
                 <View className="overflow-hidden rounded-xl border-2 border-teal-400 bg-teal-50 dark:border-teal-600 dark:bg-teal-950/40">
                   <View className="flex-row items-center gap-2 bg-teal-400/20 px-3 py-1.5 dark:bg-teal-600/20">
                     <View className="h-2 w-2 rounded-full bg-teal-500" />
-                    <Text variant="caption" className="font-semibold text-teal-700 dark:text-teal-300">
+                    <Text
+                      variant="caption"
+                      className="font-semibold text-teal-700 dark:text-teal-300"
+                    >
                       Current source
                     </Text>
                   </View>
@@ -239,7 +294,11 @@ export function MediaSourceHeader({ id, type, count, language, title, alternativ
                           className="h-2 w-2 rounded-full"
                           style={{ backgroundColor: accent.dot }}
                         />
-                        <Text variant="caption" className="font-semibold" style={{ color: accent.dot }}>
+                        <Text
+                          variant="caption"
+                          className="font-semibold"
+                          style={{ color: accent.dot }}
+                        >
                           Alternate source
                         </Text>
                       </View>
@@ -268,7 +327,11 @@ export function MediaSourceHeader({ id, type, count, language, title, alternativ
                               {result.chapterCount} ch
                             </Text>
                           ) : null}
-                          <Ionicons name="arrow-forward-circle" size={22} style={{ color: accent.dot }} />
+                          <Ionicons
+                            name="arrow-forward-circle"
+                            size={22}
+                            style={{ color: accent.dot }}
+                          />
                         </View>
                       </View>
                     </PopPressable>

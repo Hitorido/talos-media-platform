@@ -49,10 +49,7 @@ export const novelArrowAdapter: ContentProviderAdapter = {
     enabledByDefault: true,
   },
   async search(query) {
-    const text = await sourceText(
-      origin,
-      `/api-web/search?keyword=${encodeURIComponent(query)}`,
-    );
+    const text = await sourceText(origin, `/api-web/search?keyword=${encodeURIComponent(query)}`);
     const payload = JSON.parse(text) as { items?: NovelInfo[] };
     if (!Array.isArray(payload.items)) return [];
     const results: BackendSearchResult[] = [];

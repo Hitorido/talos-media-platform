@@ -9,11 +9,14 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useVideoPlayer, VideoView, type SubtitleTrack, type VideoPlayer } from 'expo-video';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    Animated,
-    BackHandler,
-    LayoutChangeEvent,
-    PanResponder, ScrollView, Pressable as SurfacePressable, View
+  ActivityIndicator,
+  Animated,
+  BackHandler,
+  LayoutChangeEvent,
+  PanResponder,
+  ScrollView,
+  Pressable as SurfacePressable,
+  View,
 } from 'react-native';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,9 +24,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Badge, Button, Text } from '@/components/ui';
 import { animeDetailsHref } from '@/lib/routes';
 import {
-    getProviderDisplayName,
-    resolveAnimePlayback,
-    type ResolvedAnimePlaybackResult,
+  getProviderDisplayName,
+  resolveAnimePlayback,
+  type ResolvedAnimePlaybackResult,
 } from '@/services/contentService';
 import { useAnimeProgressStore } from '@/stores/animeProgressStore';
 import { useSubtitlePreferencesStore } from '@/stores/subtitlePreferencesStore';

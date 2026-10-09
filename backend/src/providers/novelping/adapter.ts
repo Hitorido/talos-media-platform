@@ -16,7 +16,8 @@ export const novelPingAdapter: ContentProviderAdapter = {
     mediaTypes: ['novel'],
     capabilities: ['search', 'details', 'chapters', 'textContent'],
     status: 'limited',
-    statusNote: 'Public English text works locally; Render upstream HTTP 403 verified October 8, 2026.',
+    statusNote:
+      'Public English text works locally; Render upstream HTTP 403 verified October 8, 2026.',
     enabledByDefault: true,
   },
   async search(query) {

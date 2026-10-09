@@ -6,10 +6,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, FlatList, Modal, View } from 'react-native';
 
 import {
-    NovelReaderControls,
-    NovelReaderHeader,
-    NovelReaderText,
-    NovelReaderTextRef,
+  NovelReaderControls,
+  NovelReaderHeader,
+  NovelReaderText,
+  NovelReaderTextRef,
 } from '@/components/novel';
 import { Badge, Text } from '@/components/ui';
 import { useNovelContent } from '@/hooks/useNovelContent';

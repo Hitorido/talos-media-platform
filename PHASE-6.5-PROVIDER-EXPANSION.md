@@ -1,4 +1,3 @@
-
 ## Interaction responsiveness continuation - 2026-10-04
 
 Continued the current workspace without restoring old files wholesale. Existing backend-backed source registrations, version-2 one-time provider migration, subtle cover customization controls and duplicate-header removal were retained. Render /health and /api/content/providers returned HTTP 200; its registry includes restored novel/comic/DonghuaStream adapters and no Consumet adapter. This does not establish successful content retrieval for every upstream source. No deployment or push was performed.
@@ -48,7 +47,6 @@ Final verification: Expo web export to .expo/phase65-privacy-proxy-web-check PAS
 
 Android cover crash fix (2026-10-05): fast-png instantiated TextDecoder('latin1') during import, which Android rejected and caused cascading Expo Router missing-default-export warnings. Replaced it with jpeg-js using typed arrays on bounded 24x24 JPEG samples; retained dominant-color gradients and moved native image setup inside the fallback boundary. Removed fast-png from dependencies. Regression passes with UTF-8-only TextDecoder and no global Buffer, including malformed/oversized samples. Typecheck and targeted lint PASS. Android Hermes export to .expo/phase65-cover-android-check PASS (exit 0). Physical reload remains to be confirmed; no route exports were missing. Restart Metro with npx expo start --clear, then reload Expo Go.
 
-
 ## Reader interaction and subtitle selection - 2026-10-06
 
 Local changes; no deployment or physical-device PASS claimed.
@@ -95,18 +93,15 @@ Removed nested interactive wrappers from Home section headers, Downloads title c
 
 Validation: nesting scan, TypeScript, targeted component ESLint, offline-card routing tests and actual player/novel component regressions PASS. Web export PASS (19 routes). Headless Edge checks at 320/390/1366px found no nested interactive DOM or captured nesting/hydration/page errors in checked main tabs, the Downloads confirmation and Library saved-unit dropdown. Reader/player runtime verification is component-level; no physical-device PASS or deployment claimed.
 
-
 ## NovelPing production recheck - 2026-10-08
 
 NovelPing remains registered and enabled by default. The existing local adapter smoke passed search, details, 3,208 Shadow Slave chapter entries, first-chapter text (91 paragraphs) and invalid-path rejection. Render health returned HTTP 200 after a wake request, but production NovelPing details and chapter-list routes returned HTTP 502 with upstream Source HTTP 403. This is an upstream refusal from the hosted request path, not a sleeping-backend diagnosis. Source notes now disclose it; the provider was not disabled. No new underlying publisher integrations or full production reading success are claimed. The public homepage does not establish a verified upstream provider API list.
-
 
 ## Provider recovery and status clarification - 2026-10-08
 
 Production health responded HTTP 200. NovelPing, Royal Road, NovelArrow, DemonicScans and WeebCentral returned source HTTP 403; Kaliscan/MangaJinx returned source transport failures. Asura remains server-disabled with its old search route returning 404. A candidate alternative returned HTML but no usable series links; it was not registered as working. The Wandering Inn production details, 838 chapter entries and sampled text (158 paragraphs) passed. ManhuaPlus search passed; this alone is not full reading verification.
 
 Local fixes: discovery preserves safe structured provider errors instead of masking them as generic 502; Sources shows the actual Talos API URL and server enablement after Refresh backend health, separately from the local preference switch. Gateway-backed sources no longer misleadingly require a custom backend URL. Explicit provider errors skip unnecessary wake/retry; genuine transport failures retain one wake/retry. Recovery regression, frontend typecheck, backend build and targeted lint passed. No production deployment or claim that all upstream failures are fixed.
-
 
 ## Asura and ManhuaPlus parser repairs - 2026-10-08
 

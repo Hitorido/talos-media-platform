@@ -42,6 +42,20 @@ async function request<T>(path: string, signal?: AbortSignal): Promise<T> {
     const payload = (await response.json()) as { success: boolean; data: T };
     if (!payload.success || !payload.data) throw new Error('AnimeParadise returned no content.');
     return payload.data;
+  } catch (error) {
+    if (signal?.aborted) {
+      const cancelled = new Error('AnimeParadise request cancelled.');
+      cancelled.name = 'AbortError';
+      throw cancelled;
+    }
+    if (controller.signal.aborted) {
+      const timeout = new Error(
+        'AnimeParadise did not respond within 20 seconds. Retry playback or choose another source.',
+      );
+      timeout.name = 'TimeoutError';
+      throw timeout;
+    }
+    throw error;
   } finally {
     clearTimeout(timer);
     signal?.removeEventListener('abort', abort);
