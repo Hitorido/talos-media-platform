@@ -1,20 +1,20 @@
-import { appAlert as Alert } from '@/stores/dialogStore';
 import { PrivacySettings } from '@/components/content/PrivacyControls';
+import { PopPressable as Pressable } from '@/components/ui/PopPressable';
+import { appAlert as Alert } from '@/stores/dialogStore';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Switch, View } from 'react-native';
-import { PopPressable as Pressable } from '@/components/ui/PopPressable';
 
 import { UpdateModal } from '@/components/UpdateModal';
 import { Screen, Text } from '@/components/ui';
 import {
-  checkForUpdate,
-  getInstalledVersion,
-  type VersionManifest,
+    checkForUpdate,
+    getInstalledVersion,
+    type VersionManifest,
 } from '@/services/updateService';
 import {
-  useRollingDownloadSettingsStore,
-  type RollingDownloadWindow,
+    useRollingDownloadSettingsStore,
+    type RollingDownloadWindow,
 } from '@/stores/rollingDownloadSettingsStore';
 import { cn } from '@/utils/cn';
 
