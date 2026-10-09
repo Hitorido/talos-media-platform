@@ -106,7 +106,9 @@ const Gesture = {
 
 const { useReaderZoom } = loadProviderTs('components/manga/useReaderZoom.ts', {
   react: {
-    useEffect: (fn) => { fn(); },
+    useEffect: (fn) => {
+      fn();
+    },
     useMemo: (fn) => fn(),
     useRef: (value) => ({ current: value }),
     useCallback: (fn) => fn,

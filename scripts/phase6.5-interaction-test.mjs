@@ -4,43 +4,386 @@ import ts from 'typescript';
 import * as z from 'zustand';
 import * as middleware from 'zustand/middleware';
 import { loadProviderTs } from './phase6.5-test-loader.mjs';
-const memory=new Map();const storage={getItem:k=>memory.get(k)??null,setItem:(k,v)=>memory.set(k,v),removeItem:k=>memory.delete(k)};
-const ids=['novelping','novelcodex','novelarrow','royalroad','donghuastream','animeparadise'];
-const deps={zustand:z,'zustand/middleware':middleware,'@/stores/persistStorage':{appPersistStorage:storage},'@/providers':{RESTORED_SOURCE_IDS:ids,initializeProviders(){},getDefaultProviderEnabledMap:()=>Object.fromEntries(ids.map(id=>[id,true])),providerRegistry:{get:()=>({definition:{status:'working'}})}}};
-memory.set('providers',JSON.stringify({version:0,state:{enabled:{novelping:false,'consumet-zoro':true},preferredByMediaType:{anime:'consumet-zoro'},statusOverrides:{novelping:'unavailable'}}}));
-const first=loadProviderTs('stores/providerStore.ts',deps).useProviderStore;await first.persist.rehydrate();assert.equal(first.getState().enabled.novelping,true);assert.equal(first.getState().enabled['consumet-zoro'],undefined);assert.equal(first.getState().statusOverrides.novelping,undefined);first.getState().setProviderEnabled('novelping',false);
-const second=loadProviderTs('stores/providerStore.ts',deps).useProviderStore;await second.persist.rehydrate();assert.equal(second.getState().enabled.novelping,false);
-const library=loadProviderTs('stores/libraryStore.ts',deps).useLibraryStore;const item={id:'novelping__book',title:'Book',coverUrl:'provider.jpg',mediaType:'novel',genres:[]};library.getState().rememberMedia(item);library.getState().setCoverOverride(item,'file:///local.jpg');assert.equal(library.getState().media[item.id].customCoverUrl,'file:///local.jpg');library.getState().rememberMedia({...item,coverUrl:'refreshed.jpg'});assert.equal(library.getState().media[item.id].customCoverUrl,'file:///local.jpg');library.getState().setCoverOverride(item,undefined);assert.equal(library.getState().media[item.id].coverUrl,'provider.jpg');
-console.log('PASS actual provider migration runs once; Consumet removed; custom cover survives metadata refresh and resets');
-let tapEnd; const gestures=[];let layoutWidth=400;let seekCalls=0,bridgeCalls=0;const jsx=(type,props)=>({type,props});
-const react={memo:f=>f,useCallback:f=>f,useMemo:f=>f(),useRef:v=>({current:v}),useEffect:f=>f(),useState:v=>[v===0?layoutWidth:v,()=>{}]};
-const pan={minDistance(){return this},onStart(f){this.begin=f;return this},onUpdate(f){this.update=f;return this},onEnd(f){this.end=f;return this},onFinalize(f){this.finalize=f;return this}};
-const m={exports:{}};const code=ts.transpileModule(fs.readFileSync('components/manga/MangaReaderControls.tsx','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText;
-const imports={react,'react/jsx-runtime':{jsx,jsxs:jsx},'react-native':{View:'View'},'react-native-gesture-handler':{Gesture:{Pan:()=>pan,Tap:()=>({onEnd(f){this.end=f;tapEnd=f;return this}}),Exclusive:()=>pan},GestureDetector:'Gesture'},'react-native-reanimated':{default:{View:'Animated'},useSharedValue:v=>({value:v}),useAnimatedStyle:f=>f(),runOnJS:f=>(...args)=>{bridgeCalls++;f(...args)}},'react-native-safe-area-context':{useSafeAreaInsets:()=>({bottom:0})},'@/components/ui':{Text:'Text'},'@/utils/cn':{cn:()=>''},'./ReaderPressable':{ReaderPressable:'Pressable'}};
-new Function('require','module','exports',code)(name=>{if(!(name in imports))throw Error(name);return imports[name]},m,m.exports);
-m.exports.MangaReaderControls({currentPage:1,totalPages:3000,mode:'horizontal',direction:'ltr',onSeekPage:()=>seekCalls++});
-const realNow=Date.now;let now=1000;Date.now=()=>now;
-try{pan.begin({x:0});for(let i=1;i<=3000;i++){now+=1;pan.update({x:i/3000*400})}assert.equal(seekCalls,0);assert.ok(bridgeCalls<70,`only throttled previews bridge to JS: ${bridgeCalls}`);pan.end({},true);assert.equal(seekCalls,1);pan.begin({x:100});pan.end({},false);assert.equal(seekCalls,1,'cancelled drag never navigates');}finally{Date.now=realNow}
-tapEnd({x:200},true);assert.equal(seekCalls,2,'stationary tap commits a seek');
-console.log('PASS 3000-page seek: immediate shared values, fewer than 70 JS callbacks, one release commit, cancelled drag ignored');
+const memory = new Map();
+const storage = {
+  getItem: (k) => memory.get(k) ?? null,
+  setItem: (k, v) => memory.set(k, v),
+  removeItem: (k) => memory.delete(k),
+};
+const ids = [
+  'novelping',
+  'novelcodex',
+  'novelarrow',
+  'royalroad',
+  'donghuastream',
+  'animeparadise',
+];
+const deps = {
+  zustand: z,
+  'zustand/middleware': middleware,
+  '@/stores/persistStorage': { appPersistStorage: storage },
+  '@/providers': {
+    RESTORED_SOURCE_IDS: ids,
+    initializeProviders() {},
+    getDefaultProviderEnabledMap: () => Object.fromEntries(ids.map((id) => [id, true])),
+    providerRegistry: { get: () => ({ definition: { status: 'working' } }) },
+  },
+};
+memory.set(
+  'providers',
+  JSON.stringify({
+    version: 0,
+    state: {
+      enabled: { novelping: false, 'consumet-zoro': true },
+      preferredByMediaType: { anime: 'consumet-zoro' },
+      statusOverrides: { novelping: 'unavailable' },
+    },
+  }),
+);
+const first = loadProviderTs('stores/providerStore.ts', deps).useProviderStore;
+await first.persist.rehydrate();
+assert.equal(first.getState().enabled.novelping, true);
+assert.equal(first.getState().enabled['consumet-zoro'], undefined);
+assert.equal(first.getState().statusOverrides.novelping, undefined);
+first.getState().setProviderEnabled('novelping', false);
+const second = loadProviderTs('stores/providerStore.ts', deps).useProviderStore;
+await second.persist.rehydrate();
+assert.equal(second.getState().enabled.novelping, false);
+const library = loadProviderTs('stores/libraryStore.ts', deps).useLibraryStore;
+const item = {
+  id: 'novelping__book',
+  title: 'Book',
+  coverUrl: 'provider.jpg',
+  mediaType: 'novel',
+  genres: [],
+};
+library.getState().rememberMedia(item);
+library.getState().setCoverOverride(item, 'file:///local.jpg');
+assert.equal(library.getState().media[item.id].customCoverUrl, 'file:///local.jpg');
+library.getState().rememberMedia({ ...item, coverUrl: 'refreshed.jpg' });
+assert.equal(library.getState().media[item.id].customCoverUrl, 'file:///local.jpg');
+library.getState().setCoverOverride(item, undefined);
+assert.equal(library.getState().media[item.id].coverUrl, 'provider.jpg');
+console.log(
+  'PASS actual provider migration runs once; Consumet removed; custom cover survives metadata refresh and resets',
+);
+let tapEnd;
+const gestures = [];
+let layoutWidth = 400;
+let seekCalls = 0,
+  bridgeCalls = 0;
+const jsx = (type, props) => ({ type, props });
+const react = {
+  memo: (f) => f,
+  useCallback: (f) => f,
+  useMemo: (f) => f(),
+  useRef: (v) => ({ current: v }),
+  useEffect: (f) => f(),
+  useState: (v) => [v === 0 ? layoutWidth : v, () => {}],
+};
+const pan = {
+  minDistance() {
+    return this;
+  },
+  onStart(f) {
+    this.begin = f;
+    return this;
+  },
+  onUpdate(f) {
+    this.update = f;
+    return this;
+  },
+  onEnd(f) {
+    this.end = f;
+    return this;
+  },
+  onFinalize(f) {
+    this.finalize = f;
+    return this;
+  },
+};
+const m = { exports: {} };
+const code = ts.transpileModule(
+  fs.readFileSync('components/manga/MangaReaderControls.tsx', 'utf8'),
+  { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } },
+).outputText;
+const imports = {
+  react,
+  'react/jsx-runtime': { jsx, jsxs: jsx },
+  'react-native': { View: 'View' },
+  'react-native-gesture-handler': {
+    Gesture: {
+      Pan: () => pan,
+      Tap: () => ({
+        onEnd(f) {
+          this.end = f;
+          tapEnd = f;
+          return this;
+        },
+      }),
+      Exclusive: () => pan,
+    },
+    GestureDetector: 'Gesture',
+  },
+  'react-native-reanimated': {
+    default: { View: 'Animated' },
+    useSharedValue: (v) => ({ value: v }),
+    useAnimatedStyle: (f) => f(),
+    runOnJS:
+      (f) =>
+      (...args) => {
+        bridgeCalls++;
+        f(...args);
+      },
+  },
+  'react-native-safe-area-context': { useSafeAreaInsets: () => ({ bottom: 0 }) },
+  '@/components/ui': { Text: 'Text' },
+  '@/utils/cn': { cn: () => '' },
+  './ReaderPressable': { ReaderPressable: 'Pressable' },
+};
+new Function('require', 'module', 'exports', code)(
+  (name) => {
+    if (!(name in imports)) throw Error(name);
+    return imports[name];
+  },
+  m,
+  m.exports,
+);
+m.exports.MangaReaderControls({
+  currentPage: 1,
+  totalPages: 3000,
+  mode: 'horizontal',
+  direction: 'ltr',
+  onSeekPage: () => seekCalls++,
+});
+const realNow = Date.now;
+let now = 1000;
+Date.now = () => now;
+try {
+  pan.begin({ x: 0 });
+  for (let i = 1; i <= 3000; i++) {
+    now += 1;
+    pan.update({ x: (i / 3000) * 400 });
+  }
+  assert.equal(seekCalls, 0);
+  assert.ok(bridgeCalls < 70, `only throttled previews bridge to JS: ${bridgeCalls}`);
+  pan.end({}, true);
+  assert.equal(seekCalls, 1);
+  pan.begin({ x: 100 });
+  pan.end({}, false);
+  assert.equal(seekCalls, 1, 'cancelled drag never navigates');
+} finally {
+  Date.now = realNow;
+}
+tapEnd({ x: 200 }, true);
+assert.equal(seekCalls, 2, 'stationary tap commits a seek');
+console.log(
+  'PASS 3000-page seek: immediate shared values, fewer than 70 JS callbacks, one release commit, cancelled drag ignored',
+);
 
-const realFetch=globalThis.fetch;let healthCalls=0;const attempts=new Map();
-const api=loadProviderTs('services/api/client.ts',{'@/lib/apiConfig':{getApiBaseUrl:()=> 'https://gateway.invalid'}});
-globalThis.fetch=async (url)=>{if(url.endsWith('/health')){healthCalls++;await new Promise(r=>setTimeout(r,5));return new Response(JSON.stringify({success:true,data:{status:'ok'}}));}const n=(attempts.get(url)||0)+1;attempts.set(url,n);return n===1?new Response('{}',{status:503}):new Response(JSON.stringify({success:true,data:'ready'}));};
-try{assert.deepEqual(await Promise.all([api.apiRequestWithWake('/one'),api.apiRequestWithWake('/two')]),['ready','ready']);assert.equal(healthCalls,1);await assert.rejects(api.apiRequestWithWake('/write',{method:'POST'}));assert.equal(attempts.get('https://gateway.invalid/write'),1);}finally{globalThis.fetch=realFetch}
+const realFetch = globalThis.fetch;
+let healthCalls = 0;
+const attempts = new Map();
+const api = loadProviderTs('services/api/client.ts', {
+  '@/lib/apiConfig': { getApiBaseUrl: () => 'https://gateway.invalid' },
+});
+globalThis.fetch = async (url) => {
+  if (url.endsWith('/health')) {
+    healthCalls++;
+    await new Promise((r) => setTimeout(r, 5));
+    return new Response(JSON.stringify({ success: true, data: { status: 'ok' } }));
+  }
+  const n = (attempts.get(url) || 0) + 1;
+  attempts.set(url, n);
+  return n === 1
+    ? new Response('{}', { status: 503 })
+    : new Response(JSON.stringify({ success: true, data: 'ready' }));
+};
+try {
+  assert.deepEqual(
+    await Promise.all([api.apiRequestWithWake('/one'), api.apiRequestWithWake('/two')]),
+    ['ready', 'ready'],
+  );
+  assert.equal(healthCalls, 1);
+  await assert.rejects(api.apiRequestWithWake('/write', { method: 'POST' }));
+  assert.equal(attempts.get('https://gateway.invalid/write'), 1);
+} finally {
+  globalThis.fetch = realFetch;
+}
 console.log('PASS shared Render health wake, one read retry, no write retry');
-const modalSlots=[];let modalCursor=0,modalEffects=[],searchOptions,finishSearch;const queries=[];
-const modalReact={useState(initial){const i=modalCursor++;if(!(i in modalSlots))modalSlots[i]=initial;return[modalSlots[i],v=>{modalSlots[i]=v}]},useEffect(fn,deps){const i=modalCursor++;if(JSON.stringify(modalSlots[i])!==JSON.stringify(deps)){modalSlots[i]=deps;modalEffects.push(fn)}}};
-const routeTypes=loadProviderTs('types/provider.ts');const modalImports={react:modalReact,'react/jsx-runtime':{jsx,jsxs:jsx},'react-native':{ActivityIndicator:'Loading',Modal:'Modal',ScrollView:'Scroll',View:'View'},'@expo/vector-icons':{Ionicons:'Icon'},'expo-router':{useRouter:()=>({push(){}})},'@/hooks/useDialogEscape':{useDialogEscape(){}},'@/components/ui':{PopPressable:'Button',Text:'Text'},'@/lib/routes':{animeDetailsHref:x=>x,mangaDetailsHref:x=>x,novelDetailsHref:x=>x},'@/providers':{providerRegistry:{get:()=>({definition:{name:'Other Source'}})}},'@/types/provider':routeTypes,'@/services/contentService':{unifiedSearch:(query,filter,options)=>{queries.push(query);searchOptions=options;if(queries.length===1)return new Promise(resolve=>finishSearch=resolve);return Promise.resolve({results:[]});}}};
-const modalModule={exports:{}};new Function('require','module','exports',ts.transpileModule(fs.readFileSync('components/content/AlternateSourcesModal.tsx','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText)(name=>modalImports[name]??(()=>{throw Error(name)})(),modalModule,modalModule.exports);
-const renderModal=()=>{modalCursor=0;const tree=modalModule.exports.AlternateSourcesModal({visible:true,title:'Book',alternativeTitles:['Alias'],mediaType:'novel',currentMediaId:'first__book',onClose(){}});const pending=modalEffects;modalEffects=[];pending.forEach(fn=>fn());return tree;};
-renderModal();const result={id:'second__book',providerId:'second',title:'Book',type:'novel',chapterCount:200};searchOptions.onProgress([result,{...result,id:'second__sequel',title:'Book 2'},{...result,id:'first__other',providerId:'first'}]);
-assert.deepEqual(modalSlots[0].map(x=>x.id),['second__book']);assert.match(JSON.stringify(renderModal()),/200/,'incremental result renders while search remains pending');finishSearch({results:[result]});await new Promise(r=>setTimeout(r,0));assert.deepEqual(queries,['Book','Alias']);console.log('PASS alternate-source results before completion, alias queries, same-source and sequel rejection');
-const {useMediaCover}=loadProviderTs('hooks/useMediaCover.ts',{'@/stores/libraryStore':{useLibraryStore:selector=>selector(library.getState())}});
-assert.equal(useMediaCover(item.id,'file:///stale.jpg'),'provider.jpg','reset overrides stale card snapshots');
-assert.equal(useMediaCover('other__book','other-source.jpg'),'other-source.jpg','covers never leak across providers');
+const modalSlots = [];
+let modalCursor = 0,
+  modalEffects = [],
+  searchOptions,
+  finishSearch;
+const queries = [];
+const modalReact = {
+  useState(initial) {
+    const i = modalCursor++;
+    if (!(i in modalSlots)) modalSlots[i] = initial;
+    return [
+      modalSlots[i],
+      (v) => {
+        modalSlots[i] = v;
+      },
+    ];
+  },
+  useEffect(fn, deps) {
+    const i = modalCursor++;
+    if (JSON.stringify(modalSlots[i]) !== JSON.stringify(deps)) {
+      modalSlots[i] = deps;
+      modalEffects.push(fn);
+    }
+  },
+};
+const routeTypes = loadProviderTs('types/provider.ts');
+const modalImports = {
+  react: modalReact,
+  'react/jsx-runtime': { jsx, jsxs: jsx },
+  'react-native': {
+    ActivityIndicator: 'Loading',
+    Modal: 'Modal',
+    ScrollView: 'Scroll',
+    View: 'View',
+  },
+  '@expo/vector-icons': { Ionicons: 'Icon' },
+  'expo-router': { useRouter: () => ({ push() {} }) },
+  '@/hooks/useDialogEscape': { useDialogEscape() {} },
+  '@/components/ui': { PopPressable: 'Button', Text: 'Text' },
+  '@/lib/routes': {
+    animeDetailsHref: (x) => x,
+    mangaDetailsHref: (x) => x,
+    novelDetailsHref: (x) => x,
+  },
+  '@/providers': { providerRegistry: { get: () => ({ definition: { name: 'Other Source' } }) } },
+  '@/types/provider': routeTypes,
+  '@/services/contentService': {
+    unifiedSearch: (query, filter, options) => {
+      queries.push(query);
+      searchOptions = options;
+      if (queries.length === 1) return new Promise((resolve) => (finishSearch = resolve));
+      return Promise.resolve({ results: [] });
+    },
+  },
+};
+const modalModule = { exports: {} };
+new Function(
+  'require',
+  'module',
+  'exports',
+  ts.transpileModule(fs.readFileSync('components/content/AlternateSourcesModal.tsx', 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
+  }).outputText,
+)(
+  (name) =>
+    modalImports[name] ??
+    (() => {
+      throw Error(name);
+    })(),
+  modalModule,
+  modalModule.exports,
+);
+const renderModal = () => {
+  modalCursor = 0;
+  const tree = modalModule.exports.AlternateSourcesModal({
+    visible: true,
+    title: 'Book',
+    alternativeTitles: ['Alias'],
+    mediaType: 'novel',
+    currentMediaId: 'first__book',
+    onClose() {},
+  });
+  const pending = modalEffects;
+  modalEffects = [];
+  pending.forEach((fn) => fn());
+  return tree;
+};
+renderModal();
+const result = {
+  id: 'second__book',
+  providerId: 'second',
+  title: 'Book',
+  type: 'novel',
+  chapterCount: 200,
+};
+searchOptions.onProgress([
+  result,
+  { ...result, id: 'second__sequel', title: 'Book 2' },
+  { ...result, id: 'first__other', providerId: 'first' },
+]);
+assert.deepEqual(
+  modalSlots[0].map((x) => x.id),
+  ['second__book'],
+);
+assert.match(
+  JSON.stringify(renderModal()),
+  /200/,
+  'incremental result renders while search remains pending',
+);
+finishSearch({ results: [result] });
+await new Promise((r) => setTimeout(r, 0));
+assert.deepEqual(queries, ['Book', 'Alias']);
+console.log(
+  'PASS alternate-source results before completion, alias queries, same-source and sequel rejection',
+);
+const { useMediaCover } = loadProviderTs('hooks/useMediaCover.ts', {
+  '@/stores/libraryStore': { useLibraryStore: (selector) => selector(library.getState()) },
+});
+assert.equal(
+  useMediaCover(item.id, 'file:///stale.jpg'),
+  'provider.jpg',
+  'reset overrides stale card snapshots',
+);
+assert.equal(
+  useMediaCover('other__book', 'other-source.jpg'),
+  'other-source.jpg',
+  'covers never leak across providers',
+);
 console.log('PASS shared cover resolver resets stale cards and preserves provider identity');
-let responder,novelSeeks=[];const novelModule={exports:{}};
-const novelImports={react:{...react,useState:v=>[typeof v==='function'?v():v===0?400:v,()=>{}]},'react/jsx-runtime':{jsx,jsxs:jsx},'react-native':{View:'View',ScrollView:'Scroll',PanResponder:{create:handlers=>{responder=handlers;return{panHandlers:{}}}}},'react-native-safe-area-context':{useSafeAreaInsets:()=>({bottom:0})},'@/components/ui/PopPressable':{PopPressable:'Button'},'@/components/ui':{Text:'Text'},'@/utils/cn':{cn:()=>''}};
-new Function('require','module','exports',ts.transpileModule(fs.readFileSync('components/novel/NovelReaderControls.tsx','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText)(name=>novelImports[name],novelModule,novelModule.exports);
-novelModule.exports.NovelReaderControls({settings:{theme:'dark'},progress:0,onSeekProgress:v=>novelSeeks.push(v),showSettingsSheet:false});responder.onPanResponderGrant({nativeEvent:{locationX:0}});for(let dx=0;dx<=400;dx++)responder.onPanResponderMove({}, {dx});assert.equal(novelSeeks.length,0);responder.onPanResponderRelease();assert.deepEqual(novelSeeks,[1]);responder.onPanResponderGrant({nativeEvent:{locationX:200}});responder.onPanResponderTerminate();assert.deepEqual(novelSeeks,[1]);console.log('PASS novel drag remains local until release; cancellation does not seek');
+let responder,
+  novelSeeks = [];
+const novelModule = { exports: {} };
+const novelImports = {
+  react: {
+    ...react,
+    useState: (v) => [typeof v === 'function' ? v() : v === 0 ? 400 : v, () => {}],
+  },
+  'react/jsx-runtime': { jsx, jsxs: jsx },
+  'react-native': {
+    View: 'View',
+    ScrollView: 'Scroll',
+    PanResponder: {
+      create: (handlers) => {
+        responder = handlers;
+        return { panHandlers: {} };
+      },
+    },
+  },
+  'react-native-safe-area-context': { useSafeAreaInsets: () => ({ bottom: 0 }) },
+  '@/components/ui/PopPressable': { PopPressable: 'Button' },
+  '@/components/ui': { Text: 'Text' },
+  '@/utils/cn': { cn: () => '' },
+};
+new Function(
+  'require',
+  'module',
+  'exports',
+  ts.transpileModule(fs.readFileSync('components/novel/NovelReaderControls.tsx', 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
+  }).outputText,
+)((name) => novelImports[name], novelModule, novelModule.exports);
+novelModule.exports.NovelReaderControls({
+  settings: { theme: 'dark' },
+  progress: 0,
+  onSeekProgress: (v) => novelSeeks.push(v),
+  showSettingsSheet: false,
+});
+responder.onPanResponderGrant({ nativeEvent: { locationX: 0 } });
+for (let dx = 0; dx <= 400; dx++) responder.onPanResponderMove({}, { dx });
+assert.equal(novelSeeks.length, 0);
+responder.onPanResponderRelease();
+assert.deepEqual(novelSeeks, [1]);
+responder.onPanResponderGrant({ nativeEvent: { locationX: 200 } });
+responder.onPanResponderTerminate();
+assert.deepEqual(novelSeeks, [1]);
+console.log('PASS novel drag remains local until release; cancellation does not seek');

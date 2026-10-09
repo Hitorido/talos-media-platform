@@ -59,7 +59,6 @@ Render free tier may sleep. Probe `/health` with up to ~90s before treating the 
 
 Checks: `node scripts/phase6.5-media-proxy-test.mjs` and `node scripts/phase6.5-privacy-test.mjs` after the backend build. Private collection locking uses the OS credential prompt; it does not encrypt app-data JSON or downloaded media. iOS Face ID needs a development build; Android authentication should be retested on the physical device.
 
-
 ### Reviewed extension manifests
 
 `backend/src/providers/extensions/index.json` selects versioned, bundled video, comic and novel modules. The loader validates schema, IDs, duplicate entries, media kinds and required adapter methods before registration. AnimeXin, ManhuaPlus and NovelPing currently use this path; their existing public-content parsers and normalized gateway remain intact.
@@ -80,7 +79,6 @@ The APK includes `react-native-background-actions` with `plugins/withDownloadSer
 Test on the installed APK with notification permission enabled: queue multiple chapters/episodes, press Home, return, dismiss from Recents and reopen, then test offline details and supported captions. Force-stop and OS service/battery limits can interrupt work; persisted unfinished downloads are queued on next launch. The service is not a guarantee of indefinite execution and does not provide unlimited source access.
 
 Primary references: [background-actions installation](https://github.com/Rapsssito/react-native-background-actions/blob/master/INSTALL.md), [Expo 57 background task limitations](https://docs.expo.dev/versions/v57.0.0/sdk/background-task/). The scheduled Expo BackgroundTask API is not used as a continuous media downloader.
-
 
 ### Expo Router initial-link patch
 

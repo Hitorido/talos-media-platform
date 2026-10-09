@@ -126,7 +126,7 @@ const storeDeps = {
   '@/stores/libraryStore': { useLibraryStore: { getState: () => ({ media: {} }) } },
   '@/services/mock/mangaData': { getMangaById() {} },
   '@/hooks/useHiddenPrivateIds': { useHiddenPrivateIds: () => new Set() },
-  '@/stores/privacyStore': { usePrivacyStore: { getState: () => ({incognito:false}) } },
+  '@/stores/privacyStore': { usePrivacyStore: { getState: () => ({ incognito: false }) } },
 };
 const firstStore = loadProviderTs('stores/mangaProgressStore.ts', storeDeps).useMangaProgressStore;
 firstStore.getState().setReadingMode('comic-one', 'horizontal');
@@ -150,7 +150,9 @@ const stableReact = {
     return slots[i].value;
   },
   useCallback: (fn, deps) => stableReact.useMemo(() => fn, deps),
-  useEffect: (fn) => { fn(); },
+  useEffect: (fn) => {
+    fn();
+  },
 };
 let count = 0;
 const recognizer = () => {
