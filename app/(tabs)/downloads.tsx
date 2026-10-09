@@ -1,7 +1,7 @@
-import { groupDownloads } from '@/services/downloadGroups';
 import { DownloadTitleCard } from '@/components/downloads/DownloadTitleCard';
-import { appAlert as Alert } from '@/stores/dialogStore';
 import { useHiddenPrivateIds } from '@/hooks/useHiddenPrivateIds';
+import { groupDownloads } from '@/services/downloadGroups';
+import { appAlert as Alert } from '@/stores/dialogStore';
 import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 

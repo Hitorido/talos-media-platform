@@ -74,6 +74,12 @@ flowchart LR
 <p align="center">
   <img src="docs/images/sources.jpg" alt="Sources" width="180" />
   <img src="docs/images/settings.jpg" alt="Settings" width="180" />
+  <img src="docs/images/details2.jpg" alt="Details2" width="180" />
+  <img src="docs/images/library.jpg" alt="Library" width="180" />
+</p>
+<p align="center">
+  <img src="docs/images/notification.jpg" alt="Notification" width="180" />
+  <img src="docs/images/search2.jpg" alt="Search2" width="180" />
 </p>
 
 ## Demo

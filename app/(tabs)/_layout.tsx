@@ -1,7 +1,7 @@
 import { SlidingTabBar } from '@/components/navigation/SlidingTabBar';
-import { Platform } from 'react-native';
 import { Tabs } from 'expo-router';
 import type { SymbolViewProps } from 'expo-symbols';
+import { Platform } from 'react-native';
 
 import { TabBarIcon } from '@/components/navigation/TabBarIcon';
 import { useClientOnlyValue } from '@/components/useClientOnlyValue';
@@ -81,6 +81,7 @@ export default function TabLayout() {
         name="library"
         options={{
           title: 'Library',
+          headerShown: false,
           tabBarIcon: ({ color }) => <TabBarIcon color={color} name={libraryIcon} />,
         }}
       />
@@ -88,6 +89,7 @@ export default function TabLayout() {
         name="downloads"
         options={{
           title: 'Downloads',
+          headerShown: false,
           tabBarIcon: ({ color }) => <TabBarIcon color={color} name={downloadsIcon} />,
         }}
       />
@@ -95,6 +97,7 @@ export default function TabLayout() {
         name="settings"
         options={{
           title: 'Settings',
+          headerShown: false,
           tabBarIcon: ({ color }) => <TabBarIcon color={color} name={settingsIcon} />,
         }}
       />
