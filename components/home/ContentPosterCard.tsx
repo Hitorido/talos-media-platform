@@ -1,7 +1,7 @@
-import { PublicationStatus } from '@/components/content/PublicationStatus';
 import { MediaCount } from '@/components/content/MediaCount';
-import { Image, View } from 'react-native';
+import { PublicationStatus } from '@/components/content/PublicationStatus';
 import { PopPressable as Pressable } from '@/components/ui/PopPressable';
+import { Image, View } from 'react-native';
 
 import { Badge, Text } from '@/components/ui';
 import { useMediaCover } from '@/hooks/useMediaCover';
@@ -19,6 +19,7 @@ type ContentPosterCardProps = {
   type: ContentType;
   subtitle?: string;
   meta?: string;
+  alternativeTitles?: string[];
   onPress?: () => void;
   className?: string;
 };
@@ -46,10 +47,12 @@ export function ContentPosterCard({
   type,
   subtitle,
   meta,
+  alternativeTitles,
   onPress,
   className,
 }: ContentPosterCardProps) {
   const displayCover = useMediaCover(routeId, coverUrl);
+  const typeLabel = badgeLabelMap[type];
   return (
     <Pressable accessibilityRole="button" onPress={onPress} className={cn('w-28', className)}>
       <View className="overflow-hidden rounded-xl bg-neutral-200 dark:bg-neutral-800">
@@ -67,7 +70,7 @@ export function ContentPosterCard({
           </View>
         )}
         <View className="absolute left-2 top-2">
-          <Badge label={badgeLabelMap[type]} variant={badgeVariantMap[type]} />
+          <Badge label={typeLabel} variant={badgeVariantMap[type]} />
         </View>
         {meta ? (
           <View className="absolute bottom-2 right-2 rounded-md bg-black/70 px-2 py-0.5">

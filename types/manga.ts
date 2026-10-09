@@ -33,6 +33,7 @@ export type MangaDetails = {
   rating: number;
   status: 'ongoing' | 'completed';
   chapters: MangaChapter[];
+  mediaType?: 'manga' | 'manhwa' | 'manhua';
 };
 
 export type ChapterReadingProgress = {

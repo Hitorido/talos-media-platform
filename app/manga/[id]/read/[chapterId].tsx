@@ -1,26 +1,26 @@
-import { preloadPage } from '@/services/mangaImageCache';
 import { PrivacyAccessGate } from '@/components/content/PrivacyControls';
 import { SourceWebsiteButton } from '@/components/content/SourceWebsiteButton';
+import { PopPressable as Pressable } from '@/components/ui/PopPressable';
 import { mangaDetailsHref } from '@/lib/routes';
 import { captureBookmarkPreview } from '@/services/bookmarkPreview';
-import { useMediaBookmarkStore } from '@/stores/mediaBookmarkStore';
+import { preloadPage } from '@/services/mangaImageCache';
 import { useLibraryStore } from '@/stores/libraryStore';
+import { useMediaBookmarkStore } from '@/stores/mediaBookmarkStore';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, Modal, ScrollView, View } from 'react-native';
-import { PopPressable as Pressable } from '@/components/ui/PopPressable';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
-  HorizontalReader,
-  HorizontalReaderRef,
-  MangaReaderControls,
-  MangaReaderHeader,
-  ReaderPressable,
-  VerticalReader,
-  VerticalReaderRef,
+    HorizontalReader,
+    HorizontalReaderRef,
+    MangaReaderControls,
+    MangaReaderHeader,
+    ReaderPressable,
+    VerticalReader,
+    VerticalReaderRef,
 } from '@/components/manga';
 import { Text } from '@/components/ui';
 import { useMangaContent } from '@/hooks/useMangaContent';
@@ -333,6 +333,16 @@ function MangaReaderScreen() {
         pageNumber: page,
         totalPages: ch.pageCount,
         updatedAt: Date.now(),
+      });
+      // Ensure the manga is in the library store for continue reading/history
+      useLibraryStore.getState().rememberMedia({
+        id: manga.id,
+        title: manga.title,
+        coverUrl: manga.coverUrl,
+        bannerUrl: manga.bannerUrl,
+        genres: manga.genres,
+        mediaType: manga.mediaType ?? 'manga',
+        chapterCount: manga.chapters.length,
       });
     },
     [manga, chaptersToLoad, setChapterProgress],

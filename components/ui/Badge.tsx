@@ -7,6 +7,8 @@ type BadgeVariant = 'default' | 'primary' | 'secondary' | 'anime' | 'manga' | 'n
 
 export type BadgeProps = ViewProps & {
   label: string;
+  compact?: boolean;
+  labelFontSize?: number;
   variant?: BadgeVariant;
   className?: string;
 };
@@ -31,22 +33,31 @@ const variantTextClassNames: Record<BadgeVariant, string> = {
   success: 'text-green-700 dark:text-green-300',
 };
 
-export function Badge({ label, variant = 'default', className, ...props }: BadgeProps) {
+export function Badge({
+  label,
+  variant = 'default',
+  className,
+  compact = false,
+  labelFontSize,
+  ...props
+}: BadgeProps) {
   return (
     <View
       className={cn(
-        'max-w-full shrink self-start rounded-full px-2 py-1',
+        'max-w-full shrink self-start rounded-full',
         variantClassNames[variant],
         className,
       )}
+      style={{ paddingHorizontal: compact ? 8 : 12, paddingVertical: compact ? 3 : 6 }}
       {...props}
     >
       <Text
-        variant="caption"
+        variant="label"
         numberOfLines={1}
-        adjustsFontSizeToFit
-        minimumFontScale={0.75}
-        style={{ fontSize: label.length > 12 ? 10 : 12 }}
+        style={{
+          fontSize: labelFontSize ?? (compact ? 11 : 13),
+          lineHeight: compact ? 16 : 18,
+        }}
         className={variantTextClassNames[variant]}
       >
         {label}

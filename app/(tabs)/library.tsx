@@ -19,16 +19,27 @@ import { useMangaProgressStore } from '@/stores/mangaProgressStore';
 import { useNovelProgressStore } from '@/stores/novelProgressStore';
 import type { LibraryEntry, LibraryMediaType, LibraryStatus, LibraryView } from '@/types/library';
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Constants
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 // Extend view to include 'downloaded'
 type ExtendedView = LibraryView | 'downloaded';
 
+function filterPill(tone: string, selected: boolean) {
+  const colors =
+    tone === 'Favorites' || tone === 'anime' || tone === 'dropped'
+      ? 'border-rose-400 bg-rose-100 dark:bg-rose-950'
+      : tone === 'novel' || tone === 'completed'
+        ? 'border-emerald-400 bg-emerald-100 dark:bg-emerald-950'
+        : ['manga', 'manhwa', 'manhua'].includes(tone)
+          ? 'border-amber-400 bg-amber-100 dark:bg-amber-950'
+          : 'border-primary-400 bg-primary-100 dark:bg-primary-950';
+  return `rounded-full px-3 py-1.5 ${selected ? 'border-2' : 'border opacity-75'} ${colors}`;
+}
+
 const viewTabs: { id: ExtendedView; label: string; icon: string }[] = [
   { id: 'library', label: 'Library', icon: 'library-outline' },
-  { id: 'favorites', label: 'Favorites', icon: 'heart-outline' },
   { id: 'history', label: 'History', icon: 'time-outline' },
   { id: 'downloaded', label: 'Downloaded', icon: 'cloud-done-outline' },
 ];
@@ -58,9 +69,9 @@ function getMangaMediaType(genres: string[]): 'manga' | 'manhwa' | 'manhua' {
   return 'manga';
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Component
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export default function LibraryScreen() {
   const router = useRouter();
@@ -288,6 +299,7 @@ export default function LibraryScreen() {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
+        style={{ alignSelf: 'center', flexGrow: 0, maxWidth: '100%' }}
         contentContainerClassName="flex-row gap-1 rounded-xl bg-neutral-100 p-1 dark:bg-neutral-900"
       >
         {viewTabs.map((tab) => {
@@ -326,11 +338,7 @@ export default function LibraryScreen() {
             <Pressable
               key={filter.id}
               onPress={() => setMediaFilter(filter.id)}
-              className={`rounded-full border px-3 py-1.5 ${
-                mediaFilter === filter.id
-                  ? 'border-primary-500 bg-primary-500/10'
-                  : 'border-neutral-300 dark:border-neutral-700'
-              }`}
+              className={filterPill(filter.id, mediaFilter === filter.id)}
             >
               <Text className="text-xs">{filter.label}</Text>
             </Pressable>
@@ -350,14 +358,14 @@ export default function LibraryScreen() {
                   if (tag === 'Private' && !(await unlockPrivate())) return;
                   setSelectedTag(tag);
                 }}
-                className={`rounded-full border px-3 py-1.5 ${
-                  selectedTag === tag
-                    ? 'border-primary-500 bg-primary-500/10'
-                    : 'border-neutral-300 dark:border-neutral-700'
-                }`}
+                className={filterPill(tag, selectedTag === tag)}
               >
                 <Text className="text-xs">
-                  {tag === 'Private' ? <Ionicons name="lock-closed" size={12} /> : null}{' '}
+                  {tag === 'Private' ? (
+                    <Ionicons name="lock-closed" size={12} />
+                  ) : tag === 'Favorites' ? (
+                    <Ionicons name="heart" size={12} color="#f43f5e" />
+                  ) : null}{' '}
                   {tag === 'all' ? 'All Tags' : tag}
                 </Text>
               </Pressable>
@@ -375,11 +383,7 @@ export default function LibraryScreen() {
               <Pressable
                 key={filter.id}
                 onPress={() => setStatusFilter(filter.id)}
-                className={`rounded-full border px-3 py-1.5 ${
-                  statusFilter === filter.id
-                    ? 'border-primary-500 bg-primary-500/10'
-                    : 'border-neutral-300 dark:border-neutral-700'
-                }`}
+                className={filterPill(filter.id, statusFilter === filter.id)}
               >
                 <Text className="text-xs">{filter.label}</Text>
               </Pressable>
@@ -402,51 +406,64 @@ export default function LibraryScreen() {
         !downloadedMediaIds.size ? (
           <Text tone="muted">Download chapters or episodes to see them here.</Text>
         ) : (
-          groupDownloads(
-            Object.values(downloadItems).filter(
-              (item) =>
-                item.status === 'completed' &&
-                !hidden.has(item.mediaId) &&
-                (mediaFilter === 'all' || item.mediaType === mediaFilter),
-            ),
-          ).map((group) => <DownloadTitleCard key={group.key} group={group} />)
+          <View className="flex-row flex-wrap items-start gap-3">
+            {groupDownloads(
+              Object.values(downloadItems).filter(
+                (item) =>
+                  item.status === 'completed' &&
+                  !hidden.has(item.mediaId) &&
+                  (mediaFilter === 'all' || item.mediaType === mediaFilter),
+              ),
+            ).map((group) => (
+              <View key={group.key} style={{ width: '30%', maxWidth: 240 }}>
+                <DownloadTitleCard poster group={group} />
+              </View>
+            ))}
+          </View>
         )
       ) : rows.length > 0 ? (
-        rows.map(({ entry, item, progress, subtitle, route }) =>
-          swipeEnabled ? (
-            <SwipeableRow
+        <View className="flex-row flex-wrap items-start gap-3">
+          {rows.map(({ entry, item, progress, subtitle, route }) => (
+            <View
               key={`${entry.mediaType}:${entry.mediaId}`}
-              onSwipeRight={() => handleDismiss(entry)}
-              actionLabel="Remove"
-              actionIcon="trash-outline"
+              style={{ width: '30%', maxWidth: 240 }}
             >
-              <LibraryCard
-                entry={entry}
-                media={item}
-                title={item.title}
-                coverUrl={item.coverUrl}
-                subtitle={subtitle}
-                progress={progress}
-                onPress={() => router.push(route)}
-                onToggleFavorite={() => toggleFavorite(entry.mediaId, entry.mediaType)}
-                onChangeStatus={() => setStatusTarget(entry)}
-              />
-            </SwipeableRow>
-          ) : (
-            <LibraryCard
-              key={`${entry.mediaType}:${entry.mediaId}`}
-              entry={entry}
-              media={item}
-              title={item.title}
-              coverUrl={item.coverUrl}
-              subtitle={subtitle}
-              progress={progress}
-              onPress={() => router.push(route)}
-              onToggleFavorite={() => toggleFavorite(entry.mediaId, entry.mediaType)}
-              onChangeStatus={() => setStatusTarget(entry)}
-            />
-          ),
-        )
+              {swipeEnabled ? (
+                <SwipeableRow
+                  key={`${entry.mediaType}:${entry.mediaId}`}
+                  onSwipeRight={() => handleDismiss(entry)}
+                  actionLabel="Remove"
+                  actionIcon="trash-outline"
+                >
+                  <LibraryCard
+                    entry={entry}
+                    media={item}
+                    title={item.title}
+                    coverUrl={item.coverUrl}
+                    subtitle={subtitle}
+                    progress={progress}
+                    onPress={() => router.push(route)}
+                    onToggleFavorite={() => toggleFavorite(entry.mediaId, entry.mediaType)}
+                    onChangeStatus={() => setStatusTarget(entry)}
+                  />
+                </SwipeableRow>
+              ) : (
+                <LibraryCard
+                  key={`${entry.mediaType}:${entry.mediaId}`}
+                  entry={entry}
+                  media={item}
+                  title={item.title}
+                  coverUrl={item.coverUrl}
+                  subtitle={subtitle}
+                  progress={progress}
+                  onPress={() => router.push(route)}
+                  onToggleFavorite={() => toggleFavorite(entry.mediaId, entry.mediaType)}
+                  onChangeStatus={() => setStatusTarget(entry)}
+                />
+              )}
+            </View>
+          ))}
+        </View>
       ) : (
         <View className="items-center gap-2 py-12">
           <Ionicons
@@ -464,6 +481,7 @@ export default function LibraryScreen() {
       )}
       <SelectionModal
         visible={statusTarget !== null}
+        accentOptions
         title="Library status"
         options={statusOptions}
         value={statusTarget?.status}

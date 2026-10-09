@@ -5,11 +5,13 @@ import type { ContentType } from '@/types/content';
 
 /** Counts load independently of the first search/discovery cards; never fetch chapter content. */
 export function MediaCount({
+  compact = false,
   routeId,
   type,
   episodeCount,
   chapterCount,
 }: {
+  compact?: boolean;
   routeId: string;
   type: ContentType;
   episodeCount?: number;
@@ -42,6 +44,7 @@ export function MediaCount({
   if (type === 'anime')
     return (
       <Badge
+        compact={compact}
         variant="primary"
         label={episodeCount ? episodeCount + ' episodes' : 'Episodes unknown'}
       />
@@ -54,6 +57,7 @@ export function MediaCount({
         : undefined;
   return (
     <Badge
+      compact={compact}
       variant="primary"
       label={
         count !== undefined

@@ -1,5 +1,13 @@
 import { Badge } from '@/components/ui';
-export function PublicationStatus({ status }: { status?: string }) {
+export function PublicationStatus({
+  status,
+  compact = false,
+  labelFontSize,
+}: {
+  status?: string;
+  compact?: boolean;
+  labelFontSize?: number;
+}) {
   const value = status?.toLowerCase().replace(/_/g, ' ');
   const label =
     value && ['completed', 'complete', 'finished', 'finished airing'].includes(value)
@@ -16,6 +24,8 @@ export function PublicationStatus({ status }: { status?: string }) {
               : 'Status unknown';
   return (
     <Badge
+      compact={compact}
+      labelFontSize={labelFontSize}
       label={label}
       variant={label === 'Completed' ? 'success' : label === 'Ongoing' ? 'manga' : 'secondary'}
     />

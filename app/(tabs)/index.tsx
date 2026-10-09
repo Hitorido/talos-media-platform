@@ -1,8 +1,8 @@
+import { PopPressable as Pressable } from '@/components/ui/PopPressable';
 import { appAlert as Alert } from '@/stores/dialogStore';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
-import { PopPressable as Pressable } from '@/components/ui/PopPressable';
 
 import {
   ContentPosterCard,
@@ -226,6 +226,20 @@ export default function HomeScreen() {
                 </Text>
               </Pressable>
             ) : null}
+            {combinedReadingItems.length > 0 ? (
+              <Pressable
+                onPress={() => router.push('/library')}
+                accessibilityRole="button"
+                className="shrink-0 rounded-full bg-primary-100 px-3 py-2 dark:bg-primary-900/50"
+              >
+                <Text
+                  variant="caption"
+                  className="font-semibold text-primary-700 dark:text-primary-300"
+                >
+                  See all
+                </Text>
+              </Pressable>
+            ) : null}
             <View className="flex-row rounded-lg bg-neutral-200 p-1 dark:bg-neutral-800">
               {(['all', 'manga', 'novel'] as ReadingCategory[]).map((cat) => (
                 <Pressable
@@ -299,10 +313,13 @@ export default function HomeScreen() {
         </Text>
         <Pressable
           accessibilityRole="button"
+          className="rounded-full border border-primary-400 bg-primary-600 px-4 py-2"
           disabled={loadingDiscovery}
           onPress={() => setRefresh((value) => value + 1)}
         >
-          <Text variant="caption">Refresh</Text>
+          <Text variant="caption" className="font-semibold text-white">
+            Refresh
+          </Text>
         </Pressable>
       </View>
       {discovery.map((section) => (
@@ -320,6 +337,7 @@ export default function HomeScreen() {
                 chapterCount={item.chapterCount}
                 sourceName={item.sourceName}
                 status={item.status}
+                alternativeTitles={item.alternativeTitles}
                 onPress={() => {
                   if (item.type === 'anime') router.push(animeDetailsHref(item.id));
                   else if (item.type === 'novel') router.push(novelDetailsHref(item.id));

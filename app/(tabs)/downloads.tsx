@@ -2,23 +2,14 @@ import { groupDownloads } from '@/services/downloadGroups';
 import { DownloadTitleCard } from '@/components/downloads/DownloadTitleCard';
 import { appAlert as Alert } from '@/stores/dialogStore';
 import { useHiddenPrivateIds } from '@/hooks/useHiddenPrivateIds';
-import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 
-import { DownloadCard, DownloadSectionTabs } from '@/components/downloads';
-import { Button, Screen, SwipeableRow, Text } from '@/components/ui';
-import { animeWatchHref, mangaReadHref, novelReadHref } from '@/lib/routes';
-import {
-  cancelDownload,
-  clearCompletedDownloads,
-  deleteDownload,
-  pauseDownload,
-  resumeDownload,
-  retryDownload,
-} from '@/services/downloadService';
+import { DownloadSectionTabs } from '@/components/downloads';
+import { Button, Screen, Text } from '@/components/ui';
+import { clearCompletedDownloads, deleteDownload, retryDownload } from '@/services/downloadService';
 import { useDownloadStore } from '@/stores/downloadStore';
-import type { DownloadItem, DownloadSectionTab } from '@/types/download';
+import type { DownloadSectionTab } from '@/types/download';
 
 function formatTotalSize(bytes: number): string {
   if (bytes <= 0) return '0 MB';
@@ -28,7 +19,6 @@ function formatTotalSize(bytes: number): string {
 }
 
 export default function DownloadsScreen() {
-  const router = useRouter();
   const itemsMap = useDownloadStore((state) => state.items);
   const hidden = useHiddenPrivateIds();
   const items = useMemo(
@@ -69,24 +59,6 @@ export default function DownloadsScreen() {
   }, [items]);
 
   const groupedItems = useMemo(() => groupDownloads(filteredItems), [filteredItems]);
-
-  const handleOpenItem = (item: DownloadItem) => {
-    if (item.mediaType === 'anime') {
-      router.push(animeWatchHref(item.mediaId, item.unitId));
-    } else if (
-      item.mediaType === 'manga' ||
-      item.mediaType === 'manhwa' ||
-      item.mediaType === 'manhua'
-    ) {
-      router.push(mangaReadHref(item.mediaId, item.unitId));
-    } else if (item.mediaType === 'novel') {
-      router.push(novelReadHref(item.mediaId, item.unitId));
-    }
-  };
-
-  const handleDismissItem = (item: DownloadItem) => {
-    void deleteDownload(item.id);
-  };
 
   const handleDeleteAll = () => {
     Alert.alert('Delete all downloads?', 'This removes every downloaded episode and chapter.', [
@@ -170,38 +142,19 @@ export default function DownloadsScreen() {
       {groupedItems.length > 0 ? (
         <View className="px-4">
           <Text variant="caption" tone="muted" className="text-center">
-            Swipe right on a title to remove it
+            Swipe right on a title to delete all its downloads, or on an expanded chapter to delete
+            only that chapter
           </Text>
         </View>
       ) : null}
 
       {/* Download Items List */}
-      <View className="gap-3 px-4">
+      <View className="flex-row flex-wrap items-start gap-3 px-4">
         {groupedItems.length > 0 ? (
           groupedItems.map((group) => (
-            <SwipeableRow
-              key={group.key}
-              onSwipeRight={() =>
-                void Promise.all(group.items.map((item) => deleteDownload(item.id)))
-              }
-              actionLabel="Delete title"
-              actionIcon="trash-outline"
-            >
-              <DownloadTitleCard group={group}>
-                {group.items.map((item) => (
-                  <DownloadCard
-                    key={item.id}
-                    item={item}
-                    onPause={() => pauseDownload(item.id)}
-                    onResume={() => resumeDownload(item.id)}
-                    onRetry={() => retryDownload(item.id)}
-                    onCancel={() => cancelDownload(item.id)}
-                    onDelete={() => handleDismissItem(item)}
-                    onOpen={() => handleOpenItem(item)}
-                  />
-                ))}
-              </DownloadTitleCard>
-            </SwipeableRow>
+            <View key={group.key} style={{ width: '30%', maxWidth: 240 }}>
+              <DownloadTitleCard poster group={group} />
+            </View>
           ))
         ) : (
           <View className="items-center gap-2 py-16">
