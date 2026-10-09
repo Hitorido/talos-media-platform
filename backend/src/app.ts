@@ -79,7 +79,7 @@ export function createApp() {
   // Public update manifest for Talos clients. Keep downloadUrl on GitHub Releases only.
   app.get('/api/version', (_req, res) => {
     res.json({
-      latestVersion: '0.6.6-beta',
+      latestVersion: '0.6.7-beta',
       minimumVersion: '0.6.0-beta',
       downloadUrl: 'https://github.com/Hitorido/talos-media-platform/releases/latest',
       title: 'New version available',
