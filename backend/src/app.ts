@@ -1,3 +1,4 @@
+import { playbackRouter } from './routes/playback.routes.js';
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
@@ -96,6 +97,7 @@ export function createApp() {
   app.use('/api/progress', progressRouter);
   app.use('/api/providers', providersRouter);
   app.use('/api/content', contentRouter);
+  app.use('/api/playback', playbackRouter);
   app.use('/api/novels', novelRouter);
 
   app.use((_req, res) => {

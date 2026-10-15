@@ -1,4 +1,11 @@
 import type { DownloadItem } from '@/types/download';
+export function downloadTitleKey(item: DownloadItem) {
+  const title = item.mediaTitle
+    .normalize('NFKC')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]/gu, '');
+  return `${item.mediaType}:${title || item.mediaId}`;
+}
 export type DownloadGroup = {
   key: string;
   title: string;
@@ -10,7 +17,7 @@ export type DownloadGroup = {
 export function groupDownloads(items: DownloadItem[]): DownloadGroup[] {
   const groups = new Map<string, DownloadGroup>();
   for (const item of items) {
-    const key = `${item.mediaType}:${item.mediaId}`;
+    const key = downloadTitleKey(item);
     const group = groups.get(key);
     if (group) {
       group.items.push(item);

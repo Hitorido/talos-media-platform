@@ -110,3 +110,46 @@ Replaced Asura's obsolete /series parser with the source's current /browse?searc
 ManhuaPlus Martial Peak's canonical search ID is martial-peak01, not martial-peak. Production details and 3,363 chapter entries passed with that ID. Production page retrieval exposed a real legacy CDN rejection. Added fixed-host, restricted date-path support for cdn.manhuaplus.org alongside existing cdn.manhuaplus.cc paths in the adapter, bridge and Express relay. Local chapter-500 flow passed with 12 pages, first/last image retrieval and unsafe relay path rejection. Existing proxy regression and backend build pass. The new legacy image relay still needs deployment and phone verification.
 
 These are concrete adapter repairs; they do not resolve the separate Render upstream 403 failures for NovelPing, Royal Road, NovelArrow, DemonicScans or WeebCentral, nor Kaliscan/MangaJinx transport failures. No blanket working claim or production deployment was made.
+
+
+## Reader, download and episode-picker follow-up ? 2026-10-14
+
+Local changes; not committed or deployed. Existing source architecture retained.
+
+- [x] Novel picker opens at the current chapter with a highlight and fixed-height virtual rows. Explicit chapter selection resets the reader target; continuous mode also preloads the previous chapter and preserves the passage when preceding text arrives.
+- [x] Saved chapter/episode popups use four columns. In-progress downloads can open online instead of being disabled. Bulk queue creation dismisses its modal and yields between batches so it does not hold the reader UI.
+- [x] Downloaded-library tags now filter the actual downloaded entries. Downloads has matching tag controls, including Favorites; private visibility checks remain intact.
+- [x] Episode grids include All/Unwatched/Saved filters and existing range selectors. Details and windowed playback expose explicit AniList season/movie/OVA relationships; fixed the incorrect provider ID and isolated stale choices.
+- [x] Player surface taps toggle controls without state-updater side effects. Timeline stays bottom-left, Next beside fullscreen at bottom-right, and top actions have symmetric vertical padding.
+- [x] Detail loading is centered with brief reduced-motion-aware fades. Adaptive foreground artwork is 8.6% smaller, centered and regenerated from the existing SVG; background color and regular icon unchanged. Requires an Android rebuild.
+- [x] Reader errors offer user-controlled alternate-source search where a title is known. Deep-linked queries remain editable. Shared backend HTTP errors preserve 403/429/404/503/504, with DNS errors mapped to 503; failures are not cached as successes.
+
+Validation: frontend typecheck and backend build PASS; actual player/novel component regressions PASS (tap hide/show, resume/subtitles, current picker, previous-chapter preload); search performance/hook checks PASS; edition traversal, source-error contracts, grouping and web nesting checks PASS. Android export PASS (2029 modules). Native touch/rendering remains a phone retest, not a claimed PASS.
+
+Source recheck after Render /health returned 200: Asura search returned Solo Swordmaster; ManhuaPlus search returned Apotheosis. WeebCentral and DemonicScans returned SOURCE_BLOCKED (upstream 403); Kaliscan and MangaJinx returned SOURCE_DNS_FAILED. Current production still wraps those failures in 502 until the updated error contract is deployed. MangaDex is a direct client, not a gateway provider. No sources were disabled.
+
+- [ ] External availability: restore and verify the blocked/unresolvable source flows when their ordinary access/domain contract is available. Parser changes cannot repair DNS or HTTP refusal.
+- [ ] Suggested Madara/AO3/new-domain integrations: not added without verified source contracts/full flows. Current Asura and ManhuaPlus adapters use non-Madara routes; the supplied blanket WordPress factory would regress them. No remote script execution, access-limit bypass, or database/schema change introduced.
+- [ ] Phone retest: open novel chapter 50, open picker, select a distant chapter and scroll into its predecessor; read/watch during bulk download; filter saved titles; test episode/edition grids and player controls. Rebuild to inspect the new launcher icon.
+
+
+## Player, catalog and private source bridge - 2026-10-14
+
+Local checkpoint; no commit, deployment or phone verification performed.
+
+- Player episode panel is memoized and independent of playback clock updates. Native video sits behind the tap controls; settings scroll within the video bounds. Progress saves are throttled to ten seconds and saved on backgrounding. Actual component checks pass; device responsiveness still needs retesting.
+- Saved chapter popups show 20 compact entries per page with animated dots. Swipe right advances, left goes back; explicit trash buttons avoid conflict with paging. Source selection and per-source counts remain available.
+- Category sidebar and discovery routes added. Movies/TV are catalog-only as requested, using optional server-side TMDB credentials. Future community/account UI is labeled unavailable. No movie playback provider is claimed.
+- Private Suwayomi comic bridge implemented with configured source allowlisting, ownership checks and restricted image delivery. Fixture tests pass; no Suwayomi instance or extensions were deployed. See docs/SUWAYOMI-SETUP.md.
+- Existing WeebCentral, DemonicScans, Kaliscan, MangaJinx, Royal Road and Wandering Inn parsers now support normal native requests with gateway recovery. Web retains its gateway. Access limits and refusals are preserved; phone access is unverified.
+- AO3 public adapter initially passed The Villainess Malfoy search/details/36 chapters/text. Subsequent primary HTTP 525 and a full-flow timeout prevent a current availability PASS. Official secure.ao3.org search returned 200; failover is restricted to primary 5xx, not refusals or rate limits.
+- Desktop grids now use available width; reader Ctrl/Meta-wheel handles touchpad zoom. Full browser/device interaction verification remains outstanding.
+
+Validation: frontend typecheck, backend build, targeted ESLint, player/novel component regressions, saved-page paging/deletion, search boundaries/performance, native fallback and Suwayomi contract tests PASS. Web production export PASS (27 routes). Movies/TV live catalog requires a TMDB token; no credentials or database schemas changed. Earlier statements that AO3 was not implemented are superseded; its reliability limitations remain explicit.
+
+Final Android export PASS: 2,041 modules, Hermes bundle generated with exit code 0 at `.expo/phase65-sidebar-player-android-check`. This verifies bundling, not native playback or gesture performance.
+
+
+## CinePro Movies/TV bridge - 2026-10-15
+
+Local optional OMSS adapter and `/api/playback/:mediaType/:tmdbId` route added, with catalog-to-player navigation, source/quality selection, windowed external captions and device-local resume. Backend build, frontend typecheck and real HTTP contract fixtures pass (403/429/503/504, invalid parameters, empty payloads, header filtering). No live extractor, deployment or physical playback verified. Requires private CinePro configuration; see docs/CINEPRO-SETUP.md. Existing WatchProgress schema retained; movie/TV cloud sync is not implemented. Earlier catalog-only descriptions are superseded by this optional, configuration-required playback implementation.

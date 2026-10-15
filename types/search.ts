@@ -8,6 +8,8 @@ export type SearchResult = {
   sourceId: string;
   title: string;
   alternativeTitles?: string[];
+  relatedIds?: string[];
+  editionLabel?: string;
   coverUrl: string;
   type: ContentType;
   /** When type is manga, distinguishes manga / manhwa / manhua. */

@@ -1,3 +1,5 @@
+import { withNativeNovel } from './directNovel';
+import { directComicAdapter, withDirectComicFallback } from './directComic';
 import { getApiBaseUrl } from '@/lib/apiConfig';
 // Backend-backed providers share the Render gateway; route through the wake/retry
 // wrapper so a cold start is retried once instead of looking like a dead source.
@@ -13,6 +15,8 @@ import {
 /** Bridge the existing gateway models into the existing reader; no source-specific UI. */
 export function backendComicProvider(id: string, name: string): MediaProvider {
   const imageUrl = (url: string) => {
+    if (id === 'suwayomi' && url.startsWith('/api/content/suwayomi/image?'))
+      return getApiBaseUrl() + url;
     if (id === 'manhuaplus' && url) {
       const image = new URL(url);
       if (['https://cdn.manhuaplus.cc', 'https://cdn.manhuaplus.org'].includes(image.origin))
@@ -60,17 +64,26 @@ export function backendComicProvider(id: string, name: string): MediaProvider {
         ? (context.filter as 'manga' | 'manhwa' | 'manhua')
         : 'manga';
       if (!supported.includes(type)) type = supported[0] ?? 'manga';
-      const data = await apiRequest<{
-        results: {
-          sourceId: string;
-          title: string;
-          coverUrl?: string;
-          status?: string;
-          mediaType: ProviderMediaType;
-        }[];
-      }>(`/api/content/search?providerId=${id}&mediaType=${type}&q=${encodeURIComponent(query)}`, {
-        signal: context.signal,
-      });
+      const direct = directComicAdapter(id, context.signal);
+      const data = await withDirectComicFallback(
+        () =>
+          apiRequest<{
+            results: {
+              sourceId: string;
+              title: string;
+              coverUrl?: string;
+              status?: string;
+              mediaType: ProviderMediaType;
+            }[];
+          }>(
+            `/api/content/search?providerId=${id}&mediaType=${type}&q=${encodeURIComponent(query)}`,
+            {
+              signal: context.signal,
+            },
+          ),
+        direct ? async () => ({ results: await direct.search!(query, type) }) : undefined,
+        context.signal,
+      );
       return data.results.slice(0, context.limit ?? 12).map((item) => ({
         id: encodeMediaRouteId(id, item.sourceId),
         providerId: id,
@@ -86,26 +99,50 @@ export function backendComicProvider(id: string, name: string): MediaProvider {
       }));
     },
     async getDetails(ref) {
-      const data = await apiRequest<Omit<NormalizedMedia, 'ref'> & { genres?: string[] }>(
-        route(ref.sourceId),
+      const direct = directComicAdapter(id);
+      const data = await withDirectComicFallback(
+        () => apiRequest<Omit<NormalizedMedia, 'ref'> & { genres?: string[] }>(route(ref.sourceId)),
+        direct
+          ? async () => {
+              const item = await direct.getDetails!(ref.sourceId);
+              return {
+                ...item,
+                type: 'manga' as const,
+                genres: item.genres ?? [],
+                coverUrl: item.coverUrl ?? '',
+              };
+            }
+          : undefined,
       );
       return { ...data, ref, genres: data.genres ?? [], coverUrl: imageUrl(data.coverUrl ?? '') };
     },
     async getChapters(ref) {
-      const data = await apiRequest<{
-        chapters: {
-          id: string;
-          chapterNumber: number;
-          title: string;
-          language?: string;
-          releaseDate?: string;
-        }[];
-      }>(`${route(ref.sourceId)}/chapters`);
+      const direct = directComicAdapter(id);
+      const data = await withDirectComicFallback(
+        () =>
+          apiRequest<{
+            chapters: {
+              id: string;
+              chapterNumber: number;
+              title: string;
+              language?: string;
+              releaseDate?: string;
+            }[];
+          }>(`${route(ref.sourceId)}/chapters`),
+        direct ? async () => ({ chapters: await direct.getChapters!(ref.sourceId) }) : undefined,
+      );
       return data.chapters.map((c) => ({ ...c, number: c.chapterNumber }));
     },
     async getChapterPages(ref, chapterId) {
-      const data = await apiRequest<{ pages: NormalizedPage[] }>(
-        `${route(ref.sourceId)}/chapters/${encodeURIComponent(chapterId)}/pages`,
+      const direct = directComicAdapter(id);
+      const data = await withDirectComicFallback(
+        () =>
+          apiRequest<{ pages: NormalizedPage[] }>(
+            `${route(ref.sourceId)}/chapters/${encodeURIComponent(chapterId)}/pages`,
+          ),
+        direct
+          ? async () => ({ pages: await direct.getPages!(ref.sourceId, chapterId) })
+          : undefined,
       );
       return data.pages.map((page) => ({ ...page, imageUrl: imageUrl(page.imageUrl) }));
     },
@@ -138,7 +175,7 @@ export function backendNovelProvider(id: string, name: string): MediaProvider {
   const route = (sourceId: string) => `/api/content/novel/${id}/${encodeURIComponent(sourceId)}`;
   const directOrigin = DIRECT_NOVEL_ORIGINS[id];
 
-  return {
+  const provider: MediaProvider = {
     definition: {
       id,
       name,
@@ -493,4 +530,5 @@ export function backendNovelProvider(id: string, name: string): MediaProvider {
       }
     },
   };
+  return withNativeNovel(provider);
 }

@@ -1,3 +1,6 @@
+import { useWindowDimensions } from 'react-native';
+import { groupTitleItems, titleKey } from '@/services/titleGroups';
+import { useSourcePicker } from '@/hooks/useSourcePicker';
 import { groupDownloads } from '@/services/downloadGroups';
 import { DownloadTitleCard } from '@/components/downloads/DownloadTitleCard';
 import { useHiddenPrivateIds } from '@/hooks/useHiddenPrivateIds';
@@ -74,7 +77,11 @@ function getMangaMediaType(genres: string[]): 'manga' | 'manhwa' | 'manhua' {
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export default function LibraryScreen() {
+  const { width: windowWidth } = useWindowDimensions();
+  const gridWidth = windowWidth >= 700 ? 170 : undefined;
+
   const router = useRouter();
+  const { choose, picker } = useSourcePicker();
   const hidden = useHiddenPrivateIds();
   const realMedia = useLibraryStore((state) => state.media);
   const entries = useLibraryStore((state) => state.entries);
@@ -295,6 +302,7 @@ export default function LibraryScreen() {
 
   return (
     <Screen scrollable contentContainerClassName="gap-5 pb-8">
+      {picker}
       {/* View Tabs */}
       <ScrollView
         horizontal
@@ -412,10 +420,17 @@ export default function LibraryScreen() {
                 (item) =>
                   item.status === 'completed' &&
                   !hidden.has(item.mediaId) &&
-                  (mediaFilter === 'all' || item.mediaType === mediaFilter),
+                  (mediaFilter === 'all' || item.mediaType === mediaFilter) &&
+                  (selectedTag === 'all' ||
+                    entries.some(
+                      (entry) =>
+                        entry.mediaId === item.mediaId &&
+                        (entry.tags.includes(selectedTag) ||
+                          (selectedTag === 'Favorites' && entry.isFavorite)),
+                    )),
               ),
             ).map((group) => (
-              <View key={group.key} style={{ width: '30%', maxWidth: 240 }}>
+              <View key={group.key} style={{ width: gridWidth ?? '30%', maxWidth: 240 }}>
                 <DownloadTitleCard poster group={group} />
               </View>
             ))}
@@ -423,46 +438,67 @@ export default function LibraryScreen() {
         )
       ) : rows.length > 0 ? (
         <View className="flex-row flex-wrap items-start gap-3">
-          {rows.map(({ entry, item, progress, subtitle, route }) => (
-            <View
-              key={`${entry.mediaType}:${entry.mediaId}`}
-              style={{ width: '30%', maxWidth: 240 }}
-            >
-              {swipeEnabled ? (
-                <SwipeableRow
-                  key={`${entry.mediaType}:${entry.mediaId}`}
-                  onSwipeRight={() => handleDismiss(entry)}
-                  actionLabel="Remove"
-                  actionIcon="trash-outline"
-                >
+          {groupTitleItems(rows, (row) =>
+            titleKey(row.item.title, row.entry.mediaType, row.entry.mediaId),
+          ).map((variants) => {
+            const { entry, item, progress, subtitle } = variants[0];
+            return (
+              <View
+                key={`${entry.mediaType}:${entry.mediaId}`}
+                style={{ width: gridWidth ?? '30%', maxWidth: 240 }}
+              >
+                {swipeEnabled ? (
+                  <SwipeableRow
+                    key={`${entry.mediaType}:${entry.mediaId}`}
+                    onSwipeRight={() => handleDismiss(entry)}
+                    actionLabel="Remove"
+                    actionIcon="trash-outline"
+                  >
+                    <LibraryCard
+                      entry={entry}
+                      media={item}
+                      title={item.title}
+                      coverUrl={item.coverUrl}
+                      subtitle={subtitle}
+                      progress={progress}
+                      onPress={() =>
+                        choose(
+                          variants.map((v) => ({
+                            id: v.entry.mediaId,
+                            title: v.subtitle,
+                            open: () => router.push(v.route),
+                          })),
+                        )
+                      }
+                      onToggleFavorite={() => toggleFavorite(entry.mediaId, entry.mediaType)}
+                      onChangeStatus={() => setStatusTarget(entry)}
+                    />
+                  </SwipeableRow>
+                ) : (
                   <LibraryCard
+                    key={`${entry.mediaType}:${entry.mediaId}`}
                     entry={entry}
                     media={item}
                     title={item.title}
                     coverUrl={item.coverUrl}
                     subtitle={subtitle}
                     progress={progress}
-                    onPress={() => router.push(route)}
+                    onPress={() =>
+                      choose(
+                        variants.map((v) => ({
+                          id: v.entry.mediaId,
+                          title: v.subtitle,
+                          open: () => router.push(v.route),
+                        })),
+                      )
+                    }
                     onToggleFavorite={() => toggleFavorite(entry.mediaId, entry.mediaType)}
                     onChangeStatus={() => setStatusTarget(entry)}
                   />
-                </SwipeableRow>
-              ) : (
-                <LibraryCard
-                  key={`${entry.mediaType}:${entry.mediaId}`}
-                  entry={entry}
-                  media={item}
-                  title={item.title}
-                  coverUrl={item.coverUrl}
-                  subtitle={subtitle}
-                  progress={progress}
-                  onPress={() => router.push(route)}
-                  onToggleFavorite={() => toggleFavorite(entry.mediaId, entry.mediaType)}
-                  onChangeStatus={() => setStatusTarget(entry)}
-                />
-              )}
-            </View>
-          ))}
+                )}
+              </View>
+            );
+          })}
         </View>
       ) : (
         <View className="items-center gap-2 py-12">

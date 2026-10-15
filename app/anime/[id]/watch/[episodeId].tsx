@@ -1,3 +1,8 @@
+/* eslint-disable react-hooks/immutability, react-hooks/refs -- Expo Video is an imperative native object; PanResponder stores callbacks without executing them during render. */
+import { RelatedEditions } from '@/components/content/RelatedEditions';
+import { useAnimeContent } from '@/hooks/useAnimeContent';
+import { EpisodeList } from '@/components/anime/EpisodeList';
+import { ChapterRangePicker, chapterRange } from '@/components/content/SelectionModal';
 import { PrivacyAccessGate } from '@/components/content/PrivacyControls';
 import { SourceWebsiteButton } from '@/components/content/SourceWebsiteButton';
 import { PopPressable as Pressable } from '@/components/ui/PopPressable';
@@ -10,6 +15,7 @@ import { useVideoPlayer, VideoView, type SubtitleTrack, type VideoPlayer } from 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  AppState,
   Animated,
   BackHandler,
   LayoutChangeEvent,
@@ -22,7 +28,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Badge, Button, Text } from '@/components/ui';
-import { animeDetailsHref } from '@/lib/routes';
+import { animeDetailsHref, animeWatchHref } from '@/lib/routes';
 import {
   getProviderDisplayName,
   resolveAnimePlayback,
@@ -43,6 +49,10 @@ function AnimePlayerScreen() {
     episodeId: string;
     seconds?: string;
   }>();
+  const { anime: catalog } = useAnimeContent(id);
+  const advanceKey = useRef('');
+  const currentIndex = catalog?.episodes.findIndex((item) => item.id === episodeId) ?? -1;
+  const nextEpisode = currentIndex >= 0 ? catalog?.episodes[currentIndex + 1] : undefined;
   const saveBookmark = useMediaBookmarkStore((state) => state.save);
   const setEpisodeProgress = useAnimeProgressStore((state) => state.setEpisodeProgress);
   const resumeSeconds = useMemo(
@@ -68,7 +78,9 @@ function AnimePlayerScreen() {
   const [nativeSubtitleTracks, setNativeSubtitleTracks] = useState<SubtitleTrack[]>([]);
   const [playhead, setPlayhead] = useState(0);
   const overlayVisibleRef = useRef(overlayVisible);
-  overlayVisibleRef.current = overlayVisible;
+  useEffect(() => {
+    overlayVisibleRef.current = overlayVisible;
+  }, [overlayVisible]);
   const lastClockUpdate = useRef(0);
   const [duration, setDuration] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -128,15 +140,18 @@ function AnimePlayerScreen() {
 
   /** Show controls and restart the auto-hide timer. */
   const showControls = useCallback(() => {
+    overlayVisibleRef.current = true;
     setOverlayVisible(true);
+    overlayOpacity.stopAnimation();
     Animated.timing(overlayOpacity, { toValue: 1, duration: 200, useNativeDriver: true }).start();
     if (overlayTimerRef.current) clearTimeout(overlayTimerRef.current);
     if (settingsOpenRef.current) return;
     overlayTimerRef.current = setTimeout(() => {
       if (settingsOpenRef.current) return;
       Animated.timing(overlayOpacity, { toValue: 0, duration: 300, useNativeDriver: true }).start(
-        () => {
-          if (settingsOpenRef.current) return;
+        ({ finished }) => {
+          if (!finished || settingsOpenRef.current) return;
+          overlayVisibleRef.current = false;
           setOverlayVisible(false);
           settingsOpenRef.current = false;
           setSettingsOpen(false);
@@ -148,21 +163,13 @@ function AnimePlayerScreen() {
   /** Toggle controls. Tapping while visible hides immediately; tap while hidden shows. */
   const toggleControls = useCallback(() => {
     if (settingsOpenRef.current) return;
-    setOverlayVisible((v) => {
-      if (v) {
-        if (overlayTimerRef.current) clearTimeout(overlayTimerRef.current);
-        settingsOpenRef.current = false;
-        setSettingsOpen(false);
-        Animated.timing(overlayOpacity, { toValue: 0, duration: 200, useNativeDriver: true }).start(
-          () => {
-            setOverlayVisible(false);
-          },
-        );
-        return true; // keep true until fade completes; setOverlayVisible(false) fires in callback
-      }
-      showControls();
-      return true;
-    });
+    if (overlayVisibleRef.current) {
+      if (overlayTimerRef.current) clearTimeout(overlayTimerRef.current);
+      overlayVisibleRef.current = false;
+      overlayOpacity.stopAnimation();
+      overlayOpacity.setValue(0);
+      setOverlayVisible(false);
+    } else showControls();
   }, [showControls, overlayOpacity]);
 
   useEffect(
@@ -218,19 +225,22 @@ function AnimePlayerScreen() {
         durationSeconds,
         updatedAt: Date.now(),
       });
-      // Ensure the anime is in the library store for continue watching/history
-      useLibraryStore.getState().rememberMedia({
-        id,
-        title: playback.animeTitle,
-        coverUrl: playback.episodeThumbnailUrl ?? '',
-        bannerUrl: playback.episodeThumbnailUrl ?? '',
-        genres: [],
-        mediaType: 'anime',
-        episodeCount: playback.episodeNumber,
-      });
     },
     [id, episodeId, playback, setEpisodeProgress],
   );
+
+  useEffect(() => {
+    if (!playback || !id) return;
+    useLibraryStore.getState().rememberMedia({
+      id,
+      title: playback.animeTitle,
+      coverUrl: playback.episodeThumbnailUrl ?? '',
+      bannerUrl: playback.episodeThumbnailUrl ?? '',
+      genres: [],
+      mediaType: 'anime',
+      episodeCount: playback.episodeNumber,
+    });
+  }, [id, playback]);
 
   const streamUrl =
     (useDirectStream ? playback?.source.fallbackUrl : (qualityUrl ?? playback?.source.url)) ?? '';
@@ -282,8 +292,27 @@ function AnimePlayerScreen() {
     );
     setErrorState(null);
     return true;
-  }, [resolveRetryCount, resumeSeconds]);
+  }, [resolveRetryCount, resumeSeconds, player]);
 
+  const goToEpisode = useCallback(
+    (target: string, targetAnimeId = id) => {
+      saveProgress(player.currentTime, player.duration || playback?.durationSeconds || 0);
+      player.pause();
+      router.replace(animeWatchHref(targetAnimeId, target));
+    },
+    [id, player, router, saveProgress, playback?.durationSeconds],
+  );
+  useEffect(() => {
+    advanceKey.current = '';
+  }, [id, episodeId]);
+  useEffect(() => {
+    const listener = player.addListener('playToEnd', () => {
+      if (!nextEpisode || advanceKey.current === `${id}:${episodeId}`) return;
+      advanceKey.current = `${id}:${episodeId}`;
+      goToEpisode(nextEpisode.id);
+    });
+    return () => listener.remove();
+  }, [player, nextEpisode, goToEpisode, id, episodeId]);
   useEffect(() => {
     if (!streamUrl || useDirectStream || !playback?.source.fallbackUrl) return;
     const timer = setTimeout(() => {
@@ -433,7 +462,15 @@ function AnimePlayerScreen() {
       tracksSub.remove();
       loadSub.remove();
     };
-  }, [player, streamUrl, useDirectStream, subtitlesEnabled, externalCues.length, selectedSubtitle]);
+  }, [
+    player,
+    streamUrl,
+    useDirectStream,
+    subtitlesEnabled,
+    externalCues.length,
+    selectedSubtitle,
+    subtitleKey,
+  ]);
 
   useEffect(() => {
     if (!player || !streamUrl) return;
@@ -476,7 +513,7 @@ function AnimePlayerScreen() {
       const dur = player.duration || playback?.durationSeconds || 0;
       setDuration(dur);
       const now = Date.now();
-      if (now - lastSavedAtRef.current < 2000) return;
+      if (now - lastSavedAtRef.current < 10000) return;
       lastSavedAtRef.current = now;
       saveProgress(currentTime, dur);
     });
@@ -505,6 +542,20 @@ function AnimePlayerScreen() {
     },
     [playback?.durationSeconds, saveProgress],
   );
+
+  useEffect(() => {
+    const playing = player.addListener('playingChange', ({ isPlaying: value }) =>
+      setIsPlaying(value),
+    );
+    const background = AppState?.addEventListener('change', (state) => {
+      if (state !== 'active')
+        saveProgress(player.currentTime, player.duration || playback?.durationSeconds || 0);
+    });
+    return () => {
+      playing.remove();
+      background?.remove();
+    };
+  }, [player, saveProgress, playback?.durationSeconds]);
 
   const saveCurrentBookmark = useCallback(() => {
     if (!playback) return;
@@ -675,6 +726,7 @@ function AnimePlayerScreen() {
         }
       >
         <VideoView
+          pointerEvents="none"
           ref={videoViewRef}
           onFirstFrameRender={() => {
             readyFrameRef.current = streamUrl;
@@ -685,13 +737,14 @@ function AnimePlayerScreen() {
           style={{ width: '100%', height: '100%' }}
           contentFit="contain"
           nativeControls={false}
+          surfaceType="textureView"
         />
 
         <SurfacePressable
           onPress={toggleControls}
           accessibilityRole="button"
           accessibilityLabel="Show or hide playback controls"
-          style={{ position: 'absolute', inset: 0 }}
+          style={{ position: 'absolute', inset: 0, zIndex: 1 }}
         />
         {/* External subtitle overlay */}
         <TimedCaptions
@@ -709,18 +762,20 @@ function AnimePlayerScreen() {
               position: 'absolute',
               inset: 0,
               justifyContent: 'space-between',
+              zIndex: 3,
               opacity: overlayOpacity,
             }}
             pointerEvents="box-none"
           >
             {/* Top bar: back (fullscreen) + Bookmark + Settings */}
             <View
+              pointerEvents="box-none"
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 paddingHorizontal: 12,
-                paddingTop: 8,
+                paddingVertical: 8,
                 backgroundColor: 'rgba(0,0,0,0.4)',
               }}
             >
@@ -761,6 +816,7 @@ function AnimePlayerScreen() {
 
             {/* Center: −10s / play-pause / +10s */}
             <View
+              pointerEvents="box-none"
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
@@ -894,18 +950,29 @@ function AnimePlayerScreen() {
                   {formatTime(scrubbing ? scrubFraction * totalDuration : playhead)} /{' '}
                   {formatTime(totalDuration)}
                 </Text>
-                <Pressable
-                  onPress={() => {
-                    if (fullscreen) leaveFullscreen();
-                    else {
-                      fullscreenSourceRef.current = '';
-                      void enterFullscreen();
-                    }
-                  }}
-                  className="rounded px-2 py-1"
-                >
-                  <Text style={{ color: 'white', fontSize: 16 }}>{fullscreen ? '✕' : '⤢'}</Text>
-                </Pressable>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  {nextEpisode ? (
+                    <Pressable
+                      accessibilityLabel="Next episode"
+                      onPress={() => goToEpisode(nextEpisode.id)}
+                      className="rounded-full bg-primary-600 px-3 py-2"
+                    >
+                      <Text style={{ color: 'white', fontSize: 12 }}>Next episode</Text>
+                    </Pressable>
+                  ) : null}
+                  <Pressable
+                    onPress={() => {
+                      if (fullscreen) leaveFullscreen();
+                      else {
+                        fullscreenSourceRef.current = '';
+                        void enterFullscreen();
+                      }
+                    }}
+                    className="rounded px-2 py-1"
+                  >
+                    <Text style={{ color: 'white', fontSize: 16 }}>{fullscreen ? '✕' : '⤢'}</Text>
+                  </Pressable>
+                </View>
               </View>
             </View>
           </Animated.View>
@@ -924,16 +991,17 @@ function AnimePlayerScreen() {
 
         {/* Settings panel — should hide with overlayVisible */}
         {settingsOpen && overlayVisible ? (
-          <View
+          <ScrollView
+            keyboardShouldPersistTaps="always"
+            contentContainerStyle={{ padding: 12 }}
             style={{
               position: 'absolute',
               top: 48,
+              bottom: 4,
               right: 8,
-              maxHeight: 320,
               width: 280,
               backgroundColor: '#171717',
               borderRadius: 16,
-              padding: 12,
               zIndex: 100,
               elevation: 100,
             }}
@@ -1059,13 +1127,22 @@ function AnimePlayerScreen() {
                 ? (selectedExternal?.language || 'Selected') + ' captions from this episode'
                 : externalError || subtitleLabel}
             </Text>
-          </View>
+          </ScrollView>
         ) : null}
       </View>
 
       {/* Non-fullscreen info section */}
       {!fullscreen ? (
-        <View style={{ paddingHorizontal: 16, paddingTop: 12, gap: 6 }}>
+        <ScrollView
+          keyboardShouldPersistTaps="always"
+          style={{ flex: 1 }}
+          contentContainerStyle={{
+            paddingHorizontal: 16,
+            paddingTop: 12,
+            paddingBottom: 24,
+            gap: 6,
+          }}
+        >
           <View className="flex-row items-center justify-between gap-2">
             <Text variant="h3" className="flex-1 text-white">
               {playback.animeTitle}
@@ -1093,11 +1170,75 @@ function AnimePlayerScreen() {
             </Text>
           ) : null}
           <SourceWebsiteButton routeId={playback.source.providerId} />
-        </View>
+          <PlayerEpisodePanel
+            key={id}
+            id={id}
+            episodeId={episodeId}
+            catalog={catalog}
+            onEpisode={goToEpisode}
+          />
+        </ScrollView>
       ) : null}
     </View>
   );
 }
+
+/** Keep catalog/filter rendering independent of the player's playback clock. */
+const PlayerEpisodePanel = memo(function PlayerEpisodePanel({
+  id,
+  episodeId,
+  catalog,
+  onEpisode,
+}: {
+  id: string;
+  episodeId: string;
+  catalog: ReturnType<typeof useAnimeContent>['anime'];
+  onEpisode: (episode: string, title: string) => void;
+}) {
+  const [selected, setSelected] = useState(id);
+  const [range, setRange] = useState(0);
+  const alternate = useAnimeContent(selected === id ? undefined : selected);
+  const content = selected === id ? catalog : alternate.anime;
+  const episodes = useMemo(() => chapterRange(content?.episodes ?? [], range), [content, range]);
+  const progress = useCallback(
+    (episode: string) => {
+      const saved = useAnimeProgressStore.getState().getEpisodeProgress(selected, episode);
+      return saved && saved.durationSeconds > 0
+        ? saved.positionSeconds / saved.durationSeconds
+        : undefined;
+    },
+    [selected],
+  );
+  return (
+    <View>
+      <RelatedEditions
+        routeId={id}
+        value={selected}
+        onSelect={(value) => {
+          setSelected(value);
+          setRange(0);
+        }}
+      />
+      {selected !== id && alternate.loading ? <Text>Loading episodes...</Text> : null}
+      {selected !== id && alternate.error ? <Text>{alternate.error}</Text> : null}
+      {content ? (
+        <>
+          <View className="my-3 flex-row items-center justify-between">
+            <Text>Episodes</Text>
+            <ChapterRangePicker count={content.episodes.length} value={range} onChange={setRange} />
+          </View>
+          <EpisodeList
+            animeId={selected}
+            episodes={episodes}
+            activeEpisodeId={selected === id ? episodeId : undefined}
+            getEpisodeProgress={progress}
+            onEpisodePress={(episode) => onEpisode(episode.id, selected)}
+          />
+        </>
+      ) : null}
+    </View>
+  );
+});
 
 const TimedCaptions = memo(function TimedCaptions({
   player,
@@ -1129,6 +1270,7 @@ const TimedCaptions = memo(function TimedCaptions({
         left: 20,
         right: 20,
         alignItems: 'center',
+        zIndex: 2,
       }}
     >
       <Text

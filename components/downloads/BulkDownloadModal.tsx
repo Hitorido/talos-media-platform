@@ -173,7 +173,6 @@ function BulkDownloadSheet({ target, onClose, colors }: BulkDownloadSheetProps) 
   const [startValue, setStartValue] = useState(firstUnitNumber);
   const [endValue, setEndValue] = useState(lastUnitNumber);
   const [unreadOnly, setUnreadOnly] = useState(false);
-  const [queued, setQueued] = useState<number | null>(null);
   const isStarting = useRef(false);
 
   const pickerOptions: PickerOption[] = useMemo(() => {
@@ -224,35 +223,40 @@ function BulkDownloadSheet({ target, onClose, colors }: BulkDownloadSheetProps) 
     );
   }, [target, selectedUnits, unreadOnly, isDownloaded]);
 
-  const handleStart = useCallback(() => {
+  const handleStart = useCallback(async () => {
     if (isStarting.current || filteredUnits.length === 0) return;
     isStarting.current = true;
 
+    onClose();
+    // Release the modal and yield during large queues so reading remains responsive.
+    await new Promise((resolve) => setTimeout(resolve, 0));
     let count = 0;
     try {
       if (target.kind === 'anime') {
         for (const ep of filteredUnits as AnimeEpisode[]) {
           downloadAnimeEpisode(target.anime, ep);
           count++;
+          if (count % 10 === 0) await new Promise((resolve) => setTimeout(resolve, 0));
         }
       } else if (target.kind === 'manga') {
         for (const ch of filteredUnits as MangaChapter[]) {
           downloadMangaChapter(target.manga, ch);
           count++;
+          if (count % 10 === 0) await new Promise((resolve) => setTimeout(resolve, 0));
         }
       } else {
         for (const ch of filteredUnits as NovelChapter[]) {
           downloadNovelChapter(target.novel, ch);
           count++;
+          if (count % 10 === 0) await new Promise((resolve) => setTimeout(resolve, 0));
         }
       }
-      setQueued(count);
     } catch {
       Alert.alert('Error', 'Failed to queue some downloads. Please try again.');
     } finally {
       isStarting.current = false;
     }
-  }, [target, filteredUnits]);
+  }, [target, filteredUnits, onClose]);
 
   const mediaTitle =
     target.kind === 'anime'
@@ -369,39 +373,17 @@ function BulkDownloadSheet({ target, onClose, colors }: BulkDownloadSheetProps) 
           </View>
         </View>
 
-        {queued !== null ? (
-          <View style={styles.successBanner}>
-            <Ionicons name="checkmark-circle" size={20} color="#22c55e" />
-            <Text style={styles.successText}>
-              {queued} {unitsLabel} queued for download!
-            </Text>
-          </View>
-        ) : null}
-
         <View style={{ gap: 10, marginTop: 4 }}>
-          {queued === null ? (
-            <Button
-              label={
-                filteredUnits.length === 0
-                  ? 'Nothing to download'
-                  : `Queue ${filteredUnits.length} ${unitsLabel}`
-              }
-              variant="primary"
-              onPress={handleStart}
-              disabled={filteredUnits.length === 0}
-            />
-          ) : (
-            <Button
-              label="Queue More"
-              variant="secondary"
-              onPress={() => {
-                setQueued(null);
-                setStartValue(firstUnitNumber);
-                setEndValue(lastUnitNumber);
-                setUnreadOnly(false);
-              }}
-            />
-          )}
+          <Button
+            label={
+              filteredUnits.length === 0
+                ? 'Nothing to download'
+                : `Queue ${filteredUnits.length} ${unitsLabel}`
+            }
+            variant="primary"
+            onPress={handleStart}
+            disabled={filteredUnits.length === 0}
+          />
           <Button label="Close" variant="ghost" onPress={onClose} />
         </View>
       </ScrollView>

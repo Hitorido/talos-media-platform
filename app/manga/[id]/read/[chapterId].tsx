@@ -1,3 +1,4 @@
+import { FindAnotherSourceButton } from '@/components/content/FindAnotherSourceButton';
 import { PrivacyAccessGate } from '@/components/content/PrivacyControls';
 import { SourceWebsiteButton } from '@/components/content/SourceWebsiteButton';
 import { PopPressable as Pressable } from '@/components/ui/PopPressable';
@@ -702,6 +703,7 @@ function MangaReaderScreen() {
         >
           <Text tone="primary">Try again</Text>
         </Pressable>
+        <FindAnotherSourceButton routeId={id} title={manga?.title} />
         <Pressable onPress={handleBack} className="mt-4">
           <Text tone="primary">Go back</Text>
         </Pressable>
@@ -714,6 +716,7 @@ function MangaReaderScreen() {
       <View className="flex-1 items-center justify-center bg-black px-6">
         <Stack.Screen options={{ headerShown: false }} />
         <Text className="text-white">Unable to load this chapter.</Text>
+        <FindAnotherSourceButton routeId={id} title={manga?.title} />
         <SourceWebsiteButton routeId={id} chapterId={chapterId} />
         <Pressable onPress={handleBack} className="mt-4">
           <Text tone="primary">Go back</Text>

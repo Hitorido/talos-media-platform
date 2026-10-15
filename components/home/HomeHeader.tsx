@@ -1,3 +1,4 @@
+import { DiscoveryMenu } from '@/components/navigation/DiscoveryMenu';
 import { Image, View } from 'react-native';
 
 import { Text } from '@/components/ui';
@@ -20,7 +21,10 @@ export function HomeHeader() {
           Talos
         </Text>
       </View>
-      <Text variant="display">Discover</Text>
+      <View className="flex-row items-center justify-between">
+        <Text variant="display">Discover</Text>
+        <DiscoveryMenu />
+      </View>
       <Text tone="muted">Pick up where you left off or explore something new.</Text>
     </View>
   );

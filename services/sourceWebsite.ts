@@ -1,5 +1,11 @@
 import { decodeMediaRouteId } from '@/types/provider';
 const sources: Record<string, { name: string; origin: string; prefix?: string; mode: string }> = {
+  ao3: {
+    name: 'Archive of Our Own',
+    origin: 'https://archiveofourown.org',
+    prefix: '/works/',
+    mode: 'Public novel reader',
+  },
   animexin: {
     name: 'AnimeXin',
     origin: 'https://animexin.dev',

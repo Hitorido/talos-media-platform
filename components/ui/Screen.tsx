@@ -1,15 +1,17 @@
+import Animated, { FadeIn, FadeOut, ReduceMotion } from 'react-native-reanimated';
 import { Platform, View, ScrollView, type ScrollViewProps } from 'react-native';
 import { SafeAreaView, type SafeAreaViewProps } from 'react-native-safe-area-context';
 
 import { cn } from '@/utils/cn';
 
 export type ScreenProps = SafeAreaViewProps & {
+  transitionKey?: string;
   scrollable?: boolean;
   contentContainerClassName?: string;
   scrollViewProps?: ScrollViewProps;
 };
 
-export function Screen({
+function ScreenBody({
   children,
   scrollable = false,
   className,
@@ -47,5 +49,22 @@ export function Screen({
         children
       )}
     </SafeAreaView>
+  );
+}
+
+/** Fade content changes without sliding the detail route or intercepting touches. */
+export function Screen({ transitionKey, ...props }: ScreenProps) {
+  if (!transitionKey) return <ScreenBody {...props} />;
+  return (
+    <View style={{ flex: 1 }}>
+      <Animated.View
+        key={transitionKey}
+        style={{ flex: 1 }}
+        entering={FadeIn.duration(140).reduceMotion(ReduceMotion.System)}
+        exiting={FadeOut.duration(100).reduceMotion(ReduceMotion.System)}
+      >
+        <ScreenBody {...props} />
+      </Animated.View>
+    </View>
   );
 }

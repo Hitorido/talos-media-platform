@@ -141,6 +141,7 @@ export function ZoomablePage({
   return (
     <GestureDetector gesture={zoom.gesture}>
       <View
+        ref={zoom.webViewportRef}
         style={{ width, height: viewportHeight, backgroundColor: 'black', overflow: 'hidden' }}
         collapsable={false}
       >

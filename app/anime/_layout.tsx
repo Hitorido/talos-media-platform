@@ -5,6 +5,7 @@ export default function AnimeLayout() {
     <Stack
       screenOptions={{
         headerBackTitle: 'Back',
+        animation: 'none',
         // Players own their own in-screen controls; hide the header by default.
         headerShown: false,
       }}

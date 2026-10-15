@@ -1,9 +1,10 @@
+import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { PopPressable as Pressable } from '@/components/ui/PopPressable';
 import { Ionicons } from '@expo/vector-icons';
 
 import { ProgressBar } from '@/components/home/ProgressBar';
-import { Badge, Text } from '@/components/ui';
+import { Text } from '@/components/ui';
 import { useDownloadStore } from '@/stores/downloadStore';
 import type { AnimeEpisode } from '@/types/anime';
 import { cn } from '@/utils/cn';
@@ -40,61 +41,63 @@ export function EpisodeListItem({
   return (
     <View
       className={cn(
-        'rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900',
-        isActive && 'border-primary-500 dark:border-primary-400',
+        'rounded-xl border border-neutral-200 bg-white p-2 dark:border-neutral-700 dark:bg-neutral-900',
+        isActive && 'border-primary-500 bg-primary-50 dark:border-primary-400 dark:bg-primary-950',
       )}
     >
-      <View className="flex-row items-center justify-between gap-3">
-        <Pressable onPress={onPress} className="flex-1 gap-1">
-          <View className="flex-row items-center gap-2">
-            <Text variant="label">
-              Episode {episode.number} · {formatDuration(episode.durationSeconds)}
-            </Text>
-            {isDownloaded ? <Badge label="Offline" variant="secondary" /> : null}
-          </View>
-          <Text variant="bodySmall" tone="muted" numberOfLines={2}>
-            {episode.title}
-          </Text>
-        </Pressable>
-
-        <View className="flex-row items-center gap-3">
-          {typeof progress === 'number' && progress > 0 ? (
-            <Text variant="caption" tone="primary">
-              {Math.round(progress * 100)}%
-            </Text>
-          ) : null}
-
-          {onDownloadPress ? (
-            <Pressable
-              onPress={(e) => {
-                e.stopPropagation?.();
-                onDownloadPress();
-              }}
-              className="p-1.5"
-              accessibilityRole="button"
-              accessibilityLabel={
+      <Pressable
+        onPress={onPress}
+        accessibilityLabel={`Episode ${episode.number}: ${episode.title}`}
+        accessibilityState={{ selected: !!isActive }}
+        className="items-center justify-center gap-1"
+        style={{ minHeight: 62 }}
+      >
+        <Text variant="label" numberOfLines={1}>
+          Ep. {episode.number}
+        </Text>
+        <Text
+          variant="caption"
+          tone="muted"
+          numberOfLines={2}
+          style={{ fontSize: 10, height: 28, textAlign: 'center' }}
+        >
+          {episode.title}
+        </Text>
+      </Pressable>
+      <View className="flex-row items-center justify-between">
+        <Text variant="caption" tone="muted" style={{ fontSize: 10 }}>
+          {isDownloaded
+            ? 'Saved'
+            : progress
+              ? `${Math.round(progress * 100)}%`
+              : episode.durationSeconds > 0
+                ? formatDuration(episode.durationSeconds)
+                : ''}
+        </Text>
+        {onDownloadPress ? (
+          <Pressable
+            onPress={onDownloadPress}
+            accessibilityLabel={
+              isDownloaded ? 'Downloaded' : isDownloading ? 'Download queued' : 'Download episode'
+            }
+            style={{ minWidth: 28, minHeight: 28, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Ionicons
+              name={
                 isDownloaded
-                  ? 'Downloaded'
+                  ? 'checkmark-circle'
                   : isDownloading
-                    ? 'Download queued'
-                    : 'Download for offline use'
+                    ? 'hourglass-outline'
+                    : 'download-outline'
               }
-              hitSlop={8}
-            >
-              {isDownloaded ? (
-                <Ionicons name="checkmark-circle" size={22} color="#10B981" />
-              ) : isDownloading ? (
-                <Ionicons name="hourglass-outline" size={22} color="#6366F1" />
-              ) : (
-                <Ionicons name="download-outline" size={22} color="#9CA3AF" />
-              )}
-            </Pressable>
-          ) : null}
-        </View>
+              size={17}
+              color="#818cf8"
+            />
+          </Pressable>
+        ) : null}
       </View>
-
       {typeof progress === 'number' && progress > 0 ? (
-        <ProgressBar progress={progress} className="mt-3" />
+        <ProgressBar progress={progress} className="mt-1" />
       ) : null}
     </View>
   );
@@ -117,19 +120,57 @@ export function EpisodeList({
   onEpisodePress,
   onDownloadEpisode,
 }: EpisodeListProps) {
+  const [filter, setFilter] = useState<'all' | 'unwatched' | 'saved'>('all');
+  const downloads = useDownloadStore((s) => s.items);
+  const savedIds = useMemo(
+    () =>
+      new Set(
+        Object.values(downloads)
+          .filter((d) => d.mediaId === animeId && d.status === 'completed')
+          .map((d) => d.unitId),
+      ),
+    [downloads, animeId],
+  );
+  const visible = episodes.filter(
+    (ep) =>
+      filter === 'all' ||
+      (filter === 'unwatched' ? (getEpisodeProgress?.(ep.id) ?? 0) < 0.9 : savedIds.has(ep.id)),
+  );
   return (
     <View className="gap-3">
-      {episodes.map((episode) => (
-        <EpisodeListItem
-          key={episode.id}
-          animeId={animeId}
-          episode={episode}
-          isActive={episode.id === activeEpisodeId}
-          progress={getEpisodeProgress?.(episode.id)}
-          onPress={() => onEpisodePress(episode)}
-          onDownloadPress={onDownloadEpisode ? () => onDownloadEpisode(episode) : undefined}
-        />
-      ))}
+      <View className="flex-row gap-2">
+        {(['all', 'unwatched', 'saved'] as const).map((value) => (
+          <Pressable
+            key={value}
+            onPress={() => setFilter(value)}
+            className={cn(
+              'rounded-full px-3 py-2',
+              filter === value ? 'bg-primary-600' : 'bg-neutral-200 dark:bg-neutral-800',
+            )}
+          >
+            <Text variant="caption" style={filter === value ? { color: '#fff' } : undefined}>
+              {value === 'all' ? 'All' : value === 'unwatched' ? 'Unwatched' : 'Saved'}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+      {!visible.length ? (
+        <Text tone="muted">No episodes in this range match the filter.</Text>
+      ) : null}
+      <View className="flex-row flex-wrap" style={{ gap: 6 }}>
+        {visible.map((episode) => (
+          <View key={episode.id} style={{ width: '23.5%' }}>
+            <EpisodeListItem
+              animeId={animeId}
+              episode={episode}
+              isActive={episode.id === activeEpisodeId}
+              progress={getEpisodeProgress?.(episode.id)}
+              onPress={() => onEpisodePress(episode)}
+              onDownloadPress={onDownloadEpisode ? () => onDownloadEpisode(episode) : undefined}
+            />
+          </View>
+        ))}
+      </View>
     </View>
   );
 }

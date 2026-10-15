@@ -236,6 +236,7 @@ export const VerticalReader = memo(
     return (
       <GestureDetector gesture={zoom.gesture}>
         <View
+          ref={zoom.webViewportRef}
           onLayout={(event) => setViewportHeight(event.nativeEvent.layout.height)}
           style={{ flex: 1, overflow: 'hidden' }}
           collapsable={false}

@@ -119,6 +119,11 @@ try {
     return { title: 'Title', coverUrl: '', genres: [] };
   };
   const bridge = loadProviderTs('providers/backend-content/index.ts', {
+    './directNovel': { withNativeNovel: (provider) => provider },
+    './directComic': {
+      directComicAdapter: () => undefined,
+      withDirectComicFallback: (gateway) => gateway(),
+    },
     '@/lib/apiConfig': { getApiBaseUrl: () => 'https://test.invalid' },
     // backend-content routes through the wake/retry wrapper; the mock stands in
     // for it so signal pass-through is still asserted at this boundary.

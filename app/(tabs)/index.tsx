@@ -1,3 +1,5 @@
+import { groupTitleItems, titleKey } from '@/services/titleGroups';
+import { useSourcePicker } from '@/hooks/useSourcePicker';
 import { PopPressable as Pressable } from '@/components/ui/PopPressable';
 import { appAlert as Alert } from '@/stores/dialogStore';
 import { useRouter } from 'expo-router';
@@ -32,6 +34,7 @@ type ReadingCategory = 'all' | 'manga' | 'novel';
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { choose, picker } = useSourcePicker();
   const continueWatching = useContinueWatching();
   const continueReadingManga = useContinueReading();
   const continueReadingNovels = useContinueReadingNovels();
@@ -151,6 +154,7 @@ export default function HomeScreen() {
   return (
     <Screen scrollable contentContainerClassName="gap-8 pb-8">
       <HomeHeader />
+      {picker}
 
       {/* Continue Watching */}
       <View className="gap-2">
@@ -170,34 +174,55 @@ export default function HomeScreen() {
         </View>
         {continueWatching.length > 0 ? (
           <HorizontalSection title="">
-            {continueWatching.map((item) => (
-              <View key={item.animeId} className="relative">
-                <ContinueWatchingCard
-                  item={{
-                    id: item.animeId,
-                    type: 'anime',
-                    title: item.title,
-                    coverUrl: item.coverUrl,
-                    episode: item.episodeNumber,
-                    totalEpisodes: item.totalEpisodes,
-                    progress: item.progress,
-                    episodeTitle: item.episodeTitle,
-                  }}
-                  onContinue={() => router.push(animeWatchHref(item.animeId, item.episodeId))}
-                  onPress={() => router.push(animeDetailsHref(item.animeId))}
-                />
-                <Pressable
-                  onPress={() => removeAnimeProgress(item.animeId)}
-                  accessibilityRole="button"
-                  accessibilityLabel="Remove from Continue Watching"
-                  className="mt-1 self-start rounded-full bg-neutral-200 px-2 py-0.5 dark:bg-neutral-800"
-                >
-                  <Text variant="caption" tone="muted" className="text-[10px]">
-                    ✕ Remove
-                  </Text>
-                </Pressable>
-              </View>
-            ))}
+            {groupTitleItems(continueWatching, (item) =>
+              titleKey(item.title, 'anime', item.animeId),
+            ).map((variants) => {
+              const item = variants[0];
+              return (
+                <View key={item.animeId} className="relative">
+                  <ContinueWatchingCard
+                    item={{
+                      id: item.animeId,
+                      type: 'anime',
+                      title: item.title,
+                      coverUrl: item.coverUrl,
+                      episode: item.episodeNumber,
+                      totalEpisodes: item.totalEpisodes,
+                      progress: item.progress,
+                      episodeTitle: item.episodeTitle,
+                    }}
+                    onContinue={() =>
+                      choose(
+                        variants.map((v) => ({
+                          id: v.animeId,
+                          title: `Episode ${v.episodeNumber}`,
+                          open: () => router.push(animeWatchHref(v.animeId, v.episodeId)),
+                        })),
+                      )
+                    }
+                    onPress={() =>
+                      choose(
+                        variants.map((v) => ({
+                          id: v.animeId,
+                          title: v.title,
+                          open: () => router.push(animeDetailsHref(v.animeId)),
+                        })),
+                      )
+                    }
+                  />
+                  <Pressable
+                    onPress={() => removeAnimeProgress(item.animeId)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Remove from Continue Watching"
+                    className="mt-1 self-start rounded-full bg-neutral-200 px-2 py-0.5 dark:bg-neutral-800"
+                  >
+                    <Text variant="caption" tone="muted" className="text-[10px]">
+                      ✕ Remove
+                    </Text>
+                  </Pressable>
+                </View>
+              );
+            })}
           </HorizontalSection>
         ) : (
           <View className="mx-4 h-28 items-center justify-center rounded-xl border border-dashed border-neutral-300 bg-neutral-100/70 px-4 dark:border-neutral-800 dark:bg-neutral-900/60">
@@ -269,34 +294,58 @@ export default function HomeScreen() {
         {/* HorizontalSection with See All for Continue Reading */}
         {combinedReadingItems.length > 0 ? (
           <HorizontalSection title="">
-            {combinedReadingItems.map((item) => (
-              <View key={`${item.type}-${item.id}`} className="gap-1">
-                <ContinueReadingCard
-                  item={item}
-                  onContinue={() =>
-                    router.push(
-                      item.type === 'manga'
-                        ? mangaReadHref(item.id, item.chapterId, item.pageNumber as number)
-                        : novelReadHref(item.id, item.chapterId, item.progress),
-                    )
-                  }
-                  onPress={() => {
-                    if (item.type === 'manga') router.push(mangaDetailsHref(item.id));
-                    else router.push(novelDetailsHref(item.id));
-                  }}
-                />
-                <Pressable
-                  onPress={() => removeReadingItem(item.id, item.type)}
-                  accessibilityRole="button"
-                  accessibilityLabel="Remove from Continue Reading"
-                  className="self-start rounded-full bg-neutral-200 px-2 py-0.5 dark:bg-neutral-800"
-                >
-                  <Text variant="caption" tone="muted" className="text-[10px]">
-                    ✕ Remove
-                  </Text>
-                </Pressable>
-              </View>
-            ))}
+            {groupTitleItems(combinedReadingItems, (item) =>
+              titleKey(item.title, item.type, item.id),
+            ).map((variants) => {
+              const item = variants[0];
+              return (
+                <View key={`${item.type}-${item.id}`} className="gap-1">
+                  <ContinueReadingCard
+                    item={item}
+                    onContinue={() =>
+                      choose(
+                        variants.map((v) => ({
+                          id: v.id,
+                          title: `Chapter ${v.chapter}`,
+                          open: () =>
+                            router.push(
+                              v.type === 'manga'
+                                ? mangaReadHref(
+                                    v.id,
+                                    v.chapterId,
+                                    'pageNumber' in v ? (v.pageNumber as number) : 1,
+                                  )
+                                : novelReadHref(v.id, v.chapterId, v.progress),
+                            ),
+                        })),
+                      )
+                    }
+                    onPress={() =>
+                      choose(
+                        variants.map((v) => ({
+                          id: v.id,
+                          title: v.title,
+                          open: () =>
+                            router.push(
+                              v.type === 'manga' ? mangaDetailsHref(v.id) : novelDetailsHref(v.id),
+                            ),
+                        })),
+                      )
+                    }
+                  />
+                  <Pressable
+                    onPress={() => removeReadingItem(item.id, item.type)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Remove from Continue Reading"
+                    className="self-start rounded-full bg-neutral-200 px-2 py-0.5 dark:bg-neutral-800"
+                  >
+                    <Text variant="caption" tone="muted" className="text-[10px]">
+                      ✕ Remove
+                    </Text>
+                  </Pressable>
+                </View>
+              );
+            })}
           </HorizontalSection>
         ) : (
           <View className="mx-4 h-28 items-center justify-center rounded-xl border border-dashed border-neutral-300 bg-neutral-100/70 px-4 dark:border-neutral-800 dark:bg-neutral-900/60">

@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { backendAnimeProvider } from '@/providers/backend-content/anime';
 import { animeParadiseProvider } from '@/providers/animeparadise';
 import { backendComicProvider, backendNovelProvider } from '@/providers/backend-content';
@@ -16,6 +17,7 @@ let initialized = false;
 export const RESTORED_SOURCE_IDS = [
   'animexin',
   'manhuaplus',
+  'ao3',
   'wanderinginn',
   'weebcentral',
   'mangapill',
@@ -41,7 +43,9 @@ function registerComic(
 ) {
   const provider = backendComicProvider(id, name);
   provider.definition.executionMode = 'scraper-backend';
-  provider.definition.backendRequired = true;
+  provider.definition.backendRequired =
+    Platform.OS === 'web' || !['weebcentral', 'demonicscans', 'kaliscan', 'mangajinx'].includes(id);
+  if (!provider.definition.backendRequired) provider.definition.executionMode = 'direct-api';
   provider.definition.status = id === 'manhuaplus' ? 'limited' : 'working';
   if (mediaTypes) provider.definition.mediaTypes = mediaTypes;
   provider.definition.statusNote =
@@ -55,12 +59,22 @@ export function initializeProviders(): void {
 
   providerRegistry.register(builtinMockProvider);
   providerRegistry.register(mangaDexProvider);
+  const suwayomi = backendComicProvider('suwayomi', 'Suwayomi');
+  suwayomi.definition.status = 'requires-configuration';
+  suwayomi.definition.statusNote =
+    'Configure a private Suwayomi service and installed sources on the backend.';
+  providerRegistry.register(suwayomi);
 
   registerComic(
     'manhuaplus',
     'ManhuaPlus',
     'Public images verified locally; backend deployment pending.',
   );
+  const ao3 = backendNovelProvider('ao3', 'Archive of Our Own');
+  ao3.definition.status = 'limited';
+  ao3.definition.statusNote =
+    'Public work search, chapters and text verified locally. Requires updated backend; restricted works remain unavailable.';
+  providerRegistry.register(ao3);
   providerRegistry.register(backendNovelProvider('wanderinginn', 'The Wandering Inn'));
   registerComic('weebcentral', 'WeebCentral');
   registerComic(

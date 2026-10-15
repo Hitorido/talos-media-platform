@@ -48,6 +48,14 @@ export const aniListAnimeProvider: MediaProvider = {
         providerId: PROVIDER_ID,
         sourceId: String(item.id),
         title,
+        editionLabel: format,
+        relatedIds: item.relations?.edges
+          .filter(
+            (edge) =>
+              ['PREQUEL', 'SEQUEL', 'PARENT', 'SIDE_STORY'].includes(edge.relationType) &&
+              edge.node.type === 'ANIME',
+          )
+          .map((edge) => encodeMediaRouteId(PROVIDER_ID, String(edge.node.id))),
         coverUrl,
         type: 'anime',
         status: item.status,

@@ -5,6 +5,7 @@ export default function NovelLayout() {
     <Stack
       screenOptions={{
         headerBackTitle: 'Back',
+        animation: 'none',
         // Readers own their own in-screen controls; hide the header by default.
         headerShown: false,
       }}

@@ -1,3 +1,4 @@
+import { FindAnotherSourceButton } from '@/components/content/FindAnotherSourceButton';
 import { PrivacyAccessGate } from '@/components/content/PrivacyControls';
 import { SourceWebsiteButton } from '@/components/content/SourceWebsiteButton';
 import { PopPressable as Pressable } from '@/components/ui/PopPressable';
@@ -81,6 +82,7 @@ function NovelReaderScreen() {
   const [overlayVisible, setOverlayVisible] = useState<boolean>(true);
   const [readingProgress, setReadingProgress] = useState(chapterScrollProgress);
   const [showSettingsSheet, setShowSettingsSheet] = useState<boolean>(false);
+  const [readerStart, setReaderStart] = useState(chapterId);
   const [showChapterPicker, setShowChapterPicker] = useState<boolean>(false);
   const [showChapterNavPrompt, setShowChapterNavPrompt] = useState<boolean>(false);
   const [contentCache, setContentCache] = useState<{
@@ -119,6 +121,7 @@ function NovelReaderScreen() {
   const [syncedProgressKey, setSyncedProgressKey] = useState(routeProgressKey);
   if (syncedProgressKey !== routeProgressKey) {
     setSyncedProgressKey(routeProgressKey);
+    setReaderStart(chapterId);
     setActiveChapterId(chapterId);
     setReadingProgress(chapterScrollProgress);
   }
@@ -167,7 +170,11 @@ function NovelReaderScreen() {
     // Continuous reading appends nearby chapters ahead of the reader; normal stays chapter-based.
     const targets =
       settings.scrollMode === 'continuous'
-        ? novel.chapters.slice(Math.max(0, index), Math.max(0, index) + 3).map((ch) => ch.id)
+        ? [
+            ...novel.chapters.slice(Math.max(0, index), Math.max(0, index) + 1),
+            ...novel.chapters.slice(Math.max(0, index - 1), Math.max(0, index)),
+            ...novel.chapters.slice(Math.max(0, index + 1), Math.max(0, index) + 3),
+          ].map((ch) => ch.id)
         : [activeChapterId];
     void (async () => {
       for (const target of targets) {
@@ -192,7 +199,7 @@ function NovelReaderScreen() {
             setContentError(error instanceof Error ? error.message : 'Chapter unavailable.');
             setContentLoading(false);
           }
-          break;
+          if (target === activeChapterId) break;
         }
       }
     })();
@@ -397,12 +404,18 @@ function NovelReaderScreen() {
   };
 
   const handlePrevChapter = () => {
-    if (prevChapter) setActiveChapterId(prevChapter.id);
+    if (prevChapter) {
+      setReaderStart(prevChapter.id);
+      setActiveChapterId(prevChapter.id);
+    }
     setShowChapterNavPrompt(false);
   };
 
   const handleNextChapter = () => {
-    if (nextChapter) setActiveChapterId(nextChapter.id);
+    if (nextChapter) {
+      setReaderStart(nextChapter.id);
+      setActiveChapterId(nextChapter.id);
+    }
     setShowChapterNavPrompt(false);
   };
 
@@ -411,6 +424,7 @@ function NovelReaderScreen() {
   const selectChapter = (chapterIdToOpen: string) => {
     setShowChapterPicker(false);
     if (chapterIdToOpen !== activeChapterId) {
+      setReaderStart(chapterIdToOpen);
       setActiveChapterId(chapterIdToOpen);
     }
   };
@@ -442,6 +456,7 @@ function NovelReaderScreen() {
         <Pressable onPress={retryContent} className="mt-2">
           <Text tone="primary">Retry</Text>
         </Pressable>
+        <FindAnotherSourceButton routeId={id} title={novel?.title} />
         <SourceWebsiteButton routeId={id} chapterId={chapterId} />
         <Pressable onPress={handleBack} className="mt-2">
           <Text className="text-neutral-400">Go back</Text>
@@ -481,12 +496,12 @@ function NovelReaderScreen() {
         ref={novelReaderRef}
         key={
           settings.scrollMode === 'continuous'
-            ? `novel-continuous-${id}-${chapterId}`
+            ? `novel-continuous-${id}-${readerStart}`
             : `novel-${id}-${activeChapterId}`
         }
         chapters={chaptersToLoad}
         activeChapterId={activeChapterId}
-        initialChapterId={settings.scrollMode === 'continuous' ? chapterId : activeChapterId}
+        initialChapterId={settings.scrollMode === 'continuous' ? readerStart : activeChapterId}
         settings={settings}
         initialScrollPercentage={activeChapterId === chapterId ? chapterScrollProgress : 0}
         onScrollProgress={saveProgress}
@@ -591,7 +606,17 @@ function NovelReaderScreen() {
               </Pressable>
             </View>
             <FlatList
-              style={{ maxHeight: 320 }}
+              key={showChapterPicker ? 'open' : 'closed'}
+              style={{ height: 320 }}
+              initialScrollIndex={
+                showChapterPicker
+                  ? Math.max(
+                      0,
+                      novel.chapters.findIndex((ch) => ch.id === activeChapterId),
+                    )
+                  : 0
+              }
+              getItemLayout={(_, index) => ({ length: 60, offset: 60 * index, index })}
               data={showChapterPicker ? novel.chapters : []}
               keyExtractor={(chapter) => chapter.id}
               initialNumToRender={12}
@@ -600,13 +625,14 @@ function NovelReaderScreen() {
                   key={chapter.id}
                   onPress={() => selectChapter(chapter.id)}
                   className={cn(
-                    'mb-2 rounded-xl border px-3 py-3',
+                    'mb-2 h-[52px] justify-center rounded-xl border px-3',
                     chapter.id === activeChapterId
                       ? 'border-primary-500 bg-primary-500/10'
                       : 'border-neutral-800 bg-neutral-900',
                   )}
                 >
                   <Text
+                    numberOfLines={1}
                     className={cn(
                       'text-sm font-medium',
                       chapter.id === activeChapterId ? 'text-primary-400' : 'text-white',
