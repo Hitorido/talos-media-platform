@@ -15,6 +15,7 @@ type SearchResultItemProps = {
   onPress?: () => void;
   className?: string;
   sourceCount?: number;
+  editionCount?: number;
   poster?: boolean;
 };
 
@@ -23,6 +24,7 @@ export function SearchResultItem({
   onPress,
   className,
   sourceCount = 1,
+  editionCount = 1,
   poster = false,
 }: SearchResultItemProps) {
   const displayCover = useMediaCover(item.id, item.coverUrl);
@@ -53,6 +55,11 @@ export function SearchResultItem({
           className="h-full w-full"
           resizeMode="cover"
         />
+        {editionCount > 1 ? (
+          <View className="absolute bottom-1 left-1 right-1">
+            <Badge label={`${editionCount} seasons / movies`} variant="primary" compact />
+          </View>
+        ) : null}
       </View>
       <View
         style={poster ? { height: 140, gap: 4 } : undefined}

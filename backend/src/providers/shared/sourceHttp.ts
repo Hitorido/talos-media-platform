@@ -40,7 +40,7 @@ export async function sourceText(
         if (response.status === 403)
           throw new ProviderGatewayError(
             'Source refused this request (HTTP 403). Try another source.',
-            502,
+            403,
             'SOURCE_BLOCKED',
           );
         if (response.status === 429)
@@ -52,7 +52,7 @@ export async function sourceText(
         if (!response.ok)
           throw new ProviderGatewayError(
             `Source HTTP ${response.status}.`,
-            response.status === 404 ? 404 : 502,
+            response.status >= 400 && response.status <= 599 ? response.status : 502,
             'UPSTREAM_FAILED',
           );
         const reader = response.body?.getReader();
@@ -85,7 +85,7 @@ export async function sourceText(
         if (cause === 'ENOTFOUND' || cause === 'EAI_AGAIN')
           throw new ProviderGatewayError(
             'Source domain could not be resolved. Try again later.',
-            502,
+            503,
             'SOURCE_DNS_FAILED',
           );
 

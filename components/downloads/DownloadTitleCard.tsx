@@ -1,10 +1,8 @@
+import { getProviderDisplayName } from '@/services/contentService';
+import { downloadTitleKey } from '@/services/downloadGroups';
 import { SwipeableRow } from '@/components/ui/SwipeableRow';
-import {
-  deleteDownload,
-  pauseDownload,
-  resumeDownload,
-  retryDownload,
-} from '@/services/downloadService';
+import { deleteDownload } from '@/services/downloadService';
+import { SavedChapterPager } from './SavedChapterPager';
 import { useDownloadStore } from '@/stores/downloadStore';
 import { Badge } from '@/components/ui/Badge';
 import { PopPressable as Pressable } from '@/components/ui/PopPressable';
@@ -25,7 +23,7 @@ import type { DownloadItem } from '@/types/download';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Image, View } from 'react-native';
+import { Image, View, Modal, FlatList } from 'react-native';
 
 export function DownloadTitleCard({
   group,
@@ -37,7 +35,16 @@ export function DownloadTitleCard({
   children?: React.ReactNode;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [source, setSource] = useState<string | null>(null);
+  const [pickerIntent, setPickerIntent] = useState<'read' | 'details'>('read');
   const router = useRouter();
+  const sources = [...new Set(group.items.map((item) => item.mediaId))];
+  const sourceItems = group.items.filter((item) => item.mediaId === (source ?? sources[0]));
+  const showSaved = (intent: 'read' | 'details' = 'read') => {
+    setSource(sources.length === 1 ? sources[0] : null);
+    setPickerIntent(intent);
+    setExpanded(true);
+  };
   const first = group.items[0];
   const anime = useAnimeProgressStore((s) => s.progressByAnime[first.mediaId]);
   const manga = useMangaProgressStore((s) => s.progressByManga[first.mediaId]);
@@ -53,10 +60,10 @@ export function DownloadTitleCard({
   const unitLabel = (item: DownloadItem) =>
     item.unitTitle?.trim() ||
     `${item.mediaType === 'anime' ? 'Episode' : 'Chapter'} ${item.unitNumber}`;
-  const current = group.items.find((item) => item.unitId === savedUnit) ?? resume ?? first;
+
   const deleteTitle = () => {
     const all = Object.values(useDownloadStore.getState().items).filter(
-      (item) => item.mediaId === first.mediaId && item.mediaType === first.mediaType,
+      (item) => downloadTitleKey(item) === downloadTitleKey(first),
     );
     void Promise.all(all.map((item) => deleteDownload(item.id)));
   };
@@ -72,18 +79,25 @@ export function DownloadTitleCard({
         ? animeWatchHref(
             item.mediaId,
             item.unitId,
-            item.unitId === anime?.episodeId ? anime.positionSeconds : 0,
+            useAnimeProgressStore.getState().getEpisodeProgress(item.mediaId, item.unitId)
+              ?.positionSeconds ?? 0,
           )
         : item.mediaType === 'novel'
           ? novelReadHref(
               item.mediaId,
               item.unitId,
-              item.unitId === novel?.chapterId ? novel.scrollPercentage : 0,
+              useNovelProgressStore.getState().progressByNovel[item.mediaId]?.chapterId ===
+                item.unitId
+                ? useNovelProgressStore.getState().progressByNovel[item.mediaId].scrollPercentage
+                : 0,
             )
           : mangaReadHref(
               item.mediaId,
               item.unitId,
-              item.unitId === manga?.chapterId ? manga.pageNumber : 1,
+              useMangaProgressStore.getState().progressByManga[item.mediaId]?.chapterId ===
+                item.unitId
+                ? useMangaProgressStore.getState().progressByManga[item.mediaId].pageNumber
+                : 1,
             ),
     );
   return (
@@ -102,7 +116,9 @@ export function DownloadTitleCard({
         >
           <Pressable
             className="absolute inset-0"
-            onPress={() => (resume ? open(resume) : router.push(details))}
+            onPress={() =>
+              sources.length > 1 ? showSaved() : resume ? open(resume) : router.push(details)
+            }
             accessibilityLabel={resume ? `Continue ${group.title}` : `Details for ${group.title}`}
           />
           <View pointerEvents="none">
@@ -123,7 +139,8 @@ export function DownloadTitleCard({
             <Pressable
               onPress={(e) => {
                 e.stopPropagation();
-                router.push(details);
+                if (sources.length > 1) showSaved('details');
+                else router.push(details);
               }}
               accessibilityLabel={`Details for ${group.title}`}
             >
@@ -158,7 +175,7 @@ export function DownloadTitleCard({
           <Pressable
             onPress={(e) => {
               e.stopPropagation();
-              setExpanded(!expanded);
+              showSaved();
             }}
             accessibilityLabel="Show downloaded chapters or episodes"
             accessibilityState={{ expanded }}
@@ -166,60 +183,81 @@ export function DownloadTitleCard({
             className="flex-row items-center justify-center gap-1 rounded-xl bg-primary-100 px-1 py-1 dark:bg-primary-950"
           >
             <Text variant="caption" numberOfLines={1} style={{ flexShrink: 1, fontSize: 10 }}>
-              {unitLabel(current)}
+              Saved {first.mediaType === 'anime' ? 'episodes' : 'chapters'}
             </Text>
-            <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={14} color="#8b5cf6" />
+            <Ionicons name="list-outline" size={14} color="#8b5cf6" />
           </Pressable>
         </View>
       </SwipeableRow>
-      {expanded ? (
-        <View className="gap-2 p-2">
-          {children ??
-            group.items.map((item) => (
-              <SwipeableRow
-                key={item.id}
-                onSwipeRight={() => void deleteDownload(item.id)}
-                actionLabel="Delete"
-                actionIcon="trash-outline"
-              >
-                <View className="gap-1 rounded-lg bg-neutral-100 p-2 dark:bg-neutral-900">
-                  <Pressable disabled={item.status !== 'completed'} onPress={() => open(item)}>
-                    <Text variant="caption">{unitLabel(item)}</Text>
-                  </Pressable>
-                  <Text
-                    variant="caption"
-                    tone="muted"
-                    numberOfLines={1}
-                    style={{ fontSize: 10, lineHeight: 16 }}
-                  >
-                    {item.status === 'downloading'
-                      ? `${Math.round(item.progress * 100)}%`
-                      : item.status}
-                  </Text>
-                  {item.status !== 'completed' && (
+      <Modal
+        visible={expanded}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setExpanded(false)}
+      >
+        <View className="flex-1 justify-center bg-black/60 px-5">
+          <Pressable
+            className="absolute inset-0"
+            onPress={() => setExpanded(false)}
+            accessibilityLabel="Close saved chapters"
+          />
+          <View className="max-h-[75%] w-full max-w-lg self-center rounded-2xl bg-white p-4 dark:bg-neutral-900">
+            <Text variant="h3" numberOfLines={2}>
+              {group.title}
+            </Text>
+            {sources.length > 1 && source ? (
+              <Pressable onPress={() => setSource(null)} className="py-3">
+                <Text tone="primary">Change source</Text>
+              </Pressable>
+            ) : null}
+            {!source && sources.length > 1 ? (
+              <FlatList
+                data={sources}
+                keyExtractor={(item) => item}
+                renderItem={({ item: mediaId }) => {
+                  const entries = group.items.filter((item) => item.mediaId === mediaId);
+                  return (
                     <Pressable
-                      onPress={() =>
-                        item.status === 'downloading' || item.status === 'queued'
-                          ? pauseDownload(item.id)
-                          : item.status === 'paused'
-                            ? resumeDownload(item.id)
-                            : retryDownload(item.id)
-                      }
+                      className="my-2 rounded-xl border border-primary-400 bg-primary-100 p-3 dark:bg-primary-950"
+                      onPress={() => {
+                        if (pickerIntent === 'details') {
+                          setExpanded(false);
+                          router.push(
+                            first.mediaType === 'anime'
+                              ? animeDetailsHref(mediaId)
+                              : first.mediaType === 'novel'
+                                ? novelDetailsHref(mediaId)
+                                : mangaDetailsHref(mediaId),
+                          );
+                        } else setSource(mediaId);
+                      }}
                     >
-                      <Text variant="caption" tone="primary">
-                        {item.status === 'downloading' || item.status === 'queued'
-                          ? 'Pause'
-                          : item.status === 'paused'
-                            ? 'Resume'
-                            : 'Retry'}
+                      <Text>{getProviderDisplayName(entries[0].providerId)}</Text>
+                      <Text variant="caption">
+                        {entries.filter((item) => item.status === 'completed').length} downloaded
                       </Text>
                     </Pressable>
-                  )}
-                </View>
-              </SwipeableRow>
-            ))}
+                  );
+                }}
+              />
+            ) : (
+              (children ?? (
+                <SavedChapterPager
+                  key={source ?? sources[0]}
+                  items={sourceItems}
+                  onOpen={(item) => {
+                    setExpanded(false);
+                    open(item);
+                  }}
+                />
+              ))
+            )}
+            <Pressable onPress={() => setExpanded(false)} className="self-end p-3">
+              <Text tone="primary">Close</Text>
+            </Pressable>
+          </View>
         </View>
-      ) : null}
+      </Modal>
     </View>
   );
 }

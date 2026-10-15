@@ -1,3 +1,5 @@
+import { suwayomiAdapter } from './suwayomi/adapter.js';
+import { ao3Adapter } from './ao3/adapter.js';
 import extensionCatalog from './extensions/index.json';
 import { loadReviewedExtensions } from './extensions/loader.js';
 import { animeXinAdapter } from './animexin/adapter.js';
@@ -35,6 +37,8 @@ export function initializeBackendProviders(): void {
     novelping: novelPingAdapter,
   }))
     registerProvider(adapter);
+  registerProvider(suwayomiAdapter);
+  registerProvider(ao3Adapter);
   registerProvider(wanderingInnAdapter);
   registerProvider(weebCentralAdapter);
   registerProvider(mangaPillAdapter);

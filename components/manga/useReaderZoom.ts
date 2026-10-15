@@ -1,3 +1,5 @@
+/* eslint-disable react-hooks/immutability, react-hooks/refs -- Reanimated shared values are mutable UI-thread state; gesture builders register worklets rather than executing them during render. */
+import { Platform, type View } from 'react-native';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Gesture } from 'react-native-gesture-handler';
 import {
@@ -75,6 +77,40 @@ export function useReaderZoom(
   const touchStartY = useSharedValue(0);
   const scrollRef = useAnimatedRef<any>();
 
+  const webViewportRef = useRef<View>(null);
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const element = webViewportRef.current as unknown as HTMLElement | null;
+    if (!element?.addEventListener) return;
+    const wheel = (event: WheelEvent) => {
+      if (!event.ctrlKey && !event.metaKey) return;
+      event.preventDefault();
+      cancelAnimation(scale);
+      const old = scale.get();
+      const next = clamp(old * Math.exp(-event.deltaY * 0.008), MIN_SCALE, MAX_SCALE);
+      const rect = element.getBoundingClientRect();
+      const px = event.clientX - rect.left - width / 2;
+      const py = event.clientY - rect.top;
+      const limit = horizontalLimit(next, width, pageWidth?.get() ?? width);
+      const total = contentHeight?.get() ?? height;
+      const oldPadding = Math.max(0, (height / old - total) / 2);
+      const nextPadding = Math.max(0, (height / next - total) / 2);
+      const y = clamp(
+        scrollY.get() + py / old - oldPadding - py / next + nextPadding,
+        0,
+        Math.max(0, total - height / next),
+      );
+      x.set(clamp(px - ((px - x.get()) * next) / old, -limit, limit));
+      scale.set(next);
+      scrollY.set(y);
+      const view = scrollRef.current;
+      if (view?.scrollToOffset) view.scrollToOffset({ offset: y, animated: false });
+      else view?.scrollTo({ y, animated: false });
+    };
+    element.addEventListener('wheel', wheel, { passive: false });
+    return () => element.removeEventListener('wheel', wheel);
+  }, [width, height, scale, x, scrollY, scrollRef, pageWidth, contentHeight]);
+
   const zoomAnimating = useSharedValue(false);
   const zoomProgress = useSharedValue(0);
   const zoomFromScale = useSharedValue(1);
@@ -104,17 +140,20 @@ export function useReaderZoom(
     transform: [{ translateX: x.value }, { scale: scale.value }],
   }));
 
-  const pageLimit = () => {
+  const pageLimit = useCallback(() => {
     'worklet';
     return horizontalLimit(scale.value, width, pageWidth?.value ?? width);
-  };
+  }, [scale, width, pageWidth]);
 
-  const maxScrollForScale = (s: number) => {
-    'worklet';
-    return contentHeight
-      ? Math.max(0, contentHeight.value - height / Math.max(s, 0.001))
-      : 1_000_000;
-  };
+  const maxScrollForScale = useCallback(
+    (s: number) => {
+      'worklet';
+      return contentHeight
+        ? Math.max(0, contentHeight.value - height / Math.max(s, 0.001))
+        : 1_000_000;
+    },
+    [contentHeight, height],
+  );
 
   useAnimatedReaction(
     () => scale.value,
@@ -459,9 +498,40 @@ export function useReaderZoom(
     notifyNavigateRight,
     contentHeight,
     pageWidth,
+    anchorScroll,
+    anchorX,
+    anchorY,
+    drivingScroll,
+    flingScroll,
+    flingingScroll,
+    flingingX,
+    lastVx,
+    lastVy,
+    maxScrollForScale,
+    pageLimit,
+    panStartX,
+    panStartY,
+    pinching,
+    scale,
+    scrollRef,
+    scrollY,
+    startScale,
+    startX,
+    touchStartX,
+    touchStartY,
+    x,
+    zoomAnimating,
+    zoomFromScale,
+    zoomFromScroll,
+    zoomFromX,
+    zoomProgress,
+    zoomToScale,
+    zoomToScroll,
+    zoomToX,
   ]);
 
   return {
+    webViewportRef,
     scale,
     x,
     scrollY,

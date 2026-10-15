@@ -531,3 +531,18 @@ Render is reachable: health/readiness/provider endpoints returned 200 after a co
 Original Soul Land on DonghuaStream lists only episodes 262-264; First Episode is a placeholder '#'. Soul Land 2 episode 172 remains local VOD-verified, not proof of all episodes. WCO episode 1 returned challenge 403; Anime4Stream first-episode link was a placeholder. No additional native source passed a complete flow.
 
 See the September 29 section in PHASE-6.5-PROVIDER-EXPANSION.md for offline catalog, screenshot bookmark, gesture, fullscreen/subtitle controls and validation details. Latest changes remain local; physical verification and broader anime coverage remain open.
+
+
+## 2026-10-14 local continuation
+
+- AO3: public adapter added; initial The Villainess Malfoy full flow passed (36 chapters). Repeat full flow timed out; primary host also returned HTTP 525. Official secure.ao3.org search returned 200. Limited, not production-verified.
+- Suwayomi: optional private comic bridge; contract/ownership/image-path fixture checks pass. Requires private service, source IDs and verified extensions; no live service configured.
+- TMDB: optional Movies/TV metadata catalog only, awaiting server token. No playback integration.
+- WeebCentral/DemonicScans/Kaliscan/MangaJinx/Royal Road/Wandering Inn: shared native parsers with gateway recovery added; device access remains unverified. This does not establish resolution of prior Render 403 or DNS failures.
+
+Setup: docs/SUWAYOMI-SETUP.md. No deployment performed.
+
+
+## CinePro Movies/TV bridge - 2026-10-15
+
+Local optional OMSS adapter and `/api/playback/:mediaType/:tmdbId` route added, with catalog-to-player navigation, source/quality selection, windowed external captions and device-local resume. Backend build, frontend typecheck and real HTTP contract fixtures pass (403/429/503/504, invalid parameters, empty payloads, header filtering). No live extractor, deployment or physical playback verified. Requires private CinePro configuration; see docs/CINEPRO-SETUP.md. Existing WatchProgress schema retained; movie/TV cloud sync is not implemented. Earlier catalog-only descriptions are superseded by this optional, configuration-required playback implementation.

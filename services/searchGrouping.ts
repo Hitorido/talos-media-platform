@@ -9,7 +9,27 @@ export function groupSearchResults(results: SearchResult[]): SearchGroup[] {
     if (!group.sources.some((source) => source.id === item.id)) group.sources.push(item);
     groups.set(key, group);
   }
-  return [...groups.values()];
+  const result = [...groups.values()];
+  // Only explicit provider relationships join seasons/movies; title similarity is insufficient.
+  for (let i = 0; i < result.length; i++) {
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (let j = i + 1; j < result.length; j++) {
+        const a = result[i].sources,
+          b = result[j].sources;
+        if (
+          a.some((x) => b.some((y) => x.relatedIds?.includes(y.id) || y.relatedIds?.includes(x.id)))
+        ) {
+          result[i].sources.push(...result[j].sources);
+          result.splice(j, 1);
+          changed = true;
+          break;
+        }
+      }
+    }
+  }
+  return result;
 }
 
 /** Same display title and media format; aliases and sequel numbers are not inferred. */

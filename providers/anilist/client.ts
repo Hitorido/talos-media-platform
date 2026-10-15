@@ -26,6 +26,7 @@ query ($search: String, $limit: Int) {
       status
       genres
       format
+      relations { edges { relationType node { id type format title { english romaji native } } } }
     }
   }
 }
@@ -53,6 +54,7 @@ query ($id: Int) {
     genres
     seasonYear
     format
+    relations { edges { relationType node { id type format title { english romaji native } } } }
     studios(isMain: true) {
       nodes {
         name
@@ -68,6 +70,17 @@ query ($id: Int) {
 
 export type AniListAnime = {
   id: number;
+  relations?: {
+    edges: {
+      relationType: string;
+      node: {
+        id: number;
+        type: string;
+        format?: string;
+        title: { english?: string; romaji?: string; native?: string };
+      };
+    }[];
+  };
   title: {
     romaji?: string;
     english?: string;

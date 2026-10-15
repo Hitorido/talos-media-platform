@@ -1,3 +1,5 @@
+import { tmdbCatalog } from '../providers/tmdb/catalog.js';
+import { suwayomiImage } from '../providers/suwayomi/adapter.js';
 import { imageProxy, videoProxy } from '../media/proxy.js';
 import { animeParadisePlaylist } from '../providers/animeparadise/playlist.js';
 import { novelPingDiscovery } from '../providers/novelping/discovery.js';
@@ -15,6 +17,8 @@ import { asyncHandler } from '../utils/asyncHandler.js';
  * Provider-specific logic lives in adapters; this router only validates params and delegates.
  */
 export const contentRouter = Router();
+contentRouter.get('/catalog/:kind', asyncHandler(tmdbCatalog));
+contentRouter.get('/suwayomi/image', asyncHandler(suwayomiImage));
 
 contentRouter.get('/proxy/:providerId/image', asyncHandler(imageProxy));
 contentRouter.get('/proxy/:providerId/video/:mediaId/:episodeId', asyncHandler(videoProxy));

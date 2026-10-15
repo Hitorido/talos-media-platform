@@ -6,11 +6,13 @@ try {
     [403, 'SOURCE_BLOCKED'],
     [429, 'SOURCE_RATE_LIMITED'],
     [404, 'UPSTREAM_FAILED'],
+    [503, 'UPSTREAM_FAILED'],
+    [504, 'UPSTREAM_FAILED'],
   ]) {
     globalThis.fetch = async () => ({ ok: false, status });
     await assert.rejects(
       sourceText('https://test.invalid', '/http-' + status),
-      (e) => e.code === code && e.statusCode !== 200,
+      (e) => e.code === code && e.statusCode === status,
     );
   }
   for (const [cause, code] of [
@@ -21,7 +23,10 @@ try {
     globalThis.fetch = async () => {
       throw Object.assign(new Error('fetch failed'), { cause: { code: cause } });
     };
-    await assert.rejects(sourceText('https://test.invalid', '/' + cause), (e) => e.code === code);
+    await assert.rejects(
+      sourceText('https://test.invalid', '/' + cause),
+      (e) => e.code === code && e.statusCode === (cause === 'UND_ERR_CONNECT_TIMEOUT' ? 504 : 503),
+    );
   }
   console.log('PASS blocked, rate-limited, missing, DNS and timeout failures remain distinct');
 } finally {

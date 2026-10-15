@@ -17,9 +17,10 @@ type SearchResultsListProps = {
 
 export function SearchResultsList({ results, query, onResultPress }: SearchResultsListProps) {
   const [selectedGroup, setSelectedGroup] = useState<SearchGroup | null>(null);
+  const [edition, setEdition] = useState<string | null>(null);
   const { width } = useWindowDimensions();
   const [availableWidth, setAvailableWidth] = useState(Math.min(width, 1280));
-  const columns = 3;
+  const columns = Math.max(3, Math.min(8, Math.floor(availableWidth / 165)));
   const [counts, setCounts] = useState<Record<string, number>>({});
   useEffect(() => {
     const controller = new AbortController();
@@ -49,22 +50,42 @@ export function SearchResultsList({ results, query, onResultPress }: SearchResul
     [results, counts],
   );
   const groups = useMemo(() => groupSearchResults(sortedResults), [sortedResults]);
+  const editions = [...new Set(selectedGroup?.sources.map((item) => item.title) ?? [])];
+  const choosingEdition = editions.length > 1 && edition === null;
   return (
     <>
       <SelectionModal
+        closeOnSelect={false}
         accentOptions
         visible={!!selectedGroup}
         title={selectedGroup?.title ?? 'Choose source'}
-        options={(selectedGroup?.sources ?? []).map((item) => ({
-          value: item.id,
-          label: getProviderDisplayName(item.providerId),
-          detail:
-            (item.episodeCount ?? counts[item.id] ?? item.chapterCount) !== undefined
-              ? `${item.episodeCount ?? counts[item.id] ?? item.chapterCount} ${item.type === 'anime' ? 'episodes' : 'catalog chapters'}`
-              : undefined,
-        }))}
-        onSelect={(id) => {
-          const item = selectedGroup?.sources.find((item) => item.id === id);
+        options={
+          choosingEdition
+            ? editions.map((title) => ({
+                value: title,
+                label: title,
+                detail:
+                  selectedGroup?.sources.find((item) => item.title === title)?.editionLabel ??
+                  'Series',
+              }))
+            : (selectedGroup?.sources ?? [])
+                .filter((item) => edition === null || item.title === edition)
+                .map((item) => ({
+                  value: item.id,
+                  label: getProviderDisplayName(item.providerId),
+                  detail: item.episodeCount ? `${item.episodeCount} episodes` : undefined,
+                }))
+        }
+        onSelect={(value) => {
+          if (choosingEdition) {
+            const matches = selectedGroup!.sources.filter((item) => item.title === value);
+            if (matches.length === 1) {
+              setSelectedGroup(null);
+              onResultPress?.(matches[0]);
+            } else setEdition(value);
+            return;
+          }
+          const item = selectedGroup?.sources.find((item) => item.id === value);
           setSelectedGroup(null);
           if (item) onResultPress?.(item);
         }}
@@ -94,9 +115,12 @@ export function SearchResultsList({ results, query, onResultPress }: SearchResul
             <SearchResultItem
               poster
               item={item.sources[0]}
-              sourceCount={item.sources.length}
+              editionCount={new Set(item.sources.map((source) => source.title)).size}
+              sourceCount={new Set(item.sources.map((source) => source.providerId)).size}
               onPress={() =>
-                item.sources.length > 1 ? setSelectedGroup(item) : onResultPress?.(item.sources[0])
+                item.sources.length > 1
+                  ? (setEdition(null), setSelectedGroup(item))
+                  : onResultPress?.(item.sources[0])
               }
             />
           </View>

@@ -205,6 +205,23 @@ useStore.getState = () => state;
 const jsx = (type, props) => ({ type, props });
 let backHandlerListeners = [];
 const Player = loadComponent('app/anime/[id]/watch/[episodeId].tsx', {
+  '@/stores/libraryStore': { useLibraryStore: library },
+  '@/hooks/useAnimeContent': {
+    useAnimeContent: () => ({
+      anime: {
+        episodes: [
+          { id: '1', number: 1 },
+          { id: '2', number: 2 },
+        ],
+      },
+    }),
+  },
+  '@/components/content/RelatedEditions': { RelatedEditions: 'RelatedEditions' },
+  '@/components/content/SelectionModal': {
+    ChapterRangePicker: 'RangePicker',
+    chapterRange: (items) => items,
+  },
+  '@/components/anime/EpisodeList': { EpisodeList: 'EpisodeList' },
   '@/services/offlineSubtitles': {
     readSubtitleText: async (url, signal) => (await fetch(url, { signal })).text(),
   },
@@ -237,7 +254,7 @@ const Player = loadComponent('app/anime/[id]/watch/[episodeId].tsx', {
       View: 'AnimatedView',
       timing: (_val, _cfg) => ({
         start(cb) {
-          if (typeof cb === 'function') cb();
+          if (typeof cb === 'function') cb({ finished: true });
         },
       }),
     },
@@ -264,6 +281,7 @@ const Player = loadComponent('app/anime/[id]/watch/[episodeId].tsx', {
   '@/components/ui': { Badge: 'Badge', Text: 'Text', Button: 'ControlButton' },
   '@/components/ui/PopPressable': { PopPressable: 'Button' },
   '@/components/content/SourceWebsiteButton': { SourceWebsiteButton: 'Website' },
+  '@/components/content/FindAnotherSourceButton': { FindAnotherSourceButton: 'FindSource' },
   '@/services/subtitleCues': loadProviderTs('services/subtitleCues.ts'),
   '@/stores/mediaBookmarkStore': { useMediaBookmarkStore: (fn) => fn({ save() {} }) },
   '@/stores/animeProgressStore': { useAnimeProgressStore: useStore },
@@ -352,7 +370,7 @@ function byLabel(node, label) {
       const hit = byLabel(item, label);
       if (hit) return hit;
     }
-  } else if (node.props?.label === label) return node;
+  } else if (node.props?.label === label || node.props?.accessibilityLabel === label) return node;
   else return byLabel(node.props?.children, label);
 }
 assert.ok(byLabel(playerTree, 'Settings'));
@@ -367,6 +385,14 @@ if (lastBackListener) lastBackListener.listener();
 render();
 assert.equal(find(playerTree, 'Screen').props.options.orientation, 'portrait');
 assert.equal(saved, 90, 'leaveFullscreen saves actual player time');
+const surface = byLabel(playerTree, 'Show or hide playback controls');
+assert.ok(surface, 'surface tap target exists');
+surface.props.onPress();
+render();
+assert.equal(byLabel(playerTree, 'Settings'), undefined, 'tap hides controls');
+surface.props.onPress();
+render();
+assert.ok(byLabel(playerTree, 'Settings'), 'second tap restores controls');
 // Open settings panel so subtitle controls are visible in the tree
 byLabel(playerTree, 'Settings')?.props.onPress();
 render();
@@ -493,6 +519,7 @@ const novelStore = (selector) => selector(novelState);
 novelStore.getState = () => novelState;
 const animate = () => ({ start() {} });
 const Novel = loadComponent('app/novel/[id]/read/[chapterId].tsx', {
+  '@/stores/libraryStore': { useLibraryStore: library },
   react: React,
   'react/jsx-runtime': { jsx, jsxs: jsx },
   'expo-router': {
@@ -525,6 +552,7 @@ const Novel = loadComponent('app/novel/[id]/read/[chapterId].tsx', {
   '@/components/ui': { Badge: 'Badge', Text: 'Text' },
   '@/components/ui/PopPressable': { PopPressable: 'Button' },
   '@/components/content/SourceWebsiteButton': { SourceWebsiteButton: 'Website' },
+  '@/components/content/FindAnotherSourceButton': { FindAnotherSourceButton: 'FindSource' },
   '@/components/novel': {
     NovelReaderText: 'Reader',
     NovelReaderControls: 'Controls',
@@ -623,6 +651,22 @@ assert.equal(
   0,
   'closed chapter picker must not render thousands of rows',
 );
+find(tree, 'Header').props.onOpenChapterList();
+renderNovel();
+assert.equal(find(tree, 'FlatList').props.initialScrollIndex, 2, 'picker opens at chapter 3');
+const selectedRow = find(tree, 'FlatList').props.renderItem({ item: chapters[2] });
+assert.match(selectedRow.props.className, /border-primary-500/);
+settings = { ...settings, scrollMode: 'continuous' };
+selectedRow.props.onPress();
+renderNovel();
+await settleNovel();
+find(tree, 'Header').props.onOpenChapterList();
+renderNovel();
+find(tree, 'FlatList').props.renderItem({ item: chapters[49] }).props.onPress();
+renderNovel();
+await settleNovel();
+assert.ok(requested.includes('49'), 'new selection preloads its previous chapter');
+assert.equal(find(tree, 'Reader').props.initialChapterId, '50');
 console.log(
   'PASS actual novel screen: seamless bounded lookahead, normal next navigation, no progress reset, closed chapter picker remains empty',
 );

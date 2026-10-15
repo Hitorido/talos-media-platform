@@ -78,7 +78,11 @@ export function useSearch() {
   // Adopt a new route query during render (deep links, browser back/forward on
   // web) so the field and the results reset in the same pass.
   const routeQuery = typeof params.q === 'string' ? params.q : '';
-  if (routeQuery.trim() && routeQuery !== query) setQueryState(routeQuery);
+  const [adoptedRouteQuery, setAdoptedRouteQuery] = useState(routeQuery);
+  if (routeQuery !== adoptedRouteQuery) {
+    setAdoptedRouteQuery(routeQuery);
+    if (routeQuery.trim()) setQueryState(routeQuery);
+  }
 
   // The debounce timer must live in a ref so an immediate submit (retry) can
   // cancel it; otherwise a pending timer fires a duplicate search right after.

@@ -1,3 +1,6 @@
+import { useWindowDimensions } from 'react-native';
+import { useLibraryStore } from '@/stores/libraryStore';
+import { PopPressable } from '@/components/ui/PopPressable';
 import { DownloadTitleCard } from '@/components/downloads/DownloadTitleCard';
 import { useHiddenPrivateIds } from '@/hooks/useHiddenPrivateIds';
 import { groupDownloads } from '@/services/downloadGroups';
@@ -19,8 +22,14 @@ function formatTotalSize(bytes: number): string {
 }
 
 export default function DownloadsScreen() {
+  const { width: windowWidth } = useWindowDimensions();
+  const gridWidth = windowWidth >= 700 ? 170 : undefined;
+
   const itemsMap = useDownloadStore((state) => state.items);
   const hidden = useHiddenPrivateIds();
+  const entries = useLibraryStore((s) => s.entries);
+  const tags = useLibraryStore((s) => s.tags);
+  const [selectedTag, setSelectedTag] = useState('all');
   const items = useMemo(
     () => Object.values(itemsMap).filter((item) => !hidden.has(item.mediaId)),
     [itemsMap, hidden],
@@ -40,6 +49,16 @@ export default function DownloadsScreen() {
 
   const filteredItems = useMemo(() => {
     return items
+      .filter(
+        (item) =>
+          selectedTag === 'all' ||
+          entries.some(
+            (entry) =>
+              entry.mediaId === item.mediaId &&
+              (entry.tags.includes(selectedTag) ||
+                (selectedTag === 'Favorites' && entry.isFavorite)),
+          ),
+      )
       .filter((item) => {
         if (activeTab === 'all') return true;
         if (activeTab === 'active')
@@ -50,7 +69,7 @@ export default function DownloadsScreen() {
         return true;
       })
       .sort((a, b) => b.createdAt - a.createdAt || a.id.localeCompare(b.id));
-  }, [items, activeTab]);
+  }, [items, activeTab, selectedTag, entries]);
 
   const totalDownloadedBytes = useMemo(() => {
     return items
@@ -138,6 +157,23 @@ export default function DownloadsScreen() {
       {/* Tabs */}
       <DownloadSectionTabs activeTab={activeTab} counts={counts} onSelectTab={setActiveTab} />
 
+      <View className="flex-row flex-wrap gap-2 px-4">
+        {['all', ...tags].map((tag) => (
+          <PopPressable
+            key={tag}
+            onPress={() => setSelectedTag(tag)}
+            className={
+              selectedTag === tag
+                ? 'rounded-full bg-primary-600 px-3 py-2'
+                : 'rounded-full bg-neutral-200 px-3 py-2 dark:bg-neutral-800'
+            }
+          >
+            <Text style={selectedTag === tag ? { color: '#fff' } : undefined}>
+              {tag === 'all' ? 'All tags' : tag}
+            </Text>
+          </PopPressable>
+        ))}
+      </View>
       {/* Swipe hint */}
       {groupedItems.length > 0 ? (
         <View className="px-4">
@@ -152,7 +188,7 @@ export default function DownloadsScreen() {
       <View className="flex-row flex-wrap items-start gap-3 px-4">
         {groupedItems.length > 0 ? (
           groupedItems.map((group) => (
-            <View key={group.key} style={{ width: '30%', maxWidth: 240 }}>
+            <View key={group.key} style={{ width: gridWidth ?? '30%', maxWidth: 240 }}>
               <DownloadTitleCard poster group={group} />
             </View>
           ))

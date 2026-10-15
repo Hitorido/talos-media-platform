@@ -139,9 +139,9 @@ function RootLayoutNav() {
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         {/* Nested layouts own their own headers; disable the root header to avoid duplicates. */}
-        <Stack.Screen name="anime" options={{ headerShown: false }} />
-        <Stack.Screen name="manga" options={{ headerShown: false }} />
-        <Stack.Screen name="novel" options={{ headerShown: false }} />
+        <Stack.Screen name="anime" options={{ headerShown: false, animation: 'none' }} />
+        <Stack.Screen name="manga" options={{ headerShown: false, animation: 'none' }} />
+        <Stack.Screen name="novel" options={{ headerShown: false, animation: 'none' }} />
         <Stack.Screen name="sources" options={{ title: 'Sources' }} />
       </Stack>
     </ThemeProvider>

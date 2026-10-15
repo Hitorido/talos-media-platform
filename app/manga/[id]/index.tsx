@@ -1,3 +1,4 @@
+import { DuckLoader } from '@/components/ui/DuckLoader';
 import { DetailActions } from '@/components/content/DetailActions';
 import { PrivateSessionButton, PrivacyAccessGate } from '@/components/content/PrivacyControls';
 import { AlternateSourcesModal } from '@/components/content/AlternateSourcesModal';
@@ -6,7 +7,7 @@ import { MediaBookmarks } from '@/components/content/MediaBookmarks';
 import { SourceWebsiteButton } from '@/components/content/SourceWebsiteButton';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { View } from 'react-native';
 import { PopPressable as Pressable } from '@/components/ui/PopPressable';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -82,16 +83,35 @@ function MangaDetailsScreen() {
 
   if (loading) {
     return (
-      <Screen contentContainerClassName="flex-grow items-center justify-center gap-3">
-        <ActivityIndicator size="large" />
-        <Text tone="muted">Loading manga details...</Text>
+      <Screen
+        transitionKey={loading ? 'loading' : error ? 'error' : 'details'}
+        className="items-center justify-center gap-3"
+      >
+        <View
+          style={{
+            flex: 1,
+            width: '100%',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 12,
+          }}
+        >
+          <DuckLoader />
+          <Text tone="muted" className="text-center">
+            Loading manga details...
+          </Text>
+        </View>
       </Screen>
     );
   }
 
   if (!manga || error) {
     return (
-      <Screen scrollable contentContainerClassName="flex-grow justify-center gap-4">
+      <Screen
+        transitionKey={loading ? 'loading' : error ? 'error' : 'details'}
+        scrollable
+        contentContainerClassName="flex-grow justify-center gap-4"
+      >
         <Text variant="h2">Manga not found</Text>
         {error ? <Text tone="muted">{error}</Text> : null}
         <SourceWebsiteButton routeId={id} />
@@ -128,7 +148,11 @@ function MangaDetailsScreen() {
 
   return (
     <View className="flex-1">
-      <Screen scrollable contentContainerClassName="gap-6 pb-28">
+      <Screen
+        transitionKey={loading ? 'loading' : error ? 'error' : 'details'}
+        scrollable
+        contentContainerClassName="gap-6 pb-28"
+      >
         <MangaDetailsHeader manga={manga} />
         <PrivateSessionButton />
 

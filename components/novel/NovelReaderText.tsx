@@ -132,13 +132,11 @@ export const NovelReaderText = forwardRef<NovelReaderTextRef, NovelReaderTextPro
       const chapterOffset = chapterOffsetMapRef.current[targetChapterId];
       if (chapterOffset !== undefined && viewportRef.current > 0) {
         hasRestoredScrollRef.current = true;
-        scrollViewRef.current?.scrollTo({
-          y:
-            chapterOffset +
-            initialScrollPercentage *
-              Math.max(0, (chapterHeightRef.current[targetChapterId] ?? 0) - viewportRef.current),
-          animated: false,
-        });
+        offsetRef.current =
+          chapterOffset +
+          initialScrollPercentage *
+            Math.max(0, (chapterHeightRef.current[targetChapterId] ?? 0) - viewportRef.current);
+        scrollViewRef.current?.scrollTo({ y: offsetRef.current, animated: false });
         currentChapterRef.current = targetChapterId;
         onChapterChange(targetChapterId);
         return;
@@ -271,8 +269,19 @@ export const NovelReaderText = forwardRef<NovelReaderTextRef, NovelReaderTextPro
             <View
               key={chapter.id}
               onLayout={(e) => {
+                const previousOffset = chapterOffsetMapRef.current[chapter.id];
                 chapterOffsetMapRef.current[chapter.id] = e.nativeEvent.layout.y;
                 chapterHeightRef.current[chapter.id] = e.nativeEvent.layout.height;
+                // Preserve the visible passage when a previous chapter is prepended.
+                if (
+                  hasRestoredScrollRef.current &&
+                  chapter.id === currentChapterRef.current &&
+                  previousOffset !== undefined &&
+                  previousOffset !== e.nativeEvent.layout.y
+                ) {
+                  offsetRef.current += e.nativeEvent.layout.y - previousOffset;
+                  scrollViewRef.current?.scrollTo({ y: offsetRef.current, animated: false });
+                }
                 if (chapter.id === targetChapterId) {
                   tryRestoreScrollPosition();
                 }

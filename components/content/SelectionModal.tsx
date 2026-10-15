@@ -10,6 +10,7 @@ export type SelectionOption = { value: string; label: string; detail?: string };
 export function SelectionModal({
   visible,
   accentOptions = false,
+  closeOnSelect = true,
   title,
   options,
   value,
@@ -18,6 +19,7 @@ export function SelectionModal({
 }: {
   visible: boolean;
   accentOptions?: boolean;
+  closeOnSelect?: boolean;
   title: string;
   options: SelectionOption[];
   value?: string;
@@ -45,7 +47,7 @@ export function SelectionModal({
                 accessibilityState={{ checked: value === option.value }}
                 onPress={() => {
                   onSelect(option.value);
-                  onClose();
+                  if (closeOnSelect) onClose();
                 }}
                 className={
                   accentOptions
