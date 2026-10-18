@@ -1,7 +1,7 @@
 {
   "name": "talos",
   "main": "expo-router/entry",
-  "version": "0.6.6-beta",
+  "version": "0.6.8-beta",
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
     "cheerio": "^1.2.0",
