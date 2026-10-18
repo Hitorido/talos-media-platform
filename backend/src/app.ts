@@ -1,9 +1,8 @@
-import { playbackRouter } from './routes/playback.routes.js';
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
-import { prisma } from './config/prisma.js';
 import { ENV } from './config/env.js';
+import { prisma } from './config/prisma.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { initializeBackendProviders } from './providers/index.js';
 import { authRouter } from './routes/auth.routes.js';
@@ -12,6 +11,7 @@ import { favoritesRouter } from './routes/favorites.routes.js';
 import { historyRouter } from './routes/history.routes.js';
 import { libraryRouter } from './routes/library.routes.js';
 import { novelRouter } from './routes/novel.routes.js';
+import { playbackRouter } from './routes/playback.routes.js';
 import { progressRouter } from './routes/progress.routes.js';
 import { providersRouter } from './routes/providers.routes.js';
 import { userRouter } from './routes/user.routes.js';
@@ -80,8 +80,8 @@ export function createApp() {
   // Public update manifest for Talos clients. Keep downloadUrl on GitHub Releases only.
   app.get('/api/version', (_req, res) => {
     res.json({
-      latestVersion: '0.6.7-beta',
-      minimumVersion: '0.6.0-beta',
+      latestVersion: '0.6.8-beta',
+      minimumVersion: '0.6.1-beta',
       downloadUrl: 'https://github.com/Hitorido/talos-media-platform/releases/latest',
       title: 'New version available',
       message: 'Bug fixes and improvements for the Talos beta.',
