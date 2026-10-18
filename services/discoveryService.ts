@@ -7,6 +7,7 @@ import { encodeMediaRouteId } from '@/types/provider';
 import type { NovelLanguage } from '@/utils/novelLanguage';
 
 export type DiscoveryItem = BaseContent & {
+  genres?: string[];
   providerId: string;
   sourceId: string;
   sourceName: string;
@@ -61,6 +62,7 @@ function unique(items: DiscoveryItem[]) {
 const cache = new Map<string, { expires: number; value: DiscoverySection[] }>();
 const pending = new Map<string, Promise<DiscoverySection[]>>();
 type Anime = {
+  genres?: string[];
   id: number;
   status?: string;
   episodes?: number;
@@ -68,7 +70,8 @@ type Anime = {
   title: { english?: string; romaji?: string };
   coverImage?: { large?: string };
 };
-const animeFields = 'id status episodes isAdult title { english romaji } coverImage { large }';
+const animeFields =
+  'id status episodes isAdult genres title { english romaji } coverImage { large }';
 const animeQuery =
   'query { trending: Page(perPage: 12) { media(type: ANIME, sort: TRENDING_DESC, isAdult: false) { ' +
   animeFields +
@@ -90,6 +93,7 @@ function animeItem(media: Anime, signal: string): DiscoveryItem[] {
           type: 'anime',
           status: media.status,
           episodeCount: media.episodes,
+          genres: media.genres,
           signal,
         },
       ]
@@ -178,6 +182,7 @@ export function getDiscovery(
                   providerId: 'mangadex',
                   sourceName: 'MangaDex',
                   title: normalized.title,
+                  genres: normalized.genres,
                   coverUrl: normalized.coverUrl,
                   type: 'manga',
                   comicFormat: normalized.comicFormat,

@@ -16,6 +16,7 @@ import {
   useRollingDownloadSettingsStore,
   type RollingDownloadWindow,
 } from '@/stores/rollingDownloadSettingsStore';
+import { useSettingsStore } from '@/stores/settingsStore';
 import { cn } from '@/utils/cn';
 
 export default function SettingsScreen() {
@@ -61,6 +62,21 @@ export default function SettingsScreen() {
           Enable, disable, and review content providers.
         </Text>
       </Pressable>
+
+      <View className="gap-3 rounded-2xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
+        <View className="flex-row items-center justify-between gap-4">
+          <View className="flex-1 gap-1">
+            <Text variant="label">Preload whole chapter</Text>
+            <Text variant="caption" tone="muted">
+              Load all pages in the chapter upfront instead of loading a few pages ahead. Uses more data and memory, but eliminates page loading delays while reading.
+            </Text>
+          </View>
+          <Switch
+            value={useSettingsStore((state) => state.preloadWholeChapter)}
+            onValueChange={(val) => useSettingsStore.getState().setPreloadWholeChapter(val)}
+          />
+        </View>
+      </View>
 
       <View className="gap-3 rounded-2xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
         <View className="flex-row items-center justify-between gap-4">

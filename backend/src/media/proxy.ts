@@ -10,7 +10,7 @@ export function imageTarget(provider: string, path: unknown) {
   if (typeof path !== 'string') throw new ProviderGatewayError('Invalid media path.', 400);
   if (
     provider === 'mangapill' &&
-    /^\/file\/(?:mangapill\/i\/\d+|mangap\/\d+\/\d+\/\d+)\.(?:webp|png|jpe?g)(?:\?[ht]=[a-zA-Z0-9-]+)?$/.test(
+    /^\/file\/(?:mangapill\/i\/[a-zA-Z0-9_-]+|mangap\/[a-zA-Z0-9_/.-]+)\.(?:webp|png|jpe?g)(?:\?[ht]=[a-zA-Z0-9-]+)?$/.test(
       path,
     )
   )

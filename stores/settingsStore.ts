@@ -9,10 +9,12 @@ const MAX_SEARCH_HISTORY = 8;
 type SettingsState = {
   searchHistory: string[];
   preferredLanguage: string;
+  preloadWholeChapter: boolean;
   addSearchHistory: (term: string) => void;
   removeSearchHistory: (term: string) => void;
   clearSearchHistory: () => void;
   setPreferredLanguage: (language: string) => void;
+  setPreloadWholeChapter: (enabled: boolean) => void;
 };
 
 export const useSettingsStore = create<SettingsState>()(
@@ -20,6 +22,7 @@ export const useSettingsStore = create<SettingsState>()(
     (set) => ({
       searchHistory: ['Stellar Horizon', 'Iron Bloom', 'fantasy'],
       preferredLanguage: 'en',
+      preloadWholeChapter: false,
 
       addSearchHistory: (term) => {
         if (usePrivacyStore.getState().incognito) return;
@@ -50,6 +53,10 @@ export const useSettingsStore = create<SettingsState>()(
       setPreferredLanguage: (language) => {
         set({ preferredLanguage: language.trim() || 'en' });
       },
+
+      setPreloadWholeChapter: (enabled) => {
+        set({ preloadWholeChapter: enabled });
+      },
     }),
     {
       name: 'settings',
@@ -57,6 +64,7 @@ export const useSettingsStore = create<SettingsState>()(
       partialize: (state) => ({
         searchHistory: state.searchHistory,
         preferredLanguage: state.preferredLanguage,
+        preloadWholeChapter: state.preloadWholeChapter,
       }),
     },
   ),

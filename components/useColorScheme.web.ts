@@ -1,8 +1,13 @@
-// NOTE: The default React Native styling doesn't support server rendering.
-// Server rendered styles should not change between the first render of the HTML
-// and the first render on the client. Typically, web developers will use CSS media queries
-// to render different styles on the client and server, these aren't directly supported in React Native
-// but can be achieved using a styling library like Nativewind.
+import { useSyncExternalStore } from 'react';
+import { useColorScheme as useNativeWindColorScheme } from 'nativewind';
+const subscribe = () => () => {};
+/** Match navigation colors to NativeWind, with stable server hydration. */
 export function useColorScheme() {
-  return 'light';
+  const { colorScheme } = useNativeWindColorScheme();
+  const mounted = useSyncExternalStore(
+    subscribe,
+    () => true,
+    () => false,
+  );
+  return mounted && colorScheme === 'dark' ? 'dark' : 'light';
 }

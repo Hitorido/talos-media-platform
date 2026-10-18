@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { GenreFilters } from '@/components/content/GenreFilters';
 import { SearchSuggestions } from '@/components/search/SearchSuggestions';
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -37,6 +39,13 @@ export default function SearchScreen() {
     showEmpty,
   } = useSearch();
 
+  const [genre, setGenre] = useState('All genres');
+  const genres = [...new Set(results.flatMap((item) => item.tags))].sort();
+  const selectedGenre = genres.includes(genre) ? genre : 'All genres';
+  const filteredResults =
+    selectedGenre === 'All genres'
+      ? results
+      : results.filter((item) => item.tags.includes(selectedGenre));
   const showResults = hasQuery && !error && results.length > 0;
 
   return (
@@ -48,6 +57,7 @@ export default function SearchScreen() {
         <View className="gap-3 border-b border-neutral-200 px-4 py-3 dark:border-neutral-800">
           <SearchBar value={query} onChangeText={setQuery} onClear={clearQuery} onSubmit={retry} />
           <SearchFilterTabs value={filter} onChange={setFilter} />
+          <GenreFilters genres={genres} value={selectedGenre} onChange={setGenre} />
           <SearchSuggestions filter={filter} query={query} results={results} />
         </View>
 
@@ -63,7 +73,7 @@ export default function SearchScreen() {
 
           {!error && showResults ? (
             <SearchResultsList
-              results={results}
+              results={filteredResults}
               query={query.trim()}
               onResultPress={(item) => {
                 if (item.type === 'anime') {

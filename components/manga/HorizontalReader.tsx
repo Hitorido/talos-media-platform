@@ -233,9 +233,9 @@ export const HorizontalReader = memo(
           onScrollBeginDrag={() => {
             pendingTarget.current = null;
           }}
-          initialNumToRender={5}
-          maxToRenderPerBatch={3}
-          windowSize={7}
+          initialNumToRender={7}
+          maxToRenderPerBatch={5}
+          windowSize={15}
           getItemLayout={(_, index) => ({
             length: SCREEN_WIDTH,
             offset: SCREEN_WIDTH * index,

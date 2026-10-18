@@ -23,23 +23,45 @@ async function chapterDocument(sourceId: string, chapter: string) {
   const prefix = '/manga/' + mediaId(sourceId) + '/' + chapterId(chapter) + '/';
   const $ = load(await sourceText(origin, prefix));
   const paths = new Map<number, string>([[1, prefix]]);
+  const directImages = new Map<number, string>();
+
+  // Layout 1: traditional paginated manga with select option dropdown
   $('select option').each((_, el) => {
     const path = $(el).attr('value') || '';
     if (!path.startsWith(prefix)) return;
     const match = path.slice(prefix.length).match(/^([0-9]+)[.]html$/);
     if (match) paths.set(Number(match[1]), path);
   });
+
+  // Layout 2: webtoon / manhwa layout where all page images are rendered in the chapter page
+  const continuousImages: string[] = [];
+  $('img.image').each((_, el) => {
+    const src = $(el).attr('src') || $(el).attr('data-src');
+    if (src) continuousImages.push(src);
+  });
+
+  if (continuousImages.length > 0) {
+    if (continuousImages.length > 500) {
+      throw new ProviderGatewayError('Chapter page list unavailable or exceeds supported size.', 502);
+    }
+    continuousImages.forEach((src, idx) => {
+      directImages.set(idx + 1, src);
+    });
+    const ordered = [...directImages.keys()].sort((a, b) => a - b);
+    return { $, paths, directImages, ordered };
+  }
+
   if (
     !$('#image').attr('src') ||
-    paths.size > 300 ||
-    [...paths.keys()].some((n) => n < 1 || n > 300)
+    paths.size > 500 ||
+    [...paths.keys()].some((n) => n < 1 || n > 500)
   ) {
     throw new ProviderGatewayError('Chapter page list unavailable or exceeds supported size.', 502);
   }
   const ordered = [...paths.keys()].sort((a, b) => a - b);
   if (ordered.some((page, index) => page !== index + 1))
     throw new ProviderGatewayError('Incomplete chapter pagination.', 502);
-  return { $, paths, ordered };
+  return { $, paths, directImages, ordered };
 }
 
 /** Resolve only source-owned identifiers; callers never supply an upstream URL. */
@@ -62,10 +84,15 @@ export async function mangaTownImageUrl(
     }
   } else {
     const document = await chapterDocument(sourceId, chapter);
-    const path = document.paths.get(page!);
-    if (!path) throw new ProviderGatewayError('Page is not listed for this chapter.', 404);
-    const $ = page === 1 ? document.$ : load(await sourceText(origin, path));
-    raw = $('#image').attr('src');
+    if (document.directImages.size > 0) {
+      raw = document.directImages.get(page!);
+      if (!raw) throw new ProviderGatewayError('Page is not listed for this chapter.', 404);
+    } else {
+      const path = document.paths.get(page!);
+      if (!path) throw new ProviderGatewayError('Page is not listed for this chapter.', 404);
+      const $ = page === 1 ? document.$ : load(await sourceText(origin, path));
+      raw = $('#image').attr('src');
+    }
   }
   if (!raw) throw new ProviderGatewayError('Source image unavailable.', 502);
   const url = new URL(raw, origin);
@@ -74,7 +101,7 @@ export async function mangaTownImageUrl(
     /^\/store\/manga\/[0-9]+\/ocover[.]jpg$/.test(url.pathname);
   const content =
     url.origin === 'https://zjcdn.mangahere.org' &&
-    /^\/store\/manga\/[0-9]+\/[0-9.]+\/compressed\/[A-Za-z0-9_-]+[.](?:jpg|jpeg|png|webp)$/.test(
+    /^\/store\/manga\/[0-9]+\/[0-9.]+\/compressed\/[A-Za-z0-9_.-]+[.](?:jpg|jpeg|png|webp)$/.test(
       url.pathname,
     );
   if (url.username || url.password || (chapter ? !content : !cover))
@@ -86,7 +113,7 @@ export const mangaTownAdapter: ContentProviderAdapter = {
   definition: {
     id: providerId,
     name: 'MangaTown',
-    mediaTypes: ['manga'],
+    mediaTypes: ['manga', 'manhwa', 'manhua'],
     capabilities: ['search', 'details', 'chapters', 'pages'],
     status: 'limited',
     statusNote:
@@ -120,14 +147,25 @@ export const mangaTownAdapter: ContentProviderAdapter = {
     rememberCover(sourceId, $('.detail_info > img').first().attr('src'));
     const title = $('h1').first().text().trim();
     if (!title) throw new ProviderGatewayError('MangaTown details unavailable.', 502);
+
+    const genres: string[] = [];
+    $('a[href*="/directory/"]').each((_, el) => {
+      const g = $(el).text().trim();
+      if (g && !genres.includes(g)) genres.push(g);
+    });
+
+    const isManhwa = genres.some((g) => /manhwa/i.test(g));
+    const isManhua = genres.some((g) => /manhua/i.test(g));
+    const mediaType = isManhwa ? 'manhwa' : isManhua ? 'manhua' : 'manga';
+
     return {
       providerId,
       sourceId,
-      mediaType: 'manga',
+      mediaType,
       title,
       coverUrl: imagePath(sourceId),
       description: $('#show').text().trim(),
-      genres: [],
+      genres,
     };
   },
   async getChapters(sourceId) {

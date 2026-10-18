@@ -1,4 +1,5 @@
-import { useWindowDimensions } from 'react-native';
+import { unlockPrivate } from '@/stores/privacyStore';
+import { useWindowDimensions, View } from 'react-native';
 import { useLibraryStore } from '@/stores/libraryStore';
 import { PopPressable } from '@/components/ui/PopPressable';
 import { DownloadTitleCard } from '@/components/downloads/DownloadTitleCard';
@@ -6,7 +7,6 @@ import { useHiddenPrivateIds } from '@/hooks/useHiddenPrivateIds';
 import { groupDownloads } from '@/services/downloadGroups';
 import { appAlert as Alert } from '@/stores/dialogStore';
 import { useMemo, useState } from 'react';
-import { View } from 'react-native';
 
 import { DownloadSectionTabs } from '@/components/downloads';
 import { Button, Screen, Text } from '@/components/ui';
@@ -161,7 +161,10 @@ export default function DownloadsScreen() {
         {['all', ...tags].map((tag) => (
           <PopPressable
             key={tag}
-            onPress={() => setSelectedTag(tag)}
+            onPress={async () => {
+              if (tag === 'Private' && !(await unlockPrivate())) return;
+              setSelectedTag(tag);
+            }}
             className={
               selectedTag === tag
                 ? 'rounded-full bg-primary-600 px-3 py-2'
