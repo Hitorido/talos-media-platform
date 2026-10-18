@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { memo } from 'react';
-import { View } from 'react-native';
+import { memo, useRef } from 'react';
+import { Animated, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Text } from '@/components/ui';
@@ -8,6 +8,7 @@ import { ReaderPressable } from './ReaderPressable';
 
 type MangaReaderHeaderProps = {
   onBookmark?: () => void;
+  isBookmarked?: boolean;
   mangaTitle: string;
   chapterTitle: string;
   onBack: () => void;
@@ -18,6 +19,7 @@ type MangaReaderHeaderProps = {
 
 export const MangaReaderHeader = memo(function MangaReaderHeader({
   onBookmark,
+  isBookmarked = false,
   mangaTitle,
   chapterTitle,
   onBack,
@@ -26,6 +28,24 @@ export const MangaReaderHeader = memo(function MangaReaderHeader({
   onSetCover,
 }: MangaReaderHeaderProps) {
   const insets = useSafeAreaInsets();
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handleBookmark = () => {
+    Animated.sequence([
+      Animated.timing(scaleAnim, {
+        toValue: 1.25,
+        duration: 120,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        friction: 4,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+    ]).start();
+    onBookmark?.();
+  };
 
   return (
     <View
@@ -49,13 +69,24 @@ export const MangaReaderHeader = memo(function MangaReaderHeader({
           </Text>
         </ReaderPressable>
 
-        <ReaderPressable
-          onPress={onBookmark}
-          accessibilityLabel="Bookmark this page"
-          className="mr-2 rounded-full bg-neutral-800 px-3 py-2"
-        >
-          <Text className="text-white">Bookmark</Text>
-        </ReaderPressable>
+        <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+          <ReaderPressable
+            onPress={handleBookmark}
+            accessibilityLabel="Bookmark this page"
+            className={`mr-2 flex-row items-center gap-1.5 rounded-full px-3 py-1.5 ${
+              isBookmarked ? 'bg-amber-500/20 border border-amber-500/40' : 'bg-neutral-800'
+            }`}
+          >
+            <Ionicons
+              name={isBookmarked ? 'bookmark' : 'bookmark-outline'}
+              size={15}
+              color={isBookmarked ? '#eab308' : '#ffffff'}
+            />
+            <Text className={isBookmarked ? 'text-xs font-semibold text-amber-400' : 'text-xs font-medium text-white'}>
+              {isBookmarked ? 'Bookmarked' : 'Bookmark'}
+            </Text>
+          </ReaderPressable>
+        </Animated.View>
         <ReaderPressable
           onPress={onSetCover}
           accessibilityLabel="Use this page as the title cover"

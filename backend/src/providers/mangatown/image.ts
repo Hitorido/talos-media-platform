@@ -15,7 +15,7 @@ export async function mangaTownImage(req: Request, res: Response) {
       (typeof chapterId !== 'string' || !/^c[0-9]+(?:[.][0-9]+)?$/.test(chapterId))) ||
     (chapterId === undefined
       ? page !== undefined
-      : typeof page !== 'string' || !/^[1-9][0-9]{0,2}$/.test(page) || Number(page) > 300)
+      : typeof page !== 'string' || !/^[1-9][0-9]{0,2}$/.test(page) || Number(page) > 500)
   ) {
     throw new ProviderGatewayError(
       'Invalid MangaTown image identifiers.',

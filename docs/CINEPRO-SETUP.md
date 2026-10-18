@@ -26,3 +26,40 @@ Resume is device-local in `movie-tv-progress` and honors incognito. Existing SQL
 ## Verification
 
 Focused tests cover OMSS normalization, header filtering, invalid parameters and actual Express HTTP failure responses. No live CinePro instance or playable title has been verified. Private deployment and physical playback remain required before describing this as a working production source.
+
+
+## Playback delivery update - 2026-10-15
+
+Public HTTPS CinePro instances without configured ingress authorization now retain their OMSS proxy URLs, allowing CinePro to apply headers and rewrite nested playlists. Private/authenticated instances retain the earlier direct URL delivery restrictions. The player tries each returned source once on a native source error and preserves position. This cannot make a refused upstream source accessible.
+
+Live Hope (TMDB 1058424) check: CinePro and Talos resolve three VidApi streams. Master and variant playlists return 200; sampled first segments return a Cloudflare 403 through CinePro. One normal extraction refresh returned the same provider and reported failures for other providers. Hope remains unavailable; no working playback claim is made.
+
+## Optional browser player - 2026-10-15
+
+Movies/TV now offer a selectable Videasy browser player alongside native CinePro playback. Web uses a sandboxed iframe; Android/iOS use Expo-compatible react-native-webview. Only validated TMDB IDs and season/episode numbers construct the fixed provider URL. Switching modes unmounts the other player. No extraction script or access-control bypass is used.
+
+The embedded provider supplies its own controls, captions and quality options. Talos downloads and progress synchronization are not integrated in this mode. Mobile browser sessions are incognito; web iframe storage is controlled by the browser. Popups and top-level navigation are restricted. A page loading does not establish successful media playback; provider blocking or embedding restrictions can still prevent it.
+
+Research: Streambert uses TMDB v3 metadata and separate Videasy/VidSrc/Vidking web players (https://github.com/truelockmc/streambert/blob/main/src/utils/api.js), with Electron-specific request observation. Videasy movie/TV pages returned HTML 200; VidSrc returned 403 and Vidking DNS failed from the test machine. No successful full playback is claimed. Official Expo 57 WebView documentation: https://docs.expo.dev/versions/v57.0.0/sdk/webview/ .
+
+Web UI: details use metadata on the left and episodes/chapters on the right at widths >=1024px; smaller screens remain stacked. Navigation colors now follow NativeWind instead of a hardcoded light scheme. Web buttons fit their labels unless explicitly fullWidth.
+
+Installed APKs need a rebuild for the new WebView native dependency; Expo Go includes WebView. Deploy a refreshed web export for browser changes. Backend redeployment is not required for this browser mode.
+
+### Additional browser choices
+
+Videasy, VidSrc and SuperEmbed are selectable browser players using documented URL formats. Ordinary requests for movie 155 and TV 1399 S1E1 returned HTML 200 on 2026-10-15; this is not decoded video/phone playback proof. SuperEmbed documents https://multiembed.mov/?video_id=155&tmdb=1 and TV s/e parameters, not the proposed JSON endpoint. VidSrc documents https://vidsrc.sh/embed/movie/155 and /embed/tv/1399/1/1. Videasy retains https://player.videasy.to/movie/155?overlay=true (or /tv/1399/1/1).
+
+References: https://superembed.stream/ and https://vidsrc.sh/ . SuperEmbed may redirect or display host advertisements; restricted navigation can prevent a player from opening. No arbitrary navigation was enabled to work around this. The proposed https://github.com/movie-web/providers returned 404; no unverified key patch was applied to CinePro or its compiled container files. Browser choices do not resolve CinePro segment 403s.
+
+### Player lifecycle fix
+
+Movie-player cleanup now persists the latest event snapshot without accessing the native shared object, which Expo may already have released when switching to browser mode. An actual-component regression simulates release before cleanup and verifies progress persistence and listener removal. WebView navigation is intercepted for all schemes so unsupported links cannot automatically open an external browser; approved HTTPS player navigation remains inside Talos.
+
+Native windowed controls now follow the anime layout: Settings at the top right, play/pause and ten-second skips centered, seekbar and timestamp below, fullscreen on the right. Source/quality and subtitle selectors are under Settings. Native fullscreen uses the platform player; third-party embeds retain their own controls. This is not full control parity (movie bookmarks and episode navigation are not added here). CinePro's previously observed segment 403s are upstream failures and are not fixed by the lifecycle/UI changes.
+
+### October 16 UI and source checks
+
+User reports VidSrc browser playback works on their device; it is now the initial browser-provider selection. Player content is centered and bounded, Back is a visible top-left button, and provider/mode/episode selectors sit below the player. Highlights use up to ten unique real titles (fewer when the feed supplies fewer), tap-to-open, centered sliding dots and right-next/left-previous wrapping swipes. Saved chapter pages also wrap in both directions.
+
+Suggested EmbedSu and player.autoembed.cc movie/TV checks failed DNS resolution; VidSrc.cc v2 movie/TV requests returned 403. None was registered as a working source. The attachment's missing-path URL templates were not used. Existing in-app browser providers remain available.

@@ -1,6 +1,6 @@
 import type { MangaPage } from '@/types/manga';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Image, Text, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Image, Text, View, useWindowDimensions } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   useAnimatedStyle,
@@ -34,6 +34,9 @@ export function FittedPage({
   const [decoded, setDecoded] = useState(
     Boolean(getPageRatio(page.imageUrl, 0) || page.aspectRatio),
   );
+  const [loading, setLoading] = useState(!decoded);
+  const [progress, setProgress] = useState(0);
+
   const baseWidth = paged && ratio >= 0.5 ? Math.min(width, height * ratio) : width;
   // Row is only as wide as the page so empty letterbox isn't part of the layout.
   const row = { height: baseWidth / ratio, width: baseWidth, alignSelf: 'center' as const };
@@ -49,19 +52,49 @@ export function FittedPage({
     <Animated.View style={row}>
       <Animated.View style={image}>
         {page.imageUrl?.trim() ? (
-          <Image
-            source={{ uri: page.imageUrl }}
-            style={{ width: '100%', height: '100%' }}
-            resizeMode="contain"
-            onLoad={(event) => {
-              const { width: w, height: h } = event.nativeEvent.source;
-              if (w > 0 && h > 0) {
-                rememberPageRatio(page.imageUrl, w, h);
-                setRatio(w / h);
-                setDecoded(true);
-              }
-            }}
-          />
+          <>
+            <Image
+              source={{ uri: page.imageUrl }}
+              style={{ width: '100%', height: '100%' }}
+              resizeMode="contain"
+              onLoadStart={() => {
+                if (!decoded) setLoading(true);
+              }}
+              onProgress={(event) => {
+                const { loaded, total } = event.nativeEvent;
+                if (total > 0) {
+                  setProgress(Math.min(100, Math.round((loaded / total) * 100)));
+                }
+              }}
+              onLoad={(event) => {
+                const { width: w, height: h } = event.nativeEvent.source;
+                if (w > 0 && h > 0) {
+                  rememberPageRatio(page.imageUrl, w, h);
+                  setRatio(w / h);
+                  setDecoded(true);
+                }
+                setLoading(false);
+              }}
+              onError={() => setLoading(false)}
+            />
+            {loading ? (
+              <View
+                pointerEvents="none"
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: 'rgba(0,0,0,0.4)',
+                }}
+              >
+                <ActivityIndicator size="small" color="#eab308" />
+                <Text style={{ color: '#eab308', fontSize: 12, fontWeight: '600', marginTop: 8 }}>
+                  {progress > 0 ? `${progress}%` : 'Loading...'}
+                </Text>
+              </View>
+            ) : null}
+          </>
         ) : (
           <Text style={{ color: 'white', padding: 20 }}>Page image unavailable</Text>
         )}

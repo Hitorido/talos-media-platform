@@ -153,3 +153,14 @@ Final Android export PASS: 2,041 modules, Hermes bundle generated with exit code
 ## CinePro Movies/TV bridge - 2026-10-15
 
 Local optional OMSS adapter and `/api/playback/:mediaType/:tmdbId` route added, with catalog-to-player navigation, source/quality selection, windowed external captions and device-local resume. Backend build, frontend typecheck and real HTTP contract fixtures pass (403/429/503/504, invalid parameters, empty payloads, header filtering). No live extractor, deployment or physical playback verified. Requires private CinePro configuration; see docs/CINEPRO-SETUP.md. Existing WatchProgress schema retained; movie/TV cloud sync is not implemented. Earlier catalog-only descriptions are superseded by this optional, configuration-required playback implementation.
+
+
+## Category browsing, controls and playback diagnosis - 2026-10-15
+
+- Sidebar categories use responsive three-column phone grids, category search and source-supplied genre filters. Movies/TV add Trending, Popular and Top rated feeds. Missing genre metadata is not invented; filters apply to returned results. Normal Search has matching genre chips.
+- Back is a styled button. Movie/TV cards open playback without redundant Open playback text. Random highlights rotate covers for reading categories and attempt muted real video previews for video categories. Unavailable previews retain honest fallback; these are not community Live rooms.
+- Anime player has Previous when available. Episode cells retain PopPressable animation; Unwatched filter removed. Downloads Private selection now invokes the shared biometric/device credential gate.
+- Public CinePro proxy URLs are preserved instead of unwrapped, and movie player attempts each returned stream once on playback error. Backend/typecheck and focused HTTP/UI regression checks pass.
+- Hope (TMDB 1058424): both resolution endpoints return sources, but all three VidApi variants fail on sampled media segments with Cloudflare 403. Refresh returned no alternate working provider. Catalog success is not playback success. No challenge bypass or claimed universal playback fix.
+
+Phone UI/privacy/preview retesting and Hope playback remain outstanding. Community implementation has not started.

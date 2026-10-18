@@ -52,6 +52,7 @@ function AnimePlayerScreen() {
   const { anime: catalog } = useAnimeContent(id);
   const advanceKey = useRef('');
   const currentIndex = catalog?.episodes.findIndex((item) => item.id === episodeId) ?? -1;
+  const previousEpisode = currentIndex > 0 ? catalog?.episodes[currentIndex - 1] : undefined;
   const nextEpisode = currentIndex >= 0 ? catalog?.episodes[currentIndex + 1] : undefined;
   const saveBookmark = useMediaBookmarkStore((state) => state.save);
   const setEpisodeProgress = useAnimeProgressStore((state) => state.setEpisodeProgress);
@@ -951,6 +952,15 @@ function AnimePlayerScreen() {
                   {formatTime(totalDuration)}
                 </Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  {previousEpisode ? (
+                    <Pressable
+                      accessibilityLabel="Previous episode"
+                      onPress={() => goToEpisode(previousEpisode.id)}
+                      className="rounded-full bg-primary-600 px-3 py-2"
+                    >
+                      <Text style={{ color: 'white', fontSize: 12 }}>Previous</Text>
+                    </Pressable>
+                  ) : null}
                   {nextEpisode ? (
                     <Pressable
                       accessibilityLabel="Next episode"

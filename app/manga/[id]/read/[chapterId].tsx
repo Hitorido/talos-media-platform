@@ -11,7 +11,12 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, Modal, ScrollView, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, {
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -30,6 +35,7 @@ import { resolveMangaPages } from '@/services/offlineResolver';
 import { maintainMangaDownloadWindow } from '@/services/rollingDownloadService';
 import { useMangaProgressStore } from '@/stores/mangaProgressStore';
 import { useRollingDownloadSettingsStore } from '@/stores/rollingDownloadSettingsStore';
+import { useSettingsStore } from '@/stores/settingsStore';
 import type { MangaChapter, MangaPage, ReadingDirection, ReadingMode } from '@/types/manga';
 import { cn } from '@/utils/cn';
 
@@ -59,6 +65,34 @@ function MangaReaderScreen() {
   const viewportRef = useRef<View>(null);
   const savingBookmark = useRef(false);
   const [bookmarkNotice, setBookmarkNotice] = useState('');
+  const bookmarkNoticeOpacity = useSharedValue(0);
+  const bookmarkNoticeStyle = useAnimatedStyle(() => ({
+    opacity: bookmarkNoticeOpacity.value,
+  }));
+  const bookmarkNoticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showNotification = useCallback((msg: string) => {
+    if (bookmarkNoticeTimer.current) clearTimeout(bookmarkNoticeTimer.current);
+    setBookmarkNotice(msg);
+    bookmarkNoticeOpacity.value = 0;
+    bookmarkNoticeOpacity.value = withTiming(1, { duration: 200 });
+
+    bookmarkNoticeTimer.current = setTimeout(() => {
+      bookmarkNoticeOpacity.value = withTiming(0, { duration: 400 }, (finished) => {
+        if (finished) runOnJS(setBookmarkNotice)('');
+      });
+    }, 2500);
+  }, [bookmarkNoticeOpacity]);
+
+  useEffect(() => {
+    return () => {
+      if (bookmarkNoticeTimer.current) clearTimeout(bookmarkNoticeTimer.current);
+    };
+  }, []);
+
+  const isCurrentChapterBookmarked = useMediaBookmarkStore((state) =>
+    state.bookmarks.some((b) => b.mediaId === id && b.unitId === activeChapterId),
+  );
 
   const { manga, loading: mangaLoading, error: mangaError } = useMangaContent(id);
   const setChapterProgress = useMangaProgressStore((state) => state.setChapterProgress);
@@ -88,9 +122,33 @@ function MangaReaderScreen() {
   const [activeChapterId, setActiveChapterId] = useState(chapterId);
   const [currentPage, setCurrentPage] = useState<number>(initialPage);
   const [modeView, setModeView] = useState(savedView);
-  const [readingMode, setReadingMode] = useState<ReadingMode>(
-    savedView?.mode ?? useMangaProgressStore.getState().readingModes?.[id] ?? 'vertical',
-  );
+  const [readingMode, setReadingMode] = useState<ReadingMode>(() => {
+    if (savedView?.mode) return savedView.mode;
+    const stored = useMangaProgressStore.getState().readingModes?.[id];
+    if (stored) return stored;
+    return 'vertical';
+  });
+
+  // If title has tags/type "manga" default to horizontal, if "manhwa" or "manhua" default to vertical
+  useEffect(() => {
+    if (!manga) return;
+    const stored = useMangaProgressStore.getState().readingModes?.[id];
+    if (stored || savedView?.mode) return;
+
+    const isManhwaOrManhua =
+      manga.mediaType === 'manhwa' ||
+      manga.mediaType === 'manhua' ||
+      manga.genres.some((g) => /manhwa|manhua/i.test(g));
+    const isManga =
+      manga.mediaType === 'manga' ||
+      manga.genres.some((g) => /^manga$/i.test(g));
+
+    if (isManhwaOrManhua) {
+      setReadingMode('vertical');
+    } else if (isManga) {
+      setReadingMode('horizontal');
+    }
+  }, [id, manga, savedView?.mode]);
   const [readingDirection, setReadingDirection] = useState<ReadingDirection>('rtl');
   const [overlayVisible, setOverlayVisible] = useState<boolean>(true);
   const overlayProgress = useSharedValue(1);
@@ -198,6 +256,19 @@ function MangaReaderScreen() {
 
   const activeChapter = chaptersToLoad.find((ch) => ch.id === activeChapterId) ?? chaptersToLoad[0];
 
+  const prevChapter = useMemo(() => {
+    if (!chaptersToLoad.length) return undefined;
+    const idx = chaptersToLoad.findIndex((ch) => ch.id === activeChapterId);
+    return idx > 0 ? chaptersToLoad[idx - 1] : undefined;
+  }, [activeChapterId, chaptersToLoad]);
+  const nextChapter = useMemo(() => {
+    if (!chaptersToLoad.length) return undefined;
+    const idx = chaptersToLoad.findIndex((ch) => ch.id === activeChapterId);
+    return idx >= 0 && idx < chaptersToLoad.length - 1 ? chaptersToLoad[idx + 1] : undefined;
+  }, [activeChapterId, chaptersToLoad]);
+
+  const preloadWholeChapter = useSettingsStore((state) => state.preloadWholeChapter);
+
   useEffect(() => {
     if (!activeChapter?.pages.length) return;
     let cancelled = false;
@@ -207,18 +278,24 @@ function MangaReaderScreen() {
       0,
       pages.findIndex((page) => page.pageNumber === currentPage),
     );
-    const ordered = [...pages.slice(pivot), ...pages.slice(0, pivot)];
+    const activeOrdered = [...pages.slice(pivot), ...pages.slice(0, pivot)];
+    // Also include upcoming pages from next chapter in advance
+    const nextChapterPages = nextChapter?.pages ?? [];
+    const ordered = [...activeOrdered, ...nextChapterPages];
+
+    const batchSize = preloadWholeChapter ? ordered.length : 3;
+
     void (async () => {
-      for (let index = 0; index < ordered.length && !cancelled; index += 3) {
+      for (let index = 0; index < ordered.length && !cancelled; index += batchSize) {
         await Promise.all(
-          ordered.slice(index, index + 3).map((page) => preloadPage(page.imageUrl)),
+          ordered.slice(index, index + batchSize).map((page) => preloadPage(page.imageUrl)),
         );
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [activeChapter?.id, activeChapter?.pages, currentPage]);
+  }, [activeChapter?.id, activeChapter?.pages, currentPage, nextChapter?.id, nextChapter?.pages, preloadWholeChapter]);
 
   // Derived (not effect-driven): the active chapter is "loading" while it still
   // has no pages and no error has been recorded for it. Scoped to the active
@@ -233,19 +310,10 @@ function MangaReaderScreen() {
       void maintainMangaDownloadWindow({ ...manga, chapters: chaptersToLoad }, activeChapterId);
     }
   }, [activeChapterId, chaptersToLoad, manga, rollingDownloadsEnabled, rollingDownloadWindow]);
-  const prevChapter = useMemo(() => {
-    if (!chaptersToLoad.length) return undefined;
-    const idx = chaptersToLoad.findIndex((ch) => ch.id === activeChapterId);
-    return idx > 0 ? chaptersToLoad[idx - 1] : undefined;
-  }, [activeChapterId, chaptersToLoad]);
-  const nextChapter = useMemo(() => {
-    if (!chaptersToLoad.length) return undefined;
-    const idx = chaptersToLoad.findIndex((ch) => ch.id === activeChapterId);
-    return idx >= 0 && idx < chaptersToLoad.length - 1 ? chaptersToLoad[idx + 1] : undefined;
-  }, [activeChapterId, chaptersToLoad]);
 
   // Fetch pages for the active chapter plus its neighbours so chapter jumps and
   // continuous scrolling never reach a chapter whose pages are not loaded yet.
+  // In manga/horizontal mode, load chapters in advance so turning pages across chapters is seamless.
   const chapterIdsToLoad = useMemo(() => {
     const idx = chaptersToLoad.findIndex((ch) => ch.id === activeChapterId);
     if (idx < 0) return [];
@@ -253,8 +321,10 @@ function MangaReaderScreen() {
     const prev = chaptersToLoad[idx - 1];
     if (prev) ids.push(prev.id);
     ids.push(chaptersToLoad[idx].id);
-    const next = chaptersToLoad[idx + 1];
-    if (next) ids.push(next.id);
+    const next1 = chaptersToLoad[idx + 1];
+    if (next1) ids.push(next1.id);
+    const next2 = chaptersToLoad[idx + 2];
+    if (next2) ids.push(next2.id);
     return ids;
   }, [activeChapterId, chaptersToLoad]);
 
@@ -571,7 +641,7 @@ function MangaReaderScreen() {
           }
         : undefined,
     });
-    setBookmarkNotice(previewUri ? 'View saved to Bookmarks' : 'Position saved to Bookmarks');
+    showNotification(previewUri ? 'View saved to Bookmarks' : 'Position saved to Bookmarks');
     savingBookmark.current = false;
   };
 
@@ -582,7 +652,7 @@ function MangaReaderScreen() {
       (chapterPage) => chapterPage.pageNumber === currentPage,
     );
     if (!manga || !activeChapter || !pageToUse) {
-      setBookmarkNotice('This page is not available as a cover yet');
+      showNotification('This page is not available as a cover yet');
       return;
     }
     const mediaType = manga.genres.includes('Manhwa')
@@ -602,8 +672,8 @@ function MangaReaderScreen() {
       },
       pageToUse.imageUrl,
     );
-    setBookmarkNotice(`Cover set to page ${currentPage}`);
-  }, [activeChapter, currentPage, manga, setCoverOverride]);
+    showNotification(`Cover set to page ${currentPage}`);
+  }, [activeChapter, currentPage, manga, setCoverOverride, showNotification]);
 
   const selectChapter = (chapterIdToOpen: string) => {
     setShowChapterPicker(false);
@@ -741,6 +811,7 @@ function MangaReaderScreen() {
       >
         <MangaReaderHeader
           onBookmark={handleBookmarkPress}
+          isBookmarked={isCurrentChapterBookmarked}
           mangaTitle={manga.title}
           chapterTitle={activeChapter.title}
           onBack={handleBack}
@@ -751,12 +822,18 @@ function MangaReaderScreen() {
       </Animated.View>
 
       {bookmarkNotice ? (
-        <Text
-          className="absolute bottom-20 left-4 right-4 z-30 rounded-xl bg-black/80 px-4 py-2 text-white"
-          accessibilityLiveRegion="polite"
+        <Animated.View
+          pointerEvents="none"
+          style={bookmarkNoticeStyle}
+          className="absolute bottom-20 left-4 right-4 z-30 rounded-xl bg-black/85 border border-amber-500/30 px-4 py-2.5 shadow-lg"
         >
-          {bookmarkNotice}
-        </Text>
+          <Text
+            className="text-center text-sm font-medium text-white"
+            accessibilityLiveRegion="polite"
+          >
+            {bookmarkNotice}
+          </Text>
+        </Animated.View>
       ) : null}
       {/* Reader Content */}
       <View

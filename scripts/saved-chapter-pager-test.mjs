@@ -96,7 +96,12 @@ assert.equal(label(tree, 'Chapter 1'), undefined);
 tree.props.onPanResponderRelease(null, { dx: 80 });
 tree = render();
 assert.ok(label(tree, 'Chapter 41'));
-assert.equal(label(tree, 'Next chapter page').props.disabled, true);
+tree.props.onPanResponderRelease(null, { dx: 80 });
+tree = render();
+assert.ok(label(tree, 'Chapter 1'));
+tree.props.onPanResponderRelease(null, { dx: -80 });
+tree = render();
+assert.ok(label(tree, 'Chapter 41'));
 tree.props.onPanResponderRelease(null, { dx: -80 });
 tree = render();
 assert.ok(label(tree, 'Chapter 21'));
@@ -106,7 +111,9 @@ assert.deepEqual(opened, ['21']);
 assert.deepEqual(deleted, ['21']);
 tree = render(items.slice(0, 2));
 assert.ok(label(tree, 'Chapter 1'));
-assert.equal(label(tree, 'Previous chapter page').props.disabled, true);
+label(tree, 'Previous chapter page').props.onPress();
+tree = render(items.slice(0, 2));
+assert.ok(label(tree, 'Chapter 1'));
 console.log(
-  'PASS actual saved popup: 20 items, right/left paging, page bounds, selected open/delete and shrinking catalog',
+  'PASS actual saved popup: 20 items, right/left paging, bidirectional wraparound, selected open/delete and shrinking catalog',
 );

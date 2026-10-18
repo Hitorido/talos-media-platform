@@ -48,7 +48,7 @@ export function SavedChapterPager({
           Math.abs(gesture.dx) > 24 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.5,
         onPanResponderRelease: (_, gesture) => {
           if (Math.abs(gesture.dx) < 45) return;
-          setPage(Math.max(0, Math.min(count - 1, current + (gesture.dx > 0 ? 1 : -1))));
+          setPage((current + (gesture.dx > 0 ? 1 : -1) + count) % count);
         },
       }),
     [count, current],
@@ -126,10 +126,9 @@ export function SavedChapterPager({
       </ScrollView>
       <View className="mt-3 flex-row items-center justify-between">
         <Pressable
-          disabled={current === 0}
-          onPress={() => setPage(current - 1)}
+          onPress={() => setPage((current - 1 + count) % count)}
           accessibilityLabel="Previous chapter page"
-          style={{ padding: 8, opacity: current === 0 ? 0.3 : 1 }}
+          style={{ padding: 8 }}
         >
           <Ionicons name="chevron-back" size={20} color="#818cf8" />
         </Pressable>
@@ -175,10 +174,9 @@ export function SavedChapterPager({
           </View>
         </ScrollView>
         <Pressable
-          disabled={current === count - 1}
-          onPress={() => setPage(current + 1)}
+          onPress={() => setPage((current + 1) % count)}
           accessibilityLabel="Next chapter page"
-          style={{ padding: 8, opacity: current === count - 1 ? 0.3 : 1 }}
+          style={{ padding: 8 }}
         >
           <Ionicons name="chevron-forward" size={20} color="#818cf8" />
         </Pressable>

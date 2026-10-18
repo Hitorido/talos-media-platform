@@ -14,6 +14,7 @@ type EpisodeListItemProps = {
   animeId?: string;
   progress?: number;
   isActive?: boolean;
+  isWatched?: boolean;
   onPress?: () => void;
   onDownloadPress?: () => void;
 };
@@ -28,6 +29,7 @@ export function EpisodeListItem({
   animeId,
   progress,
   isActive,
+  isWatched,
   onPress,
   onDownloadPress,
 }: EpisodeListItemProps) {
@@ -43,6 +45,7 @@ export function EpisodeListItem({
       className={cn(
         'rounded-xl border border-neutral-200 bg-white p-2 dark:border-neutral-700 dark:bg-neutral-900',
         isActive && 'border-primary-500 bg-primary-50 dark:border-primary-400 dark:bg-primary-950',
+        isWatched && !isActive && 'opacity-50',
       )}
     >
       <Pressable
@@ -70,9 +73,11 @@ export function EpisodeListItem({
             ? 'Saved'
             : progress
               ? `${Math.round(progress * 100)}%`
-              : episode.durationSeconds > 0
-                ? formatDuration(episode.durationSeconds)
-                : ''}
+              : isWatched && !isActive
+                ? '\u2713 Watched'
+                : episode.durationSeconds > 0
+                  ? formatDuration(episode.durationSeconds)
+                  : ''}
         </Text>
         {onDownloadPress ? (
           <Pressable
@@ -108,6 +113,7 @@ type EpisodeListProps = {
   episodes: AnimeEpisode[];
   activeEpisodeId?: string;
   getEpisodeProgress?: (episodeId: string) => number | undefined;
+  isEpisodeWatched?: (episodeId: string) => boolean;
   onEpisodePress: (episode: AnimeEpisode) => void;
   onDownloadEpisode?: (episode: AnimeEpisode) => void;
 };
@@ -117,10 +123,11 @@ export function EpisodeList({
   episodes,
   activeEpisodeId,
   getEpisodeProgress,
+  isEpisodeWatched,
   onEpisodePress,
   onDownloadEpisode,
 }: EpisodeListProps) {
-  const [filter, setFilter] = useState<'all' | 'unwatched' | 'saved'>('all');
+  const [filter, setFilter] = useState<'all' | 'saved'>('all');
   const downloads = useDownloadStore((s) => s.items);
   const savedIds = useMemo(
     () =>
@@ -131,15 +138,11 @@ export function EpisodeList({
       ),
     [downloads, animeId],
   );
-  const visible = episodes.filter(
-    (ep) =>
-      filter === 'all' ||
-      (filter === 'unwatched' ? (getEpisodeProgress?.(ep.id) ?? 0) < 0.9 : savedIds.has(ep.id)),
-  );
+  const visible = episodes.filter((ep) => filter === 'all' || savedIds.has(ep.id));
   return (
     <View className="gap-3">
       <View className="flex-row gap-2">
-        {(['all', 'unwatched', 'saved'] as const).map((value) => (
+        {(['all', 'saved'] as const).map((value) => (
           <Pressable
             key={value}
             onPress={() => setFilter(value)}
@@ -149,7 +152,7 @@ export function EpisodeList({
             )}
           >
             <Text variant="caption" style={filter === value ? { color: '#fff' } : undefined}>
-              {value === 'all' ? 'All' : value === 'unwatched' ? 'Unwatched' : 'Saved'}
+              {value === 'all' ? 'All' : 'Saved'}
             </Text>
           </Pressable>
         ))}
@@ -164,6 +167,7 @@ export function EpisodeList({
               animeId={animeId}
               episode={episode}
               isActive={episode.id === activeEpisodeId}
+              isWatched={isEpisodeWatched?.(episode.id)}
               progress={getEpisodeProgress?.(episode.id)}
               onPress={() => onEpisodePress(episode)}
               onDownloadPress={onDownloadEpisode ? () => onDownloadEpisode(episode) : undefined}

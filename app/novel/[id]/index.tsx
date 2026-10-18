@@ -1,3 +1,4 @@
+import { DetailsColumns } from '@/components/content/DetailsColumns';
 import { DuckLoader } from '@/components/ui/DuckLoader';
 import { DetailActions } from '@/components/content/DetailActions';
 import { PrivateSessionButton, PrivacyAccessGate } from '@/components/content/PrivacyControls';
@@ -91,91 +92,96 @@ function NovelDetailsScreen() {
         scrollable
         contentContainerClassName="gap-6 pb-28"
       >
-        <NovelDetailsHeader novel={novel} />
-        <PrivateSessionButton />
+        <DetailsColumns
+          summary={
+            <>
+              <NovelDetailsHeader novel={novel} />
+              <PrivateSessionButton />
 
-        <View className="flex-row flex-wrap items-center gap-2">
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Find other sources for this title"
-            onPress={() => setAlternateSourcesVisible(true)}
-            className="rounded-full border border-neutral-200 px-3 py-1.5 dark:border-neutral-700"
-          >
-            <Text variant="caption">Find other sources</Text>
-          </Pressable>
-        </View>
-        <AlternateSourcesModal
-          visible={alternateSourcesVisible}
-          title={novel.title}
-          alternativeTitles={novel.altTitles}
-          mediaType="novel"
-          currentMediaId={novel.id}
-          onClose={() => setAlternateSourcesVisible(false)}
-        />
+              <View className="flex-row flex-wrap items-center gap-2">
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Find other sources for this title"
+                  onPress={() => setAlternateSourcesVisible(true)}
+                  className="rounded-full border border-neutral-200 px-3 py-1.5 dark:border-neutral-700"
+                >
+                  <Text variant="caption">Find other sources</Text>
+                </Pressable>
+              </View>
+              <AlternateSourcesModal
+                visible={alternateSourcesVisible}
+                title={novel.title}
+                alternativeTitles={novel.altTitles}
+                mediaType="novel"
+                currentMediaId={novel.id}
+                onClose={() => setAlternateSourcesVisible(false)}
+              />
 
-        {isProviderContent ? (
-          <View className="rounded-xl border border-primary-500/30 bg-primary-500/10 px-3 py-2">
-            <Text variant="caption" className="text-primary-600 dark:text-primary-400">
-              Loaded from a novel provider. Chapter text is resolved through the provider layer
-              (configured novel backend when available). Failures will not silently switch to demo
-              text.
-            </Text>
-          </View>
-        ) : (
-          <View className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2">
-            <Text variant="caption" className="text-amber-700 dark:text-amber-300">
-              Demo catalog novel. Reader content is labeled Demo Content — local sample text for
-              development.
-            </Text>
-          </View>
-        )}
+              {isProviderContent ? (
+                <View className="rounded-xl border border-primary-500/30 bg-primary-500/10 px-3 py-2">
+                  <Text variant="caption" className="text-primary-600 dark:text-primary-400">
+                    Loaded from a novel provider. Chapter text is resolved through the provider
+                    layer (configured novel backend when available). Failures will not silently
+                    switch to demo text.
+                  </Text>
+                </View>
+              ) : (
+                <View className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+                  <Text variant="caption" className="text-amber-700 dark:text-amber-300">
+                    Demo catalog novel. Reader content is labeled Demo Content — local sample text
+                    for development.
+                  </Text>
+                </View>
+              )}
 
-        {continueChapter ? (
-          <Button
-            label={
-              latestProgress
-                ? `Continue ${latestProgress.chapterTitle} (${Math.round(latestProgress.scrollPercentage * 100)}%)`
-                : `Read ${continueChapter.title}`
-            }
-            onPress={() => openChapter(continueChapter.id)}
-          />
-        ) : null}
-
-        <View className="gap-3">
-          <View className="flex-row flex-wrap items-center justify-between gap-2">
-            <Text variant="h3">Chapters ({novel.chapters.length})</Text>
-            <ChapterRangePicker count={novel.chapters.length} value={range} onChange={setRange} />
+              {continueChapter ? (
+                <Button
+                  label={
+                    latestProgress
+                      ? `Continue ${latestProgress.chapterTitle} (${Math.round(latestProgress.scrollPercentage * 100)}%)`
+                      : `Read ${continueChapter.title}`
+                  }
+                  onPress={() => openChapter(continueChapter.id)}
+                />
+              ) : null}
+            </>
+          }
+        >
+          <View className="gap-3">
+            <View className="flex-row flex-wrap items-center justify-between gap-2">
+              <Text variant="h3">Chapters ({novel.chapters.length})</Text>
+              <ChapterRangePicker count={novel.chapters.length} value={range} onChange={setRange} />
+              <Pressable
+                onPress={() => setBulkModalOpen(true)}
+                className="flex-row items-center gap-1.5 rounded-full bg-primary-50 px-3 py-1.5 dark:bg-primary-950"
+              >
+                <Ionicons name="cloud-download-outline" size={16} color="#6366f1" />
+                <Text className="text-xs font-semibold text-primary-600 dark:text-primary-400">
+                  Download All
+                </Text>
+              </Pressable>
+            </View>
             <Pressable
-              onPress={() => setBulkModalOpen(true)}
-              className="flex-row items-center gap-1.5 rounded-full bg-primary-50 px-3 py-1.5 dark:bg-primary-950"
+              accessibilityRole="button"
+              onPress={() => setShowBookmarks((value) => !value)}
+              className="self-start rounded-full bg-primary-100 px-4 py-2 dark:bg-primary-950"
             >
-              <Ionicons name="cloud-download-outline" size={16} color="#6366f1" />
-              <Text className="text-xs font-semibold text-primary-600 dark:text-primary-400">
-                Download All
-              </Text>
+              <Text tone="primary">{showBookmarks ? 'Show chapters' : 'Bookmarks'}</Text>
             </Pressable>
+            {showBookmarks ? (
+              <MediaBookmarks mediaId={novel.id} kind="novel" />
+            ) : (
+              <NovelChapterList
+                novelId={novel.id}
+                chapters={chapterRange(novel.chapters, range)}
+                activeChapterId={latestProgress?.chapterId}
+                getChapterProgress={getChapterProgress}
+                onChapterPress={(chapter) => openChapter(chapter.id)}
+                onDownloadChapter={(chapter) => downloadNovelChapter(novel, chapter)}
+              />
+            )}
           </View>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => setShowBookmarks((value) => !value)}
-            className="self-start rounded-full bg-primary-100 px-4 py-2 dark:bg-primary-950"
-          >
-            <Text tone="primary">{showBookmarks ? 'Show chapters' : 'Bookmarks'}</Text>
-          </Pressable>
-          {showBookmarks ? (
-            <MediaBookmarks mediaId={novel.id} kind="novel" />
-          ) : (
-            <NovelChapterList
-              novelId={novel.id}
-              chapters={chapterRange(novel.chapters, range)}
-              activeChapterId={latestProgress?.chapterId}
-              getChapterProgress={getChapterProgress}
-              onChapterPress={(chapter) => openChapter(chapter.id)}
-              onDownloadChapter={(chapter) => downloadNovelChapter(novel, chapter)}
-            />
-          )}
-        </View>
-
+        </DetailsColumns>
         <BulkDownloadModal
           visible={bulkModalOpen}
           target={novel ? { kind: 'novel', novel, chapters: novel.chapters } : null}

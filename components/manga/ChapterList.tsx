@@ -16,6 +16,7 @@ type ChapterListItemProps = {
   mangaId?: string;
   progress?: number;
   isActive?: boolean;
+  isRead?: boolean;
   showLanguageBadge?: boolean;
   onPress?: () => void;
   onDownloadPress?: () => void;
@@ -26,6 +27,7 @@ export function ChapterListItem({
   mangaId,
   progress,
   isActive,
+  isRead,
   showLanguageBadge,
   onPress,
   onDownloadPress,
@@ -43,6 +45,7 @@ export function ChapterListItem({
       className={cn(
         'rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900',
         isActive && 'border-primary-500 dark:border-primary-400',
+        isRead && !isActive && 'opacity-50',
       )}
     >
       <View className="flex-row items-center justify-between gap-3">
@@ -63,6 +66,9 @@ export function ChapterListItem({
             {chapter.pageCount > 0 ? `${chapter.pageCount} pages · ` : ''}Released{' '}
             {formatChapterDate(chapter.releaseDate)}
           </Text>
+          {isRead && !isActive ? (
+            <Text variant="caption" style={{ color: '#6366f1', fontSize: 10, marginTop: 2 }}>✓ Read</Text>
+          ) : null}
         </Pressable>
 
         <View className="flex-row items-center gap-3">
@@ -114,6 +120,7 @@ type ChapterListProps = {
   activeChapterId?: string;
   showLanguageBadge?: boolean;
   getChapterProgress?: (chapterId: string) => number | undefined;
+  isChapterRead?: (chapterId: string) => boolean;
   onChapterPress: (chapter: MangaChapter) => void;
   onDownloadChapter?: (chapter: MangaChapter) => void;
 };
@@ -124,6 +131,7 @@ export function ChapterList({
   activeChapterId,
   showLanguageBadge,
   getChapterProgress,
+  isChapterRead,
   onChapterPress,
   onDownloadChapter,
 }: ChapterListProps) {
@@ -135,6 +143,7 @@ export function ChapterList({
           mangaId={mangaId}
           chapter={chapter}
           isActive={chapter.id === activeChapterId}
+          isRead={isChapterRead?.(chapter.id)}
           showLanguageBadge={showLanguageBadge}
           progress={getChapterProgress?.(chapter.id)}
           onPress={() => onChapterPress(chapter)}

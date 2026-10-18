@@ -60,6 +60,17 @@ function mediaTarget(value: unknown, base: URL, supplied?: unknown) {
   let url = new URL(value, base);
   let headers = supplied;
   if (url.origin === base.origin && /^\/v1\/proxy\/?$/.test(url.pathname)) {
+    // Public CinePro delivery keeps its upstream headers and nested HLS rewriting intact.
+    // Never expose private hosts or server authorization in the mobile source.
+    if (
+      base.protocol === 'https:' &&
+      !process.env.CINEPRO_AUTHORIZATION &&
+      !isIP(base.hostname.replace(/^\[|\]$/g, '')) &&
+      base.hostname.includes('.') &&
+      !/(^|\.)(localhost|local|internal|test)$/.test(base.hostname)
+    ) {
+      return { url: url.href };
+    }
     const data = JSON.parse(url.searchParams.get('data') || '{}');
     url = new URL(data.url);
     headers = data.headers;

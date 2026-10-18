@@ -1,4 +1,4 @@
-import { ActivityIndicator, type PressableProps } from 'react-native';
+import { ActivityIndicator, Platform, type PressableProps } from 'react-native';
 
 import { Text } from '@/components/ui/Text';
 import { PopPressable } from '@/components/ui/PopPressable';
@@ -68,6 +68,7 @@ export function Button({
         variantClassNames[variant],
         sizeClassNames[size],
         fullWidth && 'w-full',
+        Platform.OS === 'web' && !fullWidth && 'max-w-full self-start',
         isDisabled && 'opacity-50',
         className,
       )}

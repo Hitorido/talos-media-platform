@@ -1,3 +1,4 @@
+import { DetailsColumns } from '@/components/content/DetailsColumns';
 import { DuckLoader } from '@/components/ui/DuckLoader';
 import { DetailActions } from '@/components/content/DetailActions';
 import { PrivateSessionButton, PrivacyAccessGate } from '@/components/content/PrivacyControls';
@@ -135,6 +136,21 @@ function MangaDetailsScreen() {
       : undefined;
   };
 
+  const isChapterRead = (chapterId: string) => {
+    if (!latestProgress) return false;
+    if (latestProgress.chapterId === chapterId) {
+      // The current chapter is "read" only if we finished it
+      return (
+        latestProgress.totalPages > 0 &&
+        latestProgress.pageNumber >= latestProgress.totalPages
+      );
+    }
+    // Any chapter with a lower number than the current progress chapter has already been read
+    const chapter = manga?.chapters.find((ch) => ch.id === chapterId);
+    if (!chapter) return false;
+    return chapter.number < latestProgress.chapterNumber;
+  };
+
   const openChapter = (chapterId: string) => {
     router.push(mangaReadHref(manga.id, chapterId));
   };
@@ -153,122 +169,128 @@ function MangaDetailsScreen() {
         scrollable
         contentContainerClassName="gap-6 pb-28"
       >
-        <MangaDetailsHeader manga={manga} />
-        <PrivateSessionButton />
+        <DetailsColumns
+          summary={
+            <>
+              <MangaDetailsHeader manga={manga} />
+              <PrivateSessionButton />
 
-        <View className="flex-row flex-wrap items-center gap-2">
-          <Badge label={`Source: ${sourceName}`} variant="secondary" />
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Find other sources for this title"
-            onPress={() => setAlternateSourcesVisible(true)}
-            className="rounded-full border border-neutral-200 px-3 py-1.5 dark:border-neutral-700"
-          >
-            <Text variant="caption">Find other sources</Text>
-          </Pressable>
-        </View>
-        <AlternateSourcesModal
-          visible={alternateSourcesVisible}
-          title={manga.title}
-          alternativeTitles={manga.altTitles}
-          mediaType="manga"
-          currentMediaId={manga.id}
-          onClose={() => setAlternateSourcesVisible(false)}
-        />
+              <View className="flex-row flex-wrap items-center gap-2">
+                <Badge label={`Source: ${sourceName}`} variant="secondary" />
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Find other sources for this title"
+                  onPress={() => setAlternateSourcesVisible(true)}
+                  className="rounded-full border border-neutral-200 px-3 py-1.5 dark:border-neutral-700"
+                >
+                  <Text variant="caption">Find other sources</Text>
+                </Pressable>
+              </View>
+              <AlternateSourcesModal
+                visible={alternateSourcesVisible}
+                title={manga.title}
+                alternativeTitles={manga.altTitles}
+                mediaType="manga"
+                currentMediaId={manga.id}
+                onClose={() => setAlternateSourcesVisible(false)}
+              />
 
-        {isProviderContent ? (
-          <View className="rounded-xl border border-primary-500/30 bg-primary-500/10 px-3 py-2">
-            <Text variant="caption" className="text-primary-600 dark:text-primary-400">
-              Loaded from {sourceName}. Downloads may be unavailable depending on provider
-              permissions. Use Find other sources to compare enabled providers without changing this
-              entry&apos;s progress.
-            </Text>
-          </View>
-        ) : null}
-
-        {continueChapter ? (
-          <Button
-            label={
-              latestProgress
-                ? `Continue ${latestProgress.chapterTitle} (P. ${latestProgress.pageNumber})`
-                : `Read ${continueChapter.title}`
-            }
-            onPress={() => openChapter(continueChapter.id)}
-          />
-        ) : null}
-
-        <View className="gap-3">
-          <View className="flex-row flex-wrap items-center justify-between gap-2">
-            <View className="flex-row items-center gap-2">
-              <Text variant="h3">
-                Chapters ({filteredChapters.length}
-                {activeLanguage !== 'all' && manga.chapters.length !== filteredChapters.length
-                  ? ` of ${manga.chapters.length}`
-                  : ''}
-                )
-              </Text>
-              {activeLanguage !== 'all' && availableLanguages.length > 1 ? (
-                <View className="rounded-md bg-neutral-100 px-2 py-0.5 dark:bg-neutral-800">
-                  <Text
-                    variant="caption"
-                    className="text-xs font-medium text-neutral-600 dark:text-neutral-400"
-                  >
-                    {getLanguageDisplayName(activeLanguage)}
+              {isProviderContent ? (
+                <View className="rounded-xl border border-primary-500/30 bg-primary-500/10 px-3 py-2">
+                  <Text variant="caption" className="text-primary-600 dark:text-primary-400">
+                    Loaded from {sourceName}. Downloads may be unavailable depending on provider
+                    permissions. Use Find other sources to compare enabled providers without
+                    changing this entry&apos;s progress.
                   </Text>
                 </View>
               ) : null}
-            </View>
 
-            <View className="flex-row items-center gap-2">
-              {availableLanguages.length > 0 ? (
-                <LanguageSelector
-                  availableLanguages={availableLanguages}
-                  selectedLanguage={activeLanguage}
-                  chaptersByLanguageCount={chaptersByLanguageCount}
-                  totalReleasesCount={manga.chapters.length}
-                  onSelectLanguage={handleLanguageChange}
+              {continueChapter ? (
+                <Button
+                  label={
+                    latestProgress
+                      ? `Continue ${latestProgress.chapterTitle} (P. ${latestProgress.pageNumber})`
+                      : `Read ${continueChapter.title}`
+                  }
+                  onPress={() => openChapter(continueChapter.id)}
                 />
               ) : null}
-
-              <ChapterRangePicker
-                count={filteredChapters.length}
-                value={range}
-                onChange={setRange}
-              />
-              <Pressable
-                onPress={() => setBulkModalOpen(true)}
-                className="flex-row items-center gap-1.5 rounded-full bg-primary-50 px-3 py-1.5 dark:bg-primary-950"
-              >
-                <Ionicons name="cloud-download-outline" size={16} color="#6366f1" />
-                <Text className="text-xs font-semibold text-primary-600 dark:text-primary-400">
-                  Download All
+            </>
+          }
+        >
+          <View className="gap-3">
+            <View className="flex-row flex-wrap items-center justify-between gap-2">
+              <View className="flex-row items-center gap-2">
+                <Text variant="h3">
+                  Chapters ({filteredChapters.length}
+                  {activeLanguage !== 'all' && manga.chapters.length !== filteredChapters.length
+                    ? ` of ${manga.chapters.length}`
+                    : ''}
+                  )
                 </Text>
-              </Pressable>
+                {activeLanguage !== 'all' && availableLanguages.length > 1 ? (
+                  <View className="rounded-md bg-neutral-100 px-2 py-0.5 dark:bg-neutral-800">
+                    <Text
+                      variant="caption"
+                      className="text-xs font-medium text-neutral-600 dark:text-neutral-400"
+                    >
+                      {getLanguageDisplayName(activeLanguage)}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+
+              <View className="flex-row items-center gap-2">
+                {availableLanguages.length > 0 ? (
+                  <LanguageSelector
+                    availableLanguages={availableLanguages}
+                    selectedLanguage={activeLanguage}
+                    chaptersByLanguageCount={chaptersByLanguageCount}
+                    totalReleasesCount={manga.chapters.length}
+                    onSelectLanguage={handleLanguageChange}
+                  />
+                ) : null}
+
+                <ChapterRangePicker
+                  count={filteredChapters.length}
+                  value={range}
+                  onChange={setRange}
+                />
+                <Pressable
+                  onPress={() => setBulkModalOpen(true)}
+                  className="flex-row items-center gap-1.5 rounded-full bg-primary-50 px-3 py-1.5 dark:bg-primary-950"
+                >
+                  <Ionicons name="cloud-download-outline" size={16} color="#6366f1" />
+                  <Text className="text-xs font-semibold text-primary-600 dark:text-primary-400">
+                    Download All
+                  </Text>
+                </Pressable>
+              </View>
             </View>
+
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setShowBookmarks((value) => !value)}
+              className="self-start rounded-full bg-primary-100 px-4 py-2 dark:bg-primary-950"
+            >
+              <Text tone="primary">{showBookmarks ? 'Show chapters' : 'Bookmarks'}</Text>
+            </Pressable>
+            {showBookmarks ? (
+              <MediaBookmarks mediaId={manga.id} kind="manga" />
+            ) : (
+              <ChapterList
+                mangaId={manga.id}
+                chapters={chapterRange(filteredChapters, range)}
+                activeChapterId={latestProgress?.chapterId}
+                showLanguageBadge={activeLanguage === 'all' || availableLanguages.length > 1}
+                getChapterProgress={getChapterProgress}
+                isChapterRead={isChapterRead}
+                onChapterPress={(chapter) => openChapter(chapter.id)}
+                onDownloadChapter={(chapter) => downloadMangaChapter(manga, chapter)}
+              />
+            )}
           </View>
-
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => setShowBookmarks((value) => !value)}
-            className="self-start rounded-full bg-primary-100 px-4 py-2 dark:bg-primary-950"
-          >
-            <Text tone="primary">{showBookmarks ? 'Show chapters' : 'Bookmarks'}</Text>
-          </Pressable>
-          {showBookmarks ? (
-            <MediaBookmarks mediaId={manga.id} kind="manga" />
-          ) : (
-            <ChapterList
-              mangaId={manga.id}
-              chapters={chapterRange(filteredChapters, range)}
-              activeChapterId={latestProgress?.chapterId}
-              showLanguageBadge={activeLanguage === 'all' || availableLanguages.length > 1}
-              getChapterProgress={getChapterProgress}
-              onChapterPress={(chapter) => openChapter(chapter.id)}
-              onDownloadChapter={(chapter) => downloadMangaChapter(manga, chapter)}
-            />
-          )}
-        </View>
-
+        </DetailsColumns>
         <BulkDownloadModal
           visible={bulkModalOpen}
           target={manga ? { kind: 'manga', manga, chapters: filteredChapters } : null}
