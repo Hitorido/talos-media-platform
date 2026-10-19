@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Image, PanResponder, Pressable, View } from 'react-native';
-import { useFocusEffect } from 'expo-router';
-import { useVideoPlayer, VideoView, type VideoSource } from 'expo-video';
 import { Text } from '@/components/ui';
 import { apiRequest } from '@/services/api/client';
 import { getMediaEpisodes, resolveAnimePlayback } from '@/services/contentService';
+import { useFocusEffect } from 'expo-router';
+import { useVideoPlayer, VideoView, type VideoSource } from 'expo-video';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Image, PanResponder, Pressable, View } from 'react-native';
 export type BrowseItem = {
   id: string;
   title: string;
@@ -55,7 +55,7 @@ export function CategoryHighlight({
     }, []),
   );
   const [seed] = useState(() => Math.random());
-  const [step, setStep] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [preview, setPreview] = useState<{
     id: string;
     source?: VideoSource;
@@ -67,21 +67,20 @@ export function CategoryHighlight({
     return [...unique.slice(start), ...unique.slice(0, start)].slice(0, 10);
   }, [items, seed]);
   const count = highlights.length;
-  const current = count ? ((step % count) + count) % count : 0;
-  const item = highlights[current];
+  const item = highlights[currentIndex];
   const [indicator] = useState(() => new Animated.Value(0));
   const [drag] = useState(() => new Animated.Value(0));
   const swiped = useRef(false);
   useEffect(() => {
     const animation = Animated.spring(indicator, {
-      toValue: current * 26,
+      toValue: currentIndex * 26,
       useNativeDriver: true,
       damping: 20,
       stiffness: 200,
     });
     animation.start();
     return () => animation.stop();
-  }, [current, indicator]);
+  }, [currentIndex, indicator]);
   const pan = useMemo(
     () =>
       // PanResponder registers callbacks; ref access occurs only during gestures.
@@ -92,20 +91,32 @@ export function CategoryHighlight({
         onPanResponderGrant: () => {
           swiped.current = true;
         },
-        onPanResponderMove: (_, g) => drag.setValue(Math.max(-80, Math.min(80, g.dx))),
-        onPanResponderRelease: (_, g) => {
-          if (Math.abs(g.dx) > 40) setStep((value) => value + (g.dx > 0 ? 1 : -1));
+        onPanResponderMove: (_, g) => {
+          const dx = g.dx;
+          drag.setValue(dx);
+          const sensitivity = 100;
+          if (dx > sensitivity) {
+            setCurrentIndex((prev) => (prev + 1) % count);
+            drag.setValue(0);
+          } else if (dx < -sensitivity) {
+            setCurrentIndex((prev) => (prev - 1 + count) % count);
+            drag.setValue(0);
+          }
+        },
+        onPanResponderRelease: () => {
           Animated.spring(drag, { toValue: 0, useNativeDriver: true }).start();
         },
         onPanResponderTerminate: () =>
           Animated.spring(drag, { toValue: 0, useNativeDriver: true }).start(),
       }),
-    [drag],
+    [drag, count],
   );
   const video = ['anime', 'movies', 'tv'].includes(category);
   useEffect(() => {
     if (video || !focused || count < 2) return;
-    const timer = setInterval(() => setStep((x) => x + 1), 6500);
+    const timer = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % count);
+    }, 6500);
     return () => clearInterval(timer);
   }, [video, focused, count]);
   useEffect(() => {
@@ -204,8 +215,8 @@ export function CategoryHighlight({
             key={entry.id}
             accessibilityRole="button"
             accessibilityLabel={`Highlight ${index + 1}: ${entry.title}`}
-            accessibilityState={{ selected: current === index }}
-            onPress={() => setStep(index)}
+            accessibilityState={{ selected: currentIndex === index }}
+            onPress={() => setCurrentIndex(index)}
             style={{ width: 26, height: 32, alignItems: 'center', justifyContent: 'center' }}
           >
             <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#737373' }} />
