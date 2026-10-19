@@ -33,7 +33,7 @@ export async function tmdbCatalog(req: Request, res: Response) {
   }
   const type = kind === 'movies' ? 'movie' : 'tv';
   const response = await fetch(
-    `https://api.themoviedb.org/3/${query ? `search/${type}?query=${encodeURIComponent(query)}&include_adult=false` : feed === 'trending' ? `trending/${type}/week?` : `${type}/${feed}?`}&language=en-US`,
+    `https://api.themoviedb.org/3/${query ? `search/${type}?query=${encodeURIComponent(query)}&include_adult=false&language=en-US` : feed === 'trending' ? `trending/${type}/week?language=en-US` : `${type}/${feed}?language=en-US`}`,
     { signal: AbortSignal.timeout(15000), headers: { Authorization: `Bearer ${token}` } },
   );
   if (!response.ok)

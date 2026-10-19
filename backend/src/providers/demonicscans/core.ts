@@ -5,9 +5,31 @@ const origin = 'https://demonicscans.org',
   providerId = 'demonicscans';
 // Start with unambiguous simple slugs; encoded title paths are not advertised yet.
 const id = (value: string) => checkedId(value, /^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$/);
+
+async function directFetch(path: string): Promise<string> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetch(new URL(path, origin).href, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        Accept: 'text/html',
+      },
+    });
+    if (!response.ok) throw new ProviderGatewayError(`HTTP ${response.status}`, response.status);
+    return await response.text();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export function createDemonicScansAdapter(sourceText: SourceText): ContentProviderAdapter {
   async function detail(sourceId: string) {
     return load(await sourceText(origin, '/manga/' + id(sourceId)));
+  }
+  async function detailDirect(sourceId: string) {
+    return load(await directFetch('/manga/' + id(sourceId)));
   }
   const adapter: ContentProviderAdapter = {
     definition: {
@@ -81,7 +103,7 @@ export function createDemonicScansAdapter(sourceText: SourceText): ContentProvid
     },
     async getPages(sourceId, chapterId) {
       checkedId(chapterId, /^[0-9]+(?:[.][0-9]+)?$/);
-      const d = await detail(sourceId);
+      const d = await detailDirect(sourceId);
       const link = d('a[href^="/chaptered.php?"]')
         .toArray()
         .map((el) => new URL(d(el).attr('href')!, origin))
@@ -90,7 +112,7 @@ export function createDemonicScansAdapter(sourceText: SourceText): ContentProvid
       if (!manga || !/^[0-9]+$/.test(manga))
         throw new ProviderGatewayError('Chapter is not listed for this title.', 404);
       const $ = load(
-        await sourceText(origin, '/title/' + sourceId + '/chapter/' + chapterId + '/1'),
+        await directFetch('/title/' + sourceId + '/chapter/' + chapterId + '/1'),
       );
       const pages = $('img.imgholder')
         .toArray()
