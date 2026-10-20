@@ -67,6 +67,9 @@ export function SearchResultItem({
       >
         <View className="flex-row items-center gap-1">
           <Badge compact={poster} label={typeLabel} variant={badgeVariant} />
+          {item.isMature && (
+            <Badge compact={poster} label="Mature" variant="secondary" />
+          )}
         </View>
         <Text
           variant="label"

@@ -24,6 +24,7 @@ type ContentPosterCardProps = {
   onPress?: () => void;
   onLongPress?: () => void;
   className?: string;
+  isMature?: boolean;
 };
 
 const badgeVariantMap: Record<ContentType, 'anime' | 'manga' | 'novel'> = {
@@ -53,6 +54,7 @@ export function ContentPosterCard({
   onPress,
   onLongPress,
   className,
+  isMature,
 }: ContentPosterCardProps) {
   const displayCover = useMediaCover(routeId, coverUrl);
   const typeLabel = badgeLabelMap[type];
@@ -114,6 +116,11 @@ export function ContentPosterCard({
           )}
           <View className="absolute left-2 top-2">
             <Badge label={typeLabel} variant={badgeVariantMap[type]} />
+            {isMature && (
+              <View className="mt-1">
+                <Badge label="Mature" variant="secondary" compact />
+              </View>
+            )}
           </View>
           {meta ? (
             <View className="absolute bottom-2 right-2 rounded-md bg-black/70 px-2 py-0.5">
@@ -185,6 +192,11 @@ export function ContentPosterCard({
                 )}
                 <View className="absolute left-2 top-2">
                   <Badge label={typeLabel} variant={badgeVariantMap[type]} />
+                  {isMature && (
+                    <View className="mt-1">
+                      <Badge label="Mature" variant="secondary" compact />
+                    </View>
+                  )}
                 </View>
               </View>
             </Animated.View>

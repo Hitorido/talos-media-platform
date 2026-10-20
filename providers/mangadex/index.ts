@@ -1,17 +1,17 @@
 import {
-  getMangaDexChapterPages,
-  getMangaDexChapters,
-  getMangaDexManga,
-  mapMangaDexChapter,
-  mapMangaDexToNormalized,
-  searchMangaDex,
+    getMangaDexChapterPages,
+    getMangaDexChapters,
+    getMangaDexManga,
+    mapMangaDexChapter,
+    mapMangaDexToNormalized,
+    searchMangaDex,
 } from '@/providers/mangadex/client';
 import type { MediaProvider } from '@/providers/types';
 import type {
-  MediaRef,
-  NormalizedChapter,
-  NormalizedMedia,
-  NormalizedPage,
+    MediaRef,
+    NormalizedChapter,
+    NormalizedMedia,
+    NormalizedPage,
 } from '@/types/provider';
 import { encodeMediaRouteId } from '@/types/provider';
 import type { SearchResult } from '@/types/search';
@@ -50,6 +50,7 @@ export const mangaDexProvider: MediaProvider = {
         comicFormat: mapped.comicFormat,
         subtitle: `MangaDex · ${comicFormatLabel(mapped.comicFormat)}`,
         tags: ['MangaDex', comicFormatLabel(mapped.comicFormat), ...mapped.genres.slice(0, 2)],
+        isMature: mapped.isMature,
       };
     });
   },

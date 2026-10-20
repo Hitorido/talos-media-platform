@@ -21,6 +21,8 @@ export type SearchResult = {
   chapterCount?: number;
   episodeCount?: number;
   status?: string;
+  /** Whether the content is marked as mature/adult */
+  isMature?: boolean;
 };
 
 export type SearchResponse = {
