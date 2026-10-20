@@ -14,7 +14,7 @@ async function page(path: string) {
   const hit = cache.get(path);
   if (hit && hit.until > Date.now()) return load(hit.html);
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 20000);
+  const timer = setTimeout(() => controller.abort(), 30000);
   try {
     let url = new URL(path, origin);
     for (let hop = 0; hop < 4; hop++) {
@@ -23,7 +23,10 @@ async function page(path: string) {
       let response = await fetch(url, {
         signal: controller.signal,
         redirect: 'manual',
-        headers: { Accept: 'text/html' },
+        headers: { 
+          Accept: 'text/html',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        },
       });
       // AO3's official alternate host remains available during some primary TLS outages.
       // Never use it to retry a refusal, login requirement, or rate limit.
@@ -33,7 +36,10 @@ async function page(path: string) {
         response = await fetch(url, {
           signal: controller.signal,
           redirect: 'manual',
-          headers: { Accept: 'text/html' },
+          headers: { 
+            Accept: 'text/html',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          },
         });
       }
       if ([301, 302, 303, 307, 308].includes(response.status)) {
