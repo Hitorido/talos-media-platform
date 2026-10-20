@@ -34,6 +34,7 @@ type MangaDexMangaAttributes = {
   status: string;
   originalLanguage?: string;
   tags: { attributes: { name: MangaDexLocalizedString } }[];
+  contentRating?: string;
 };
 
 export type MangaDexManga = {
@@ -138,6 +139,10 @@ export async function searchMangaDex(
   params.append('includes[]', 'cover_art');
   params.set('order[relevance]', 'desc');
   params.append('availableTranslatedLanguage[]', 'en');
+  params.append('contentRating[]', 'safe');
+  params.append('contentRating[]', 'suggestive');
+  params.append('contentRating[]', 'erotica');
+  params.append('contentRating[]', 'pornographic');
 
   const payload = await mangadexFetch<MangaDexResponse<MangaDexManga[]>>(
     `${MANGADEX_API}/manga?${params.toString()}`,
@@ -283,6 +288,8 @@ export function mapMangaDexToNormalized(manga: MangaDexManga) {
   );
   
   const title = isNonEnglishTitle && englishAltTitle ? englishAltTitle : (altTitles.find((title) => title?.trim()) || mainTitle);
+  
+  const isMature = ['suggestive', 'erotica', 'pornographic'].includes(manga.attributes.contentRating || 'safe');
 
   return {
     title,
@@ -292,6 +299,7 @@ export function mapMangaDexToNormalized(manga: MangaDexManga) {
     status: manga.attributes.status,
     comicFormat,
     altTitles,
+    isMature,
   };
 }
 

@@ -137,19 +137,20 @@ export function getDiscovery(
           providerId: 'mangadex',
           sections: [section],
           run: async () => {
-            const params = new URLSearchParams({
-              limit: '12',
-              'includes[]': 'cover_art',
-              ['order[' + order + ']']: 'desc',
-              'contentRating[]': 'safe',
-              'availableTranslatedLanguage[]': 'en',
+            const params = new URLSearchParams();
+            params.set('limit', '12');
+            params.append('includes[]', 'cover_art');
+            params.set('order[' + order + ']', 'desc');
+            ['safe', 'suggestive', 'erotica', 'pornographic'].forEach(rating => {
+              params.append('contentRating[]', rating);
             });
+            params.append('availableTranslatedLanguage[]', 'en');
             let orderedIds: string[] = [];
             if (section === 'recentManga') {
               const chapters = await request<{
                 data: { relationships: { type: string; id: string }[] }[];
               }>(
-                'https://api.mangadex.org/chapter?limit=60&translatedLanguage[]=en&order[readableAt]=desc&includeEmptyPages=0&includeExternalUrl=0&contentRating[]=safe',
+                'https://api.mangadex.org/chapter?limit=60&translatedLanguage[]=en&order[readableAt]=desc&includeEmptyPages=0&includeExternalUrl=0&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&contentRating[]=pornographic',
               );
               orderedIds = [
                 ...new Set(
