@@ -164,10 +164,10 @@ export function CategoryHighlight({
   if (!item) return null;
   return (
     <View
-      className="gap-3 rounded-2xl bg-neutral-100 p-4 dark:bg-neutral-900"
-      style={{ overflow: 'hidden' }}
+      className="gap-3 rounded-2xl overflow-hidden"
+      style={{ height: 320 }}
     >
-      <Animated.View {...pan.panHandlers} style={{ gap: 12, transform: [{ translateX: drag }] }}>
+      <Animated.View {...pan.panHandlers} style={{ flex: 1, transform: [{ translateX: drag }] }}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`Open ${item.title}`}
@@ -177,25 +177,64 @@ export function CategoryHighlight({
           onPress={() => {
             if (!swiped.current) onOpen(item);
           }}
-          style={{ gap: 12 }}
+          style={{ flex: 1 }}
         >
-          <Text variant="h3">Featured {video ? 'preview' : 'spotlight'}</Text>
-          {video && focused && preview?.id === item.id && preview.source ? (
-            <Preview key={item.id} source={preview.source} />
-          ) : item.coverUrl ? (
+          {item.coverUrl ? (
             <Image
               source={{ uri: item.coverUrl }}
-              style={{ width: '100%', height: 220, borderRadius: 12 }}
-              resizeMode="contain"
+              style={{ width: '100%', height: '100%' }}
+              resizeMode="cover"
             />
-          ) : null}
-          <Text variant="h2">{item.title}</Text>
-          {video && preview?.id === item.id && preview.error ? (
-            <Text tone="muted">{preview.error}</Text>
-          ) : null}
+          ) : (
+            <View style={{ flex: 1, backgroundColor: '#737373' }} />
+          )}
+          <View
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.4)',
+            }}
+          />
+          <View
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              padding: 16,
+              justifyContent: 'flex-end',
+            }}
+          >
+            <Text variant="h3" style={{ color: '#fff', marginBottom: 8 }}>
+              Featured {video ? 'preview' : 'spotlight'}
+            </Text>
+            {video && focused && preview?.id === item.id && preview.source ? (
+              <Preview key={item.id} source={preview.source} />
+            ) : null}
+            <Text variant="h2" style={{ color: '#fff' }}>
+              {item.title}
+            </Text>
+            {video && preview?.id === item.id && preview.error ? (
+              <Text tone="muted">{preview.error}</Text>
+            ) : null}
+          </View>
         </Pressable>
       </Animated.View>
-      <View style={{ alignSelf: 'center', flexDirection: 'row', height: 32 }}>
+      <View
+        style={{
+          position: 'absolute',
+          bottom: 20,
+          left: 0,
+          right: 0,
+          flexDirection: 'row',
+          height: 32,
+          justifyContent: 'center',
+        }}
+      >
         <Animated.View
           pointerEvents="none"
           style={{
