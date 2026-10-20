@@ -274,8 +274,18 @@ export function mapMangaDexToNormalized(manga: MangaDexManga) {
       ?.map((title) => pickLocalized(title))
       .filter((title): title is string => Boolean(title?.trim())) ?? [];
 
+  const mainTitle = pickLocalized(manga.attributes.title);
+  const isNonEnglishTitle = /^[\u3000-\u303F\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF\uAC00-\uD7AF\u0400-\u04FF]/.test(mainTitle);
+  
+  // If main title is non-English, prefer English alt title
+  const englishAltTitle = altTitles.find((title) => 
+    title?.trim() && /^[a-zA-Z0-9\s\-'.:!?(),;'"`@#$%&*+/\\[\]{}<>|~=]+$/.test(title)
+  );
+  
+  const title = isNonEnglishTitle && englishAltTitle ? englishAltTitle : (altTitles.find((title) => title?.trim()) || mainTitle);
+
   return {
-    title: altTitles.find((title) => title?.trim()) || pickLocalized(manga.attributes.title),
+    title,
     description: pickLocalized(manga.attributes.description),
     coverUrl: buildCoverUrl(manga),
     genres,
