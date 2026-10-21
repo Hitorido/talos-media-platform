@@ -1,26 +1,37 @@
-import { suwayomiAdapter } from './suwayomi/adapter.js';
+import { animeXinAdapter } from './animexin/adapter.js';
 import { ao3Adapter } from './ao3/adapter.js';
+import { asuraScansAdapter } from './asurascans/adapter.js';
+import { demonicScansAdapter } from './demonicscans/adapter.js';
+import { donghuaStreamAdapter } from './donghuastream/adapter.js';
 import extensionCatalog from './extensions/index.json';
 import { loadReviewedExtensions } from './extensions/loader.js';
-import { animeXinAdapter } from './animexin/adapter.js';
-import { manhuaPlusAdapter } from './manhuaplus/adapter.js';
-import { wanderingInnAdapter } from './wanderinginn/adapter.js';
-import { royalRoadAdapter } from './royalroad/adapter.js';
-import { donghuaStreamAdapter } from './donghuastream/adapter.js';
-import { novelPingAdapter } from './novelping/adapter.js';
-import { mangaTownAdapter } from './mangatown/adapter.js';
-import { demonicScansAdapter } from './demonicscans/adapter.js';
 import { gdScansAdapter } from './gdscans/adapter.js';
 import { kaliScanAdapter, mangaJinxAdapter } from './kaliscan/adapter.js';
-import { novelCodexAdapter } from './novelcodex/adapter.js';
-import { novelArrowAdapter } from './novelarrow/adapter.js';
 import { mangaPillAdapter } from './mangapill/adapter.js';
-import { weebCentralAdapter } from './weebcentral/adapter.js';
-import { asuraScansAdapter } from './asurascans/adapter.js';
-import { novelProviderAdapter } from './novel/adapter.js';
+import { mangaTownAdapter } from './mangatown/adapter.js';
+import { manhuaPlusAdapter } from './manhuaplus/adapter.js';
 import { narouProviderAdapter } from './narou/adapter.js';
+import { novelProviderAdapter } from './novel/adapter.js';
+import { novelArrowAdapter } from './novelarrow/adapter.js';
+import { novelCodexAdapter } from './novelcodex/adapter.js';
+import { novelPingAdapter } from './novelping/adapter.js';
 import { registerProvider } from './registry.js';
+import { royalRoadAdapter } from './royalroad/adapter.js';
 import { scraperProviderAdapter } from './scraper/adapter.js';
+import { suwayomiAdapter } from './suwayomi/adapter.js';
+import { wanderingInnAdapter } from './wanderinginn/adapter.js';
+import { weebCentralAdapter } from './weebcentral/adapter.js';
+
+import { comiclandAdapter } from './comicland/adapter.js';
+import { comixAdapter } from './comix/adapter.js';
+import { mgreadAdapter } from './mgread/adapter.js';
+import { nyxScansAdapter } from './nyxscans/adapter.js';
+import { omegaScansAdapter } from './omegascans/adapter.js';
+import { roliaScanAdapter } from './roliascan/adapter.js';
+import { toonGodAdapter } from './toongod/adapter.js';
+import { toonilyAdapter } from './toonily/adapter.js';
+import { valirScansAdapter } from './valirscans/adapter.js';
+import { vortexScansAdapter } from './vortexscans/adapter.js';
 
 let initialized = false;
 
@@ -55,30 +66,41 @@ export function initializeBackendProviders(): void {
   registerProvider(narouProviderAdapter);
   registerProvider(scraperProviderAdapter);
   registerProvider(asuraScansAdapter);
+  registerProvider(valirScansAdapter);
+  registerProvider(mgreadAdapter);
+  registerProvider(comixAdapter);
+  registerProvider(nyxScansAdapter);
+  registerProvider(vortexScansAdapter);
+  registerProvider(roliaScanAdapter);
+  registerProvider(toonGodAdapter);
+  registerProvider(comiclandAdapter);
+  registerProvider(omegaScansAdapter);
+  registerProvider(toonilyAdapter);
 
   initialized = true;
 }
 
 export { contentGateway } from './contentGateway.js';
 export {
-  disableProvider,
-  enableProvider,
-  findProvidersByCapability,
-  findProvidersByMediaType,
-  getProvider,
-  getProviderHealth,
-  getProviderStatus,
-  listProviderAdapters,
-  listProviders,
-  listProviderSummaries,
-  registerProvider,
-  unregisterProvider,
+    disableProvider,
+    enableProvider,
+    findProvidersByCapability,
+    findProvidersByMediaType,
+    getProvider,
+    getProviderHealth,
+    getProviderStatus,
+    listProviderAdapters,
+    listProviders,
+    listProviderSummaries,
+    registerProvider,
+    unregisterProvider
 } from './registry.js';
 export { ProviderGatewayError } from './types.js';
 export type {
-  BackendMediaType,
-  BackendProviderCapability,
-  BackendProviderDefinition,
-  BackendProviderStatus,
-  ContentProviderAdapter,
+    BackendMediaType,
+    BackendProviderCapability,
+    BackendProviderDefinition,
+    BackendProviderStatus,
+    ContentProviderAdapter
 } from './types.js';
+

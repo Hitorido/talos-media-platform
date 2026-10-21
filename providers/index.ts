@@ -1,8 +1,7 @@
-import { Platform } from 'react-native';
-import { backendAnimeProvider } from '@/providers/backend-content/anime';
+import { aniListAnimeProvider } from '@/providers/anilist';
 import { animeParadiseProvider } from '@/providers/animeparadise';
 import { backendComicProvider, backendNovelProvider } from '@/providers/backend-content';
-import { aniListAnimeProvider } from '@/providers/anilist';
+import { backendAnimeProvider } from '@/providers/backend-content/anime';
 import { builtinMockProvider } from '@/providers/builtin-mock';
 import { jikanAnimeProvider } from '@/providers/jikan';
 import { kitsuAnimeProvider } from '@/providers/kitsu';
@@ -10,6 +9,7 @@ import { mangaDexProvider } from '@/providers/mangadex';
 import { narouProvider } from '@/providers/narou';
 import { novelBackendProvider } from '@/providers/novel-backend';
 import { providerRegistry } from '@/providers/registry';
+import { Platform } from 'react-native';
 
 let initialized = false;
 
@@ -33,6 +33,16 @@ export const RESTORED_SOURCE_IDS = [
   'royalroad',
   'donghuastream',
   'animeparadise',
+  'valirscans',
+  'mgread',
+  'comix',
+  'nyxscans',
+  'vortexscans',
+  'roliascan',
+  'toongod',
+  'comicland',
+  'omegascans',
+  'toonily',
 ];
 
 function registerComic(
@@ -93,6 +103,16 @@ export function initializeProviders(): void {
     'Manhwa via Talos Render. Search route may be limited if the upstream site changes.',
     ['manhwa'],
   );
+  registerComic('valirscans', 'ValirScans');
+  registerComic('mgread', 'Mgread');
+  registerComic('comix', 'Comix');
+  registerComic('nyxscans', 'NyxScans');
+  registerComic('vortexscans', 'VortexScans');
+  registerComic('roliascan', 'RoliaScan');
+  registerComic('toongod', 'ToonGod');
+  registerComic('comicland', 'Comicland');
+  registerComic('omegascans', 'OmegaScans');
+  registerComic('toonily', 'Toonily');
 
   providerRegistry.register(kitsuAnimeProvider);
   providerRegistry.register(aniListAnimeProvider);
@@ -142,3 +162,4 @@ export function getDefaultProviderEnabledMap(): Record<string, boolean> {
 
 export { providerRegistry } from '@/providers/registry';
 export type { MediaProvider } from '@/providers/types';
+
