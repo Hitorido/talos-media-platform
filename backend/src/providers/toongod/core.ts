@@ -3,10 +3,29 @@ import { checkedId, type SourceText } from '../shared/sourceValidation.ts';
 import { ProviderGatewayError, type ContentProviderAdapter } from '../types.ts';
 const origin = 'https://toongod.org',
   providerId = 'toongod';
+
+async function directFetch(path: string): Promise<string> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetch(new URL(path, origin).href, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        Accept: 'text/html',
+      },
+    });
+    if (!response.ok) throw new ProviderGatewayError(`HTTP ${response.status}`, response.status);
+    return await response.text();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 const id = (value: string) => checkedId(value, /^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$/);
 export function createToonGodAdapter(sourceText: SourceText): ContentProviderAdapter {
   async function detail(sourceId: string) {
-    return load(await sourceText(origin, '/manga/' + id(sourceId)));
+    return load(await directFetch('/manga/' + id(sourceId)));
   }
   const adapter: ContentProviderAdapter = {
     definition: {
@@ -19,17 +38,17 @@ export function createToonGodAdapter(sourceText: SourceText): ContentProviderAda
       enabledByDefault: true,
     },
     async search(query) {
-      const $ = load(await sourceText(origin, '/?s=' + encodeURIComponent(query)));
-      return $('.manga-post')
+      const $ = load(await directFetch('/?s=' + encodeURIComponent(query)));
+      return $('.page-item-detail, .manga-post')
         .toArray()
         .flatMap((el) => {
           const a = $(el).find('a').first();
           const href = a.attr('href');
           if (!href) return [];
-          const sourceId = href.replace('/manga/', '').replace('/', '');
+          const sourceId = href.replace('/manga/', '').replace('/series/', '').replace('/', '').replace(/\/$/, '');
           if (!/^[A-Za-z0-9-]+$/.test(sourceId)) return [];
-          const title = a.find('.post-title').text().trim();
-          const coverUrl = a.find('img').attr('src');
+          const title = a.find('.post-title, .entry-title, h3, h4').first().text().trim();
+          const coverUrl = a.find('img').attr('data-src') || a.find('img').attr('src');
           return title
             ? [
                 {
@@ -90,7 +109,7 @@ export function createToonGodAdapter(sourceText: SourceText): ContentProviderAda
       const chapterLink = $(`.wp-manga-chapter a:contains("${chapterId}")`).first();
       const href = chapterLink.attr('href');
       if (!href) throw new ProviderGatewayError('Chapter link not found.', 404);
-      const $chapter = load(await sourceText(origin, href.replace(origin, '')));
+      const $chapter = load(await directFetch(href.replace(origin, '')));
       const pages = $chapter('.reading-content img')
         .toArray()
         .map((el) => {

@@ -1,15 +1,15 @@
 import { useDialogEscape } from '@/hooks/useDialogEscape';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, ScrollView, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Modal, ScrollView, View } from 'react-native';
 
 import { PopPressable, Text } from '@/components/ui';
 import { animeDetailsHref, mangaDetailsHref, novelDetailsHref } from '@/lib/routes';
 import { providerRegistry } from '@/providers';
 import { unifiedSearch } from '@/services/contentService';
-import { decodeMediaRouteId } from '@/types/provider';
 import type { ContentType } from '@/types/content';
+import { decodeMediaRouteId } from '@/types/provider';
 import type { SearchResult } from '@/types/search';
 
 type AlternateSourcesModalProps = {
@@ -109,9 +109,9 @@ export function AlternateSourcesModal({
 
   const openResult = (result: SearchResult) => {
     onClose();
-    if (result.type === 'anime') router.push(animeDetailsHref(result.id));
-    else if (result.type === 'novel') router.push(novelDetailsHref(result.id));
-    else router.push(mangaDetailsHref(result.id));
+    if (result.type === 'anime') router.replace(animeDetailsHref(result.id));
+    else if (result.type === 'novel') router.replace(novelDetailsHref(result.id));
+    else router.replace(mangaDetailsHref(result.id));
   };
 
   return (

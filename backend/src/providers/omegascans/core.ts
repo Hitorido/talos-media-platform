@@ -20,16 +20,16 @@ export function createOmegaScansAdapter(sourceText: SourceText): ContentProvider
     },
     async search(query) {
       const $ = load(await sourceText(origin, '/?s=' + encodeURIComponent(query)));
-      return $('.page-item-detail')
+      return $('.page-item-detail, .manga-post')
         .toArray()
         .flatMap((el) => {
           const a = $(el).find('a').first();
           const href = a.attr('href');
           if (!href) return [];
-          const sourceId = href.replace('/series/', '').replace('/', '');
+          const sourceId = href.replace('/series/', '').replace('/manga/', '').replace('/', '').replace(/\/$/, '');
           if (!/^[A-Za-z0-9-]+$/.test(sourceId)) return [];
-          const title = a.find('.post-title').text().trim();
-          const coverUrl = a.find('img').attr('src');
+          const title = a.find('.post-title, .entry-title, h3, h4').first().text().trim();
+          const coverUrl = a.find('img').attr('data-src') || a.find('img').attr('src');
           return title
             ? [
                 {

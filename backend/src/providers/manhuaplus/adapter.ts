@@ -1,7 +1,7 @@
 import { load } from 'cheerio';
 import { checkedId, sourceText } from '../shared/sourceHttp.js';
 import { ProviderGatewayError, type ContentProviderAdapter } from '../types.js';
-const origin = 'https://manhuaplus.org';
+const origin = 'https://manhuaplus.com';
 const providerId = 'manhuaplus';
 const id = (value: string) => checkedId(value, /^[a-z0-9-]+$/);
 const absolute = (value?: string) => (value ? new URL(value, origin).href : undefined);
@@ -123,7 +123,7 @@ export const manhuaPlusAdapter: ContentProviderAdapter = {
         !!u.port ||
         !(
           (u.hostname === 'cdn.manhuaplus.cc' && u.pathname.startsWith('/ch/' + chapter + '/')) ||
-          (u.hostname === 'cdn.manhuaplus.org' &&
+          (u.hostname === 'cdn.manhuaplus.com' &&
             /^\/\d{4}\/\d{2}\/\d{2}\/[a-zA-Z0-9-]+\.(?:webp|png|jpe?g)$/.test(u.pathname))
         ) ||
         !Number.isFinite(r.index)

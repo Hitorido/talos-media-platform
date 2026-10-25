@@ -45,7 +45,7 @@ export const asuraScansAdapter: ContentProviderAdapter = {
   definition: {
     id: providerId,
     name: 'Asura Scans',
-    mediaTypes: ['manhwa'],
+    mediaTypes: ['manhwa', 'manga'],
     capabilities: ['search', 'details', 'chapters', 'pages'],
     status: 'limited',
     enabledByDefault: true,
