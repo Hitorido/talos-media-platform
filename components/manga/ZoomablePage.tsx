@@ -56,7 +56,7 @@ export function FittedPage({
             <Image
               source={{ uri: page.imageUrl }}
               style={{ width: '100%', height: '100%' }}
-              resizeMode={paged ? 'contain' : 'stretch'}
+              resizeMode="contain"
               onLoadStart={() => {
                 if (!decoded) setLoading(true);
               }}

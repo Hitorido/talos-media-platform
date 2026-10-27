@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
-import { mangaTownImageUrl } from './adapter.js';
 import { ProviderGatewayError } from '../types.js';
+import { mangaTownImageUrl } from './adapter.js';
 
 export async function mangaTownImage(req: Request, res: Response) {
   const { mediaId, chapterId, page, search } = req.query;
@@ -35,7 +35,10 @@ export async function mangaTownImage(req: Request, res: Response) {
     const response = await fetch(url, {
       redirect: 'error',
       signal: controller.signal,
-      headers: { Referer: 'https://www.mangatown.com/' },
+      headers: {
+        Referer: 'https://www.mangatown.com/',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      },
     });
     const type = response.headers.get('content-type') || '';
     if (!response.ok || !type.startsWith('image/'))

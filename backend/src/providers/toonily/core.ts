@@ -45,7 +45,7 @@ export function createToonilyAdapter(sourceText: SourceText): ContentProviderAda
           const a = $(el).find('a').first();
           const href = a.attr('href');
           if (!href) return [];
-          const sourceId = href.replace('/manga/', '').replace('/series/', '').replace('/', '').replace(/\/$/, '');
+          const sourceId = href.replace(/\/series\/(comic|manga)\//, '').replace(/\/manga\//, '').replace(/\/$/, '');
           if (!/^[A-Za-z0-9-]+$/.test(sourceId)) return [];
           const title = a.find('.post-title, .entry-title, h3, h4').first().text().trim();
           const coverUrl = a.find('img').attr('data-src') || a.find('img').attr('src');

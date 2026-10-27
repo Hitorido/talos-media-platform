@@ -55,6 +55,7 @@ export default function SearchScreen() {
             (selectedSource === 'All sources' || item.providerId === selectedSource),
         );
   const showResults = hasQuery && !error && results.length > 0;
+  const showFilters = genres.length > 0 || sources.length > 0;
 
   return (
     <Screen className="flex-1">
@@ -66,7 +67,6 @@ export default function SearchScreen() {
           <SearchBar value={query} onChangeText={setQuery} onClear={clearQuery} onSubmit={retry} />
           <SearchFilterTabs value={filter} onChange={setFilter} />
           <GenreFilters genres={genres} value={selectedGenre} onChange={setGenre} />
-          <SourceFilter sources={sources} value={selectedSource} onChange={setSource} />
           <SearchSuggestions filter={filter} query={query} results={results} />
         </View>
 
@@ -101,6 +101,12 @@ export default function SearchScreen() {
               keyboardShouldPersistTaps="handled"
               contentContainerClassName="flex-grow px-4 py-4"
             >
+              {showFilters ? (
+                <View className="mb-4 gap-3">
+                  <GenreFilters genres={genres} value={selectedGenre} onChange={setGenre} />
+                  <SourceFilter sources={sources} value={selectedSource} onChange={setSource} />
+                </View>
+              ) : null}
               <SearchHistoryList
                 history={history}
                 onSelect={selectHistoryItem}

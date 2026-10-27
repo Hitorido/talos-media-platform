@@ -1,7 +1,7 @@
-import { PopPressable as Pressable } from '@/components/ui/PopPressable';
-import { ScrollView } from 'react-native';
 import { Text } from '@/components/ui';
+import { PopPressable as Pressable } from '@/components/ui/PopPressable';
 import { cn } from '@/utils/cn';
+import { ScrollView } from 'react-native';
 
 type SourceFilterProps = {
   sources: string[];
@@ -30,7 +30,7 @@ export function SourceFilter({ sources, value, onChange }: SourceFilterProps) {
             )}
           >
             <Text
-              variant="caption"
+              variant="label"
               className={isActive ? 'text-white' : 'text-neutral-700 dark:text-neutral-200'}
             >
               {source}
