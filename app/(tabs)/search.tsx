@@ -1,22 +1,23 @@
-import { useState } from 'react';
 import { GenreFilters } from '@/components/content/GenreFilters';
 import { SearchSuggestions } from '@/components/search/SearchSuggestions';
-import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
+import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 
 import {
-  SearchBar,
-  SearchEmptyState,
-  SearchErrorState,
-  SearchFilterTabs,
-  SearchHistoryList,
-  SearchLoadingState,
-  SearchResultsList,
+    SearchBar,
+    SearchEmptyState,
+    SearchErrorState,
+    SearchFilterTabs,
+    SearchHistoryList,
+    SearchLoadingState,
+    SearchResultsList,
+    SourceFilter,
 } from '@/components/search';
-import { Text } from '@/components/ui/Text';
 import { Screen } from '@/components/ui';
-import { animeDetailsHref, mangaDetailsHref, novelDetailsHref } from '@/lib/routes';
+import { Text } from '@/components/ui/Text';
 import { useSearch } from '@/hooks/useSearch';
+import { animeDetailsHref, mangaDetailsHref, novelDetailsHref } from '@/lib/routes';
 
 export default function SearchScreen() {
   const router = useRouter();
@@ -40,12 +41,19 @@ export default function SearchScreen() {
   } = useSearch();
 
   const [genre, setGenre] = useState('All genres');
+  const [source, setSource] = useState('All sources');
   const genres = [...new Set(results.flatMap((item) => item.tags))].sort();
+  const sources = [...new Set(results.map((item) => item.providerId))].sort();
   const selectedGenre = genres.includes(genre) ? genre : 'All genres';
+  const selectedSource = sources.includes(source) ? source : 'All sources';
   const filteredResults =
-    selectedGenre === 'All genres'
+    selectedGenre === 'All genres' && selectedSource === 'All sources'
       ? results
-      : results.filter((item) => item.tags.includes(selectedGenre));
+      : results.filter(
+          (item) =>
+            (selectedGenre === 'All genres' || item.tags.includes(selectedGenre)) &&
+            (selectedSource === 'All sources' || item.providerId === selectedSource),
+        );
   const showResults = hasQuery && !error && results.length > 0;
 
   return (
@@ -58,6 +66,7 @@ export default function SearchScreen() {
           <SearchBar value={query} onChangeText={setQuery} onClear={clearQuery} onSubmit={retry} />
           <SearchFilterTabs value={filter} onChange={setFilter} />
           <GenreFilters genres={genres} value={selectedGenre} onChange={setGenre} />
+          <SourceFilter sources={sources} value={selectedSource} onChange={setSource} />
           <SearchSuggestions filter={filter} query={query} results={results} />
         </View>
 

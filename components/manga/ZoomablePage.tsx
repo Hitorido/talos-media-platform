@@ -3,9 +3,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Text, View, useWindowDimensions } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  type SharedValue,
+    useAnimatedStyle,
+    useSharedValue,
+    type SharedValue,
 } from 'react-native-reanimated';
 import { useReaderZoom } from './useReaderZoom';
 
@@ -56,7 +56,7 @@ export function FittedPage({
             <Image
               source={{ uri: page.imageUrl }}
               style={{ width: '100%', height: '100%' }}
-              resizeMode="contain"
+              resizeMode={paged ? 'contain' : 'stretch'}
               onLoadStart={() => {
                 if (!decoded) setLoading(true);
               }}

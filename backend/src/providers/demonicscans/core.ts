@@ -118,7 +118,10 @@ export function createDemonicScansAdapter(sourceText: SourceText): ContentProvid
         .toArray()
         .map((el) => $(el).attr('src') || '')
         .filter((url) => url.startsWith('https://mangareadon.org/'))
-        .map((url, index) => ({ pageNumber: index + 1, imageUrl: new URL(url).href }));
+        .map((url, index) => ({
+          pageNumber: index + 1,
+          imageUrl: `/api/content/demonicscans/image?url=${encodeURIComponent(new URL(url).href)}`,
+        }));
       if (!pages.length) throw new ProviderGatewayError('Chapter images unavailable.', 502);
       return pages;
     },

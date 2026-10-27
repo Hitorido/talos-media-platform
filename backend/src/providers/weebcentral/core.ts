@@ -1,14 +1,32 @@
 import { load } from 'cheerio/slim';
 import { checkedId, type SourceText } from '../shared/sourceValidation.ts';
 import {
-  ProviderGatewayError,
-  type ContentProviderAdapter,
-  type BackendSearchResult,
+    ProviderGatewayError,
+    type BackendSearchResult,
+    type ContentProviderAdapter,
 } from '../types.ts';
 const origin = 'https://weebcentral.com';
 const providerId = 'weebcentral';
 const id = (value: string) => checkedId(value, /^[0-9A-HJKMNP-TV-Z]{26}$/);
 const clean = (text: string) => text.replace(/\s+/g, ' ').trim();
+
+async function directFetch(path: string): Promise<string> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetch(new URL(path, origin).href, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        Accept: 'text/html',
+      },
+    });
+    if (!response.ok) throw new ProviderGatewayError(`HTTP ${response.status}`, response.status);
+    return await response.text();
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 export function createWeebCentralAdapter(sourceText: SourceText): ContentProviderAdapter {
   const adapter: ContentProviderAdapter = {
@@ -23,7 +41,7 @@ export function createWeebCentralAdapter(sourceText: SourceText): ContentProvide
       enabledByDefault: true,
     },
     async search(query, mediaType) {
-      const $ = load(await sourceText(origin, `/search/data?text=${encodeURIComponent(query)}`));
+      const $ = load(await directFetch(`/search/data?text=${encodeURIComponent(query)}`));
       const results = new Map<string, BackendSearchResult>();
       $('a[href*="/series/"]').each((_, el) => {
         const a = $(el),
@@ -53,7 +71,7 @@ export function createWeebCentralAdapter(sourceText: SourceText): ContentProvide
       return [...results.values()].slice(0, 12);
     },
     async getDetails(sourceId) {
-      const $ = load(await sourceText(origin, `/series/${id(sourceId)}`));
+      const $ = load(await directFetch(`/series/${id(sourceId)}`));
       const title = clean($('h1').first().text());
       if (!title) throw new ProviderGatewayError('Source details missing.', 502);
       const text = $('main').text() || $('body').text();
@@ -76,7 +94,7 @@ export function createWeebCentralAdapter(sourceText: SourceText): ContentProvide
       };
     },
     async getChapters(sourceId) {
-      const $ = load(await sourceText(origin, `/series/${id(sourceId)}/full-chapter-list`));
+      const $ = load(await directFetch(`/series/${id(sourceId)}/full-chapter-list`));
       const chapters = $('a[href*="/chapters/"]')
         .toArray()
         .map((el) => {
@@ -103,7 +121,7 @@ export function createWeebCentralAdapter(sourceText: SourceText): ContentProvide
       id(sourceId);
       id(chapterId);
       const $ = load(
-        await sourceText(origin, `/chapters/${chapterId}/images?reading_style=long_strip`),
+        await directFetch(`/chapters/${chapterId}/images?reading_style=long_strip`),
       );
       const pages = $('img')
         .toArray()

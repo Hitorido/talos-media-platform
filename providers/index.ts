@@ -54,7 +54,8 @@ function registerComic(
   const provider = backendComicProvider(id, name);
   provider.definition.executionMode = 'scraper-backend';
   provider.definition.backendRequired =
-    Platform.OS === 'web' || !['weebcentral', 'demonicscans', 'kaliscan', 'mangajinx'].includes(id);
+    Platform.OS === 'web' ||
+    !['weebcentral', 'demonicscans', 'kaliscan', 'mangajinx', 'manhuaplus', 'comix', 'toongod', 'toonily'].includes(id);
   if (!provider.definition.backendRequired) provider.definition.executionMode = 'direct-api';
   provider.definition.status = id === 'manhuaplus' ? 'limited' : 'working';
   if (mediaTypes) provider.definition.mediaTypes = mediaTypes;

@@ -1,13 +1,14 @@
-import { tmdbCatalog } from '../providers/tmdb/catalog.js';
-import { suwayomiImage } from '../providers/suwayomi/adapter.js';
+import { Router } from 'express';
 import { imageProxy, videoProxy } from '../media/proxy.js';
 import { animeParadisePlaylist } from '../providers/animeparadise/playlist.js';
-import { novelPingDiscovery } from '../providers/novelping/discovery.js';
-import { novelCodexDiscovery } from '../providers/novelcodex/discovery.js';
+import { demonicScansImage } from '../providers/demonicscans/image.js';
+import { mangaPillImage } from '../providers/mangapill/image.js';
 import { mangaTownImage } from '../providers/mangatown/image.js';
 import { narouDiscovery } from '../providers/narou/discovery.js';
-import { mangaPillImage } from '../providers/mangapill/image.js';
-import { Router } from 'express';
+import { novelCodexDiscovery } from '../providers/novelcodex/discovery.js';
+import { novelPingDiscovery } from '../providers/novelping/discovery.js';
+import { suwayomiImage } from '../providers/suwayomi/adapter.js';
+import { tmdbCatalog } from '../providers/tmdb/catalog.js';
 
 import { contentController } from '../controllers/content.controller.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
@@ -56,6 +57,7 @@ contentRouter.get(
 );
 contentRouter.get('/mangapill/image', asyncHandler(mangaPillImage));
 contentRouter.get('/mangatown/image', asyncHandler(mangaTownImage));
+contentRouter.get('/demonicscans/image', asyncHandler(demonicScansImage));
 
 contentRouter.get(
   '/search',

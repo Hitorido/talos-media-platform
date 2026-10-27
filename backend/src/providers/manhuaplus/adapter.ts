@@ -1,12 +1,31 @@
 import { load } from 'cheerio';
-import { checkedId, sourceText } from '../shared/sourceHttp.js';
+import { checkedId } from '../shared/sourceHttp.js';
 import { ProviderGatewayError, type ContentProviderAdapter } from '../types.js';
 const origin = 'https://manhuaplus.com';
 const providerId = 'manhuaplus';
 const id = (value: string) => checkedId(value, /^[a-z0-9-]+$/);
 const absolute = (value?: string) => (value ? new URL(value, origin).href : undefined);
+
+async function directFetch(path: string): Promise<string> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetch(new URL(path, origin).href, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        Accept: 'text/html',
+      },
+    });
+    if (!response.ok) throw new ProviderGatewayError(`HTTP ${response.status}`, response.status);
+    return await response.text();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function catalog(sourceId: string) {
-  const $ = load(await sourceText(origin, '/manga/' + id(sourceId)));
+  const $ = load(await directFetch('/manga/' + id(sourceId)));
   const seen = new Set<string>();
   return $('.chapter a[href]')
     .toArray()
@@ -42,7 +61,7 @@ export const manhuaPlusAdapter: ContentProviderAdapter = {
     statusNote: 'Public catalog and images verified locally; Render/device verification pending.',
   },
   async search(query) {
-    const $ = load(await sourceText(origin, '/search?keyword=' + encodeURIComponent(query)));
+    const $ = load(await directFetch('/search?keyword=' + encodeURIComponent(query)));
     const seen = new Set<string>();
     return $('a[title][href]')
       .toArray()
@@ -67,7 +86,7 @@ export const manhuaPlusAdapter: ContentProviderAdapter = {
       .slice(0, 20);
   },
   async getDetails(sourceId) {
-    const $ = load(await sourceText(origin, '/manga/' + id(sourceId)));
+    const $ = load(await directFetch('/manga/' + id(sourceId)));
     const title = $('h1').first().text().trim();
     const genres = $('h1')
       .first()
@@ -96,11 +115,11 @@ export const manhuaPlusAdapter: ContentProviderAdapter = {
   async getPages(sourceId, chapterId) {
     if (!(await catalog(sourceId)).some((c) => c.id === chapterId))
       throw new ProviderGatewayError('Chapter is not in this catalog.', 404);
-    const html = await sourceText(origin, '/manga/' + id(sourceId) + '/' + id(chapterId));
+    const html = await directFetch('/manga/' + id(sourceId) + '/' + id(chapterId));
     const chapter = html.match(/CHAPTER_ID\s*=\s*(\d+)/)?.[1];
     if (!chapter) throw new ProviderGatewayError('Chapter images unavailable.', 502);
     const payload = JSON.parse(
-      await sourceText(origin, '/ajax/image/list/chap/' + chapter, 'POST'),
+      await directFetch('/ajax/image/list/chap/' + chapter),
     );
     if (!payload.status || typeof payload.html !== 'string')
       throw new ProviderGatewayError('Chapter images unavailable.', 502);

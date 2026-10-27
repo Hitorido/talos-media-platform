@@ -6,3 +6,5 @@ export { SearchHistoryList } from '@/components/search/SearchHistoryList';
 export { SearchLoadingState } from '@/components/search/SearchLoadingState';
 export { SearchResultItem } from '@/components/search/SearchResultItem';
 export { SearchResultsList } from '@/components/search/SearchResultsList';
+export { SourceFilter } from '@/components/search/SourceFilter';
+
