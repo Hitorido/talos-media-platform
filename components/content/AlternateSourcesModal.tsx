@@ -12,6 +12,50 @@ import type { ContentType } from '@/types/content';
 import { decodeMediaRouteId } from '@/types/provider';
 import type { SearchResult } from '@/types/search';
 
+/** Accent palette — each alternate source gets a distinct colour stripe. */
+const SOURCE_ACCENT_COLORS = [
+  {
+    border: 'border-violet-400 dark:border-violet-500',
+    bg: 'bg-violet-50 dark:bg-violet-950/40',
+    dot: '#7c3aed',
+  },
+  {
+    border: 'border-sky-400 dark:border-sky-500',
+    bg: 'bg-sky-50 dark:bg-sky-950/40',
+    dot: '#0284c7',
+  },
+  {
+    border: 'border-emerald-400 dark:border-emerald-500',
+    bg: 'bg-emerald-50 dark:bg-emerald-950/40',
+    dot: '#059669',
+  },
+  {
+    border: 'border-rose-400 dark:border-rose-500',
+    bg: 'bg-rose-50 dark:bg-rose-950/40',
+    dot: '#e11d48',
+  },
+  {
+    border: 'border-amber-400 dark:border-amber-500',
+    bg: 'bg-amber-50 dark:bg-amber-950/40',
+    dot: '#d97706',
+  },
+  {
+    border: 'border-fuchsia-400 dark:border-fuchsia-500',
+    bg: 'bg-fuchsia-50 dark:bg-fuchsia-950/40',
+    dot: '#a21caf',
+  },
+];
+
+/** Get consistent color index for a provider based on its ID */
+function getProviderColorIndex(providerId: string): number {
+  let hash = 0;
+  for (let i = 0; i < providerId.length; i++) {
+    hash = ((hash << 5) - hash) + providerId.charCodeAt(i);
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return Math.abs(hash) % SOURCE_ACCENT_COLORS.length;
+}
+
 type AlternateSourcesModalProps = {
   visible: boolean;
   title: string;
@@ -151,44 +195,67 @@ export function AlternateSourcesModal({
             </Text>
           ) : (
             <ScrollView contentContainerClassName="gap-2 pb-4">
-              {results.map((result) => (
-                <PopPressable
-                  key={result.id}
-                  onPress={() => openResult(result)}
-                  className="flex-row items-center justify-between gap-3 rounded-lg border border-neutral-200 bg-white p-3 dark:border-neutral-800 dark:bg-neutral-900"
-                >
-                  <View className="flex-1">
-                    <Text variant="label" numberOfLines={2}>
-                      {result.title}
-                    </Text>
-                    <Text variant="caption" tone="muted">
-                      {result.subtitle || result.providerId}
-                    </Text>
-                  </View>
-                  <View className="items-end gap-1">
-                    <Text variant="caption" className="text-primary-500">
-                      {providerRegistry.get(result.providerId)?.definition.name ??
-                        result.providerId}
-                    </Text>
-                    {result.status ? (
-                      <Text variant="caption" tone="muted">
-                        {result.status}
+              {results.map((result) => {
+                const accent = SOURCE_ACCENT_COLORS[getProviderColorIndex(result.providerId)];
+                const providerName =
+                  providerRegistry.get(result.providerId)?.definition.name ?? result.providerId;
+                return (
+                  <PopPressable
+                    key={result.id}
+                    onPress={() => openResult(result)}
+                    className={`overflow-hidden rounded-xl border-2 ${accent.border} ${accent.bg}`}
+                  >
+                    <View
+                      className="flex-row items-center gap-2 px-3 py-1.5"
+                      style={{ backgroundColor: accent.dot + '22' }}
+                    >
+                      <View
+                        className="h-2 w-2 rounded-full"
+                        style={{ backgroundColor: accent.dot }}
+                      />
+                      <Text
+                        variant="caption"
+                        className="font-semibold"
+                        style={{ color: accent.dot }}
+                      >
+                        Alternate source
                       </Text>
-                    ) : null}
-                    {result.episodeCount !== undefined ? (
-                      <Text variant="caption" tone="muted">
-                        {result.episodeCount} episodes
-                      </Text>
-                    ) : null}
-                    {typeof result.chapterCount === 'number' ? (
-                      <Text variant="caption" tone="muted">
-                        {result.chapterCount}{' '}
-                        {result.type === 'novel' ? 'catalog chapters' : 'chapters'}
-                      </Text>
-                    ) : null}
-                  </View>
-                </PopPressable>
-              ))}
+                    </View>
+                    <View className="flex-row items-center justify-between gap-3 p-3">
+                      <View className="flex-1">
+                        <Text variant="label" numberOfLines={2}>
+                          {result.title}
+                        </Text>
+                        <Text variant="caption" tone="muted">
+                          {providerName}
+                        </Text>
+                        {result.status ? (
+                          <Text variant="caption" tone="muted">
+                            {result.status}
+                          </Text>
+                        ) : null}
+                      </View>
+                      <View className="items-end gap-1">
+                        {result.episodeCount !== undefined ? (
+                          <Text variant="caption" tone="muted">
+                            {result.episodeCount} eps
+                          </Text>
+                        ) : null}
+                        {typeof result.chapterCount === 'number' ? (
+                          <Text variant="caption" tone="muted">
+                            {result.chapterCount} ch
+                          </Text>
+                        ) : null}
+                        <Ionicons
+                          name="arrow-forward-circle"
+                          size={22}
+                          style={{ color: accent.dot }}
+                        />
+                      </View>
+                    </View>
+                  </PopPressable>
+                );
+              })}
             </ScrollView>
           )}
         </View>

@@ -78,7 +78,7 @@ export const ao3Adapter: ContentProviderAdapter = {
     enabledByDefault: true,
   },
   async search(query) {
-    const $ = await page('/works/search?work_search%5Bquery%5D=' + encodeURIComponent(query));
+    const $ = await page('/search?work_search%5Bquery%5D=' + encodeURIComponent(query) + '&work_search%5Bsort_column%5D=revised_at&work_search%5Bsort_direction%5D=desc');
     return $('li.work.blurb')
       .toArray()
       .flatMap((el) => {

@@ -61,25 +61,30 @@ export const manhuaPlusAdapter: ContentProviderAdapter = {
     statusNote: 'Public catalog and images verified locally; Render/device verification pending.',
   },
   async search(query) {
-    const $ = load(await directFetch('/search?keyword=' + encodeURIComponent(query)));
+    const $ = load(await directFetch('/search?q=' + encodeURIComponent(query)));
     const seen = new Set<string>();
-    return $('a[title][href]')
+    return $('.page-item-detail, .manga-post, .post-title a, h3 a, h4 a')
       .toArray()
       .flatMap((e) => {
-        const a = $(e),
-          url = new URL(a.attr('href')!, origin),
-          sourceId =
-            url.origin === origin ? url.pathname.match(/^\/manga\/([a-z0-9-]+)$/)?.[1] : undefined;
-        if (!sourceId || seen.has(sourceId) || !a.find('img').length) return [];
+        const a = $(e).is('a') ? $(e) : $(e).find('a').first();
+        if (!a.length) return [];
+        const url = new URL(a.attr('href')!, origin);
+        const sourceId =
+          url.origin === origin ? url.pathname.match(/^\/manga\/([a-z0-9-]+)$/)?.[1] : undefined;
+        if (!sourceId || seen.has(sourceId)) return [];
         seen.add(sourceId);
+        const img = a.find('img').first();
+        const coverUrl = img.attr('data-src') || img.attr('src');
+        const title = a.attr('title') || a.text().trim();
+        if (!title) return [];
         return [
           {
             id: sourceId,
             sourceId,
             providerId,
             mediaType: 'manga' as const,
-            title: a.attr('title')!,
-            coverUrl: absolute(a.find('img').attr('data-src')),
+            title,
+            coverUrl: absolute(coverUrl),
           },
         ];
       })

@@ -24,6 +24,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       foregroundImage: './assets/images/adaptive-icon.png',
       backgroundColor: '#0a0a0a',
     },
+    icon: './assets/images/icon.png',
     predictiveBackGestureEnabled: false,
   },
   web: {

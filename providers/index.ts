@@ -57,6 +57,10 @@ function registerComic(
     Platform.OS === 'web' ||
     !['weebcentral', 'demonicscans', 'kaliscan', 'mangajinx', 'manhuaplus', 'comix', 'toongod', 'toonily'].includes(id);
   if (!provider.definition.backendRequired) provider.definition.executionMode = 'direct-api';
+  if (id === 'demonicscans') {
+    provider.definition.backendRequired = false;
+    provider.definition.executionMode = 'direct-api';
+  }
   provider.definition.status = id === 'manhuaplus' ? 'limited' : 'working';
   if (mediaTypes) provider.definition.mediaTypes = mediaTypes;
   provider.definition.statusNote =

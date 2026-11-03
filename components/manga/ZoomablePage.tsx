@@ -5,7 +5,8 @@ import { GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
     useAnimatedStyle,
     useSharedValue,
-    type SharedValue,
+    withTiming,
+    type SharedValue
 } from 'react-native-reanimated';
 import { useReaderZoom } from './useReaderZoom';
 
@@ -36,6 +37,7 @@ export function FittedPage({
   );
   const [loading, setLoading] = useState(!decoded);
   const [progress, setProgress] = useState(0);
+  const opacity = useSharedValue(decoded ? 1 : 0);
 
   const baseWidth = paged && ratio >= 0.5 ? Math.min(width, height * ratio) : width;
   // Row is only as wide as the page so empty letterbox isn't part of the layout.
@@ -47,6 +49,7 @@ export function FittedPage({
   const image = useAnimatedStyle(() => ({
     width: baseWidth,
     height: baseWidth / ratio,
+    opacity: opacity.value,
   }));
   return (
     <Animated.View style={row}>
@@ -56,7 +59,7 @@ export function FittedPage({
             <Image
               source={{ uri: page.imageUrl }}
               style={{ width: '100%', height: '100%' }}
-              resizeMode="contain"
+              resizeMode={paged ? 'contain' : 'cover'}
               onLoadStart={() => {
                 if (!decoded) setLoading(true);
               }}
@@ -74,6 +77,7 @@ export function FittedPage({
                   setDecoded(true);
                 }
                 setLoading(false);
+                opacity.value = withTiming(1, { duration: 300 });
               }}
               onError={() => setLoading(false)}
             />

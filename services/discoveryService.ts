@@ -25,13 +25,15 @@ export type DiscoverySection = {
   unavailable?: boolean;
 };
 const sections = [
-  ['recommendations', 'Recommendations'],
-  ['recentManga', 'Recently Updated Manga'],
-  ['recentNovels', 'Recently Updated Novels'],
-  ['recentAnime', 'Recently Updated Anime'],
-  ['trendingManga', 'Trending Manga'],
-  ['trendingNovels', 'Trending Novels'],
-  ['trendingAnime', 'Trending Anime'],
+  ['popularManga', 'Popular'],
+  ['recentManga', 'Newly Updated'],
+  ['popularNovels', 'Popular'],
+  ['recentNovels', 'Newly Updated'],
+  ['popularAnime', 'Popular'],
+  ['recentAnime', 'Newly Updated'],
+  ['genresManga', 'Genres'],
+  ['genresNovels', 'Genres'],
+  ['genresAnime', 'Genres'],
 ];
 export const emptyDiscovery = (): DiscoverySection[] =>
   sections.map(([id, title]) => ({ id, title, items: [] }));
@@ -130,7 +132,7 @@ export function getDiscovery(
     const jobs: { providerId: string; sections: string[]; run: () => Promise<void> }[] = [];
     if (enabled.mangadex)
       for (const [section, order, signal] of [
-        ['trendingManga', 'followedCount', 'Follower popularity'],
+        ['popularManga', 'followedCount', 'Follower popularity'],
         ['recentManga', 'latestUploadedChapter', 'Latest chapter uploads'],
       ])
         jobs.push({
@@ -198,7 +200,7 @@ export function getDiscovery(
     for (const novelProvider of ['novelcodex', 'novelping'])
       if (enabled[novelProvider])
         for (const [section, feed] of [
-          ['trendingNovels', 'popular'],
+          ['popularNovels', 'popular'],
           ['recentNovels', 'updated'],
         ])
           jobs.push({
@@ -229,7 +231,7 @@ export function getDiscovery(
     if (enabled['anilist-anime'])
       jobs.push({
         providerId: 'anilist-anime',
-        sections: ['trendingAnime', 'recentAnime', 'recommendations'],
+        sections: ['popularAnime', 'recentAnime', 'genresAnime'],
         run: async () => {
           const payload = await request<{
             errors?: { message: string }[];
@@ -249,7 +251,7 @@ export function getDiscovery(
           if (payload.errors?.length) throw new Error(payload.errors[0].message);
           const data = payload.data;
           set(
-            'trendingAnime',
+            'popularAnime',
             data.trending.media.flatMap((media) => animeItem(media, 'Trending')),
           );
           set(
@@ -259,7 +261,7 @@ export function getDiscovery(
             ),
           );
           set(
-            'recommendations',
+            'genresAnime',
             data.seed?.recommendations.nodes.flatMap((entry) =>
               animeItem(
                 entry.mediaRecommendation,

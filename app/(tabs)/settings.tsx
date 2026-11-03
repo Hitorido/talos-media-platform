@@ -8,13 +8,13 @@ import { Switch, View } from 'react-native';
 import { UpdateModal } from '@/components/UpdateModal';
 import { Screen, Text } from '@/components/ui';
 import {
-  checkForUpdate,
-  getInstalledVersion,
-  type VersionManifest,
+    checkForUpdate,
+    getInstalledVersion,
+    type VersionManifest,
 } from '@/services/updateService';
 import {
-  useRollingDownloadSettingsStore,
-  type RollingDownloadWindow,
+    useRollingDownloadSettingsStore,
+    type RollingDownloadWindow,
 } from '@/stores/rollingDownloadSettingsStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { cn } from '@/utils/cn';
@@ -25,8 +25,10 @@ export default function SettingsScreen() {
   const [checking, setChecking] = useState(false);
   const rollingDownloadsEnabled = useRollingDownloadSettingsStore((state) => state.enabled);
   const rollingDownloadWindow = useRollingDownloadSettingsStore((state) => state.windowSize);
+  const rollingDownloadAutoDelete = useRollingDownloadSettingsStore((state) => state.autoDelete);
   const setRollingDownloadsEnabled = useRollingDownloadSettingsStore((state) => state.setEnabled);
   const setRollingDownloadWindow = useRollingDownloadSettingsStore((state) => state.setWindowSize);
+  const setRollingDownloadAutoDelete = useRollingDownloadSettingsStore((state) => state.setAutoDelete);
 
   const handleCheckForUpdates = async () => {
     if (checking) return;
@@ -116,6 +118,15 @@ export default function SettingsScreen() {
             ))}
           </View>
         ) : null}
+        <View className="flex-row items-center justify-between gap-4 pt-2">
+          <View className="flex-1 gap-1">
+            <Text variant="label">Auto-delete read chapters</Text>
+            <Text variant="caption" tone="muted">
+              Automatically remove chapters you've already read. Disable to keep all downloaded chapters.
+            </Text>
+          </View>
+          <Switch value={rollingDownloadAutoDelete} onValueChange={setRollingDownloadAutoDelete} />
+        </View>
       </View>
 
       <View className="gap-3 rounded-2xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">

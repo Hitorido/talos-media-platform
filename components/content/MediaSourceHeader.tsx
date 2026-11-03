@@ -56,6 +56,16 @@ function normalizeTitle(value: string): string {
     .replace(/[^\p{L}\p{N}]/gu, '');
 }
 
+/** Get consistent color index for a provider based on its ID */
+function getProviderColorIndex(providerId: string): number {
+  let hash = 0;
+  for (let i = 0; i < providerId.length; i++) {
+    hash = ((hash << 5) - hash) + providerId.charCodeAt(i);
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return Math.abs(hash) % SOURCE_ACCENT_COLORS.length;
+}
+
 function matchesKnownTitle(result: SearchResult, titles: Set<string>): boolean {
   return [result.title, ...(result.alternativeTitles ?? [])].some((c) =>
     titles.has(normalizeTitle(c)),
@@ -140,9 +150,9 @@ export function MediaSourceHeader({
 
   const openResult = (result: SearchResult) => {
     setOpen(false);
-    if (result.type === 'anime') router.push(animeDetailsHref(result.id));
-    else if (result.type === 'novel') router.push(novelDetailsHref(result.id));
-    else router.push(mangaDetailsHref(result.id));
+    if (result.type === 'anime') router.replace(animeDetailsHref(result.id));
+    else if (result.type === 'novel') router.replace(novelDetailsHref(result.id));
+    else router.replace(mangaDetailsHref(result.id));
   };
 
   const totalSources = 1 + results.length;
@@ -275,8 +285,8 @@ export function MediaSourceHeader({
                 ) : null}
 
                 {/* Alternate sources */}
-                {results.map((result, idx) => {
-                  const accent = SOURCE_ACCENT_COLORS[idx % SOURCE_ACCENT_COLORS.length];
+                {results.map((result) => {
+                  const accent = SOURCE_ACCENT_COLORS[getProviderColorIndex(result.providerId)];
                   const providerName =
                     providerRegistry.get(result.providerId)?.definition.name ?? result.providerId;
                   return (

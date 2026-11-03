@@ -1,21 +1,21 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Image, TextInput, View, useWindowDimensions } from 'react-native';
-import { Stack, useLocalSearchParams, useRouter, type Href } from 'expo-router';
-import { Button, Screen, Text } from '@/components/ui';
-import { PopPressable } from '@/components/ui/PopPressable';
 import { CategoryHighlight, type BrowseItem } from '@/components/content/CategoryHighlight';
 import { GenreFilters } from '@/components/content/GenreFilters';
 import {
-  DiscoveryMenu,
-  discoveryCategories,
-  categoryName,
+    DiscoveryMenu,
+    categoryName,
+    discoveryCategories,
 } from '@/components/navigation/DiscoveryMenu';
-import { getDiscovery } from '@/services/discoveryService';
-import { unifiedSearch } from '@/services/contentService';
-import type { SearchFilter } from '@/types/search';
-import { useProviderStore } from '@/stores/providerStore';
-import { apiRequestWithWake } from '@/services/api/client';
+import { Button, Screen, Text } from '@/components/ui';
+import { PopPressable } from '@/components/ui/PopPressable';
 import { animeDetailsHref, mangaDetailsHref, novelDetailsHref } from '@/lib/routes';
+import { apiRequestWithWake } from '@/services/api/client';
+import { unifiedSearch } from '@/services/contentService';
+import { getDiscovery } from '@/services/discoveryService';
+import { useProviderStore } from '@/stores/providerStore';
+import type { SearchFilter } from '@/types/search';
+import { Stack, useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
+import { Image, TextInput, View, useWindowDimensions } from 'react-native';
 type Section = { id: string; title: string; items: BrowseItem[] };
 export default function CategoryDiscovery() {
   const { category = 'anime' } = useLocalSearchParams<{ category: string }>();
@@ -140,7 +140,7 @@ function CategoryPage({ category }: { category: string }) {
         />
         {catalog ? (
           <View className="flex-row gap-2">
-            {['trending', 'popular', 'top_rated'].map((value) => (
+            {['popular', 'trending', 'top_rated'].map((value) => (
               <Button
                 key={value}
                 label={

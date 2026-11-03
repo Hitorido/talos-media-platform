@@ -42,6 +42,7 @@ export const useLibraryStore = create<LibraryState>()(
               existing?.originalCoverUrl ?? media.originalCoverUrl ?? media.coverUrl,
             customCoverUrl,
             coverUrl: customCoverUrl ?? media.coverUrl,
+            providerId: media.providerId || existing?.providerId,
           };
           return JSON.stringify(existing) === JSON.stringify(nextMedia)
             ? state

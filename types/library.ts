@@ -27,4 +27,5 @@ export type LibraryMedia = {
   genres: string[];
   chapterCount?: number;
   episodeCount?: number;
+  providerId?: string;
 };

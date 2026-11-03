@@ -19,6 +19,19 @@ module.exports = function withDownloadService(config) {
     };
     if (service) Object.assign(service.$, attributes);
     else app.service.push({ $: attributes });
+
+    // Add notification icon configuration
+    app.metaData ??= [];
+    const notificationIconMeta = app.metaData.find((m) => m.$['android:name'] === 'com.google.firebase.messaging.default_notification_icon');
+    if (!notificationIconMeta) {
+      app.metaData.push({
+        $: {
+          'android:name': 'com.google.firebase.messaging.default_notification_icon',
+          'android:resource': '@drawable/ic_notification',
+        },
+      });
+    }
+
     return config;
   });
 };

@@ -1,5 +1,5 @@
-import { AppState, NativeModules, PermissionsAndroid, Platform } from 'react-native';
 import { appAlert } from '@/stores/dialogStore';
+import { AppState, NativeModules, PermissionsAndroid, Platform } from 'react-native';
 
 let serial = Promise.resolve();
 let warned = false;
@@ -31,6 +31,11 @@ export function setDownloadBackgroundActive(active: boolean): Promise<void> {
           color: '#7c3aed',
           linkingURI: 'talos://downloads',
           foregroundServiceType: ['dataSync'],
+          progressBar: {
+            max: 100,
+            value: 0,
+            indeterminate: true,
+          },
         });
       } catch {
         if (!warned) {

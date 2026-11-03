@@ -4,7 +4,7 @@ import { getMediaEpisodes, resolveAnimePlayback } from '@/services/contentServic
 import { useFocusEffect } from 'expo-router';
 import { useVideoPlayer, VideoView, type VideoSource } from 'expo-video';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Image, PanResponder, Pressable, View } from 'react-native';
+import { Animated, PanResponder, Pressable, View } from 'react-native';
 export type BrowseItem = {
   id: string;
   title: string;
@@ -70,17 +70,56 @@ export function CategoryHighlight({
   const item = highlights[currentIndex];
   const [indicator] = useState(() => new Animated.Value(0));
   const [drag] = useState(() => new Animated.Value(0));
+  const [coverOpacity] = useState(() => new Animated.Value(1));
   const swiped = useRef(false);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Reset auto-scroll timer on manual swipe
+  const resetTimer = useCallback(() => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % count);
+    }, 10000);
+  }, [count]);
+
   useEffect(() => {
-    const animation = Animated.spring(indicator, {
+    if (focused && count >= 2) {
+      resetTimer();
+      return () => {
+        if (timerRef.current) clearInterval(timerRef.current);
+      };
+    }
+  }, [focused, count, resetTimer]);
+
+  // Reset timer when user manually changes index
+  useEffect(() => {
+    resetTimer();
+  }, [currentIndex, resetTimer]);
+
+  useEffect(() => {
+    const animation = Animated.timing(indicator, {
       toValue: currentIndex * 26,
+      duration: 300,
       useNativeDriver: true,
-      damping: 20,
-      stiffness: 200,
+      easing: (value) => {
+        // Ease-in-out curve
+        return value < 0.5 ? 2 * value * value : 1 - Math.pow(-2 * value + 2, 2) / 2;
+      },
     });
     animation.start();
     return () => animation.stop();
   }, [currentIndex, indicator]);
+
+  // Animate cover transition
+  useEffect(() => {
+    coverOpacity.setValue(0);
+    Animated.timing(coverOpacity, {
+      toValue: 1,
+      duration: 500,
+      useNativeDriver: true,
+    }).start();
+  }, [currentIndex, coverOpacity]);
+
   const pan = useMemo(
     () =>
       // PanResponder registers callbacks; ref access occurs only during gestures.
@@ -90,6 +129,7 @@ export function CategoryHighlight({
           Math.abs(g.dx) > 16 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
         onPanResponderGrant: () => {
           swiped.current = true;
+          if (timerRef.current) clearInterval(timerRef.current);
         },
         onPanResponderMove: (_, g) => {
           const dx = g.dx;
@@ -105,20 +145,16 @@ export function CategoryHighlight({
         },
         onPanResponderRelease: () => {
           Animated.spring(drag, { toValue: 0, useNativeDriver: true }).start();
+          resetTimer();
         },
-        onPanResponderTerminate: () =>
-          Animated.spring(drag, { toValue: 0, useNativeDriver: true }).start(),
+        onPanResponderTerminate: () => {
+          Animated.spring(drag, { toValue: 0, useNativeDriver: true }).start();
+          resetTimer();
+        },
       }),
-    [drag, count],
+    [drag, count, resetTimer],
   );
   const video = ['anime', 'movies', 'tv'].includes(category);
-  useEffect(() => {
-    if (video || !focused || count < 2) return;
-    const timer = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % count);
-    }, 6500);
-    return () => clearInterval(timer);
-  }, [video, focused, count]);
   useEffect(() => {
     if (!video || !item || !focused) return;
     let active = true;
@@ -180,9 +216,9 @@ export function CategoryHighlight({
           style={{ flex: 1 }}
         >
           {item.coverUrl ? (
-            <Image
+            <Animated.Image
               source={{ uri: item.coverUrl }}
-              style={{ width: '100%', height: '100%' }}
+              style={{ width: '100%', height: '100%', opacity: coverOpacity }}
               resizeMode="cover"
             />
           ) : (
@@ -195,7 +231,7 @@ export function CategoryHighlight({
               left: 0,
               right: 0,
               bottom: 0,
-              backgroundColor: 'rgba(0, 0, 0, 0.4)',
+              backgroundColor: 'rgba(0,0,0,0.4)',
             }}
           />
           <View
@@ -206,7 +242,8 @@ export function CategoryHighlight({
               right: 0,
               bottom: 0,
               padding: 16,
-              justifyContent: 'flex-end',
+              paddingTop: 24,
+              paddingBottom: 56,
             }}
           >
             <Text variant="h3" style={{ color: '#fff', marginBottom: 8 }}>
@@ -215,7 +252,7 @@ export function CategoryHighlight({
             {video && focused && preview?.id === item.id && preview.source ? (
               <Preview key={item.id} source={preview.source} />
             ) : null}
-            <Text variant="h2" style={{ color: '#fff' }}>
+            <Text variant="h2" style={{ color: '#fff' }} numberOfLines={2}>
               {item.title}
             </Text>
             {video && preview?.id === item.id && preview.error ? (

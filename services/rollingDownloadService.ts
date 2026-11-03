@@ -1,10 +1,10 @@
-import { usePrivacyStore } from '@/stores/privacyStore';
 import {
-  deleteDownload,
-  downloadMangaChapter,
-  downloadNovelChapter,
+    deleteDownload,
+    downloadMangaChapter,
+    downloadNovelChapter,
 } from '@/services/downloadService';
 import { useDownloadStore } from '@/stores/downloadStore';
+import { usePrivacyStore } from '@/stores/privacyStore';
 import { useRollingDownloadSettingsStore } from '@/stores/rollingDownloadSettingsStore';
 import type { MangaDetails } from '@/types/manga';
 import type { NovelDetails } from '@/types/novel';
@@ -16,7 +16,9 @@ async function removeReadItems(
   chapterIndexes: Map<string, number>,
   activeIndex: number,
   windowSize: number,
+  autoDelete: boolean,
 ) {
+  if (!autoDelete) return;
   const windowEnd = activeIndex + windowSize;
   const oldItems = Object.values(useDownloadStore.getState().items).filter((item) => {
     if (item.mediaId !== mediaId) return false;
@@ -39,7 +41,7 @@ export async function maintainMangaDownloadWindow(
   const token = (syncTokens.get(manga.id) ?? 0) + 1;
   syncTokens.set(manga.id, token);
   const chapterIndexes = new Map(manga.chapters.map((chapter, index) => [chapter.id, index]));
-  await removeReadItems(manga.id, chapterIndexes, activeIndex, settings.windowSize);
+  await removeReadItems(manga.id, chapterIndexes, activeIndex, settings.windowSize, settings.autoDelete);
   const latestSettings = useRollingDownloadSettingsStore.getState();
   if (syncTokens.get(manga.id) !== token || !latestSettings.enabled) return;
 
@@ -64,7 +66,7 @@ export async function maintainNovelDownloadWindow(
   const token = (syncTokens.get(novel.id) ?? 0) + 1;
   syncTokens.set(novel.id, token);
   const chapterIndexes = new Map(novel.chapters.map((chapter, index) => [chapter.id, index]));
-  await removeReadItems(novel.id, chapterIndexes, activeIndex, settings.windowSize);
+  await removeReadItems(novel.id, chapterIndexes, activeIndex, settings.windowSize, settings.autoDelete);
   const latestSettings = useRollingDownloadSettingsStore.getState();
   if (syncTokens.get(novel.id) !== token || !latestSettings.enabled) return;
 

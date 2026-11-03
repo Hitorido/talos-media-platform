@@ -18,6 +18,7 @@ import { Screen } from '@/components/ui';
 import { Text } from '@/components/ui/Text';
 import { useSearch } from '@/hooks/useSearch';
 import { animeDetailsHref, mangaDetailsHref, novelDetailsHref } from '@/lib/routes';
+import type { SearchResult } from '@/types/search';
 
 export default function SearchScreen() {
   const router = useRouter();
@@ -42,20 +43,19 @@ export default function SearchScreen() {
 
   const [genre, setGenre] = useState('All genres');
   const [source, setSource] = useState('All sources');
-  const genres = [...new Set(results.flatMap((item) => item.tags))].sort();
-  const sources = [...new Set(results.map((item) => item.providerId))].sort();
+  const genres = [...new Set(results.flatMap((item: SearchResult) => item.tags))].sort();
+  const sources = [...new Set(results.map((item: SearchResult) => item.providerId))].sort();
   const selectedGenre = genres.includes(genre) ? genre : 'All genres';
   const selectedSource = sources.includes(source) ? source : 'All sources';
   const filteredResults =
     selectedGenre === 'All genres' && selectedSource === 'All sources'
       ? results
       : results.filter(
-          (item) =>
+          (item: SearchResult) =>
             (selectedGenre === 'All genres' || item.tags.includes(selectedGenre)) &&
             (selectedSource === 'All sources' || item.providerId === selectedSource),
         );
   const showResults = hasQuery && !error && results.length > 0;
-  const showFilters = genres.length > 0 || sources.length > 0;
 
   return (
     <Screen className="flex-1">
@@ -67,6 +67,7 @@ export default function SearchScreen() {
           <SearchBar value={query} onChangeText={setQuery} onClear={clearQuery} onSubmit={retry} />
           <SearchFilterTabs value={filter} onChange={setFilter} />
           <GenreFilters genres={genres} value={selectedGenre} onChange={setGenre} />
+          <SourceFilter sources={sources} value={selectedSource} onChange={setSource} />
           <SearchSuggestions filter={filter} query={query} results={results} />
         </View>
 
@@ -101,12 +102,10 @@ export default function SearchScreen() {
               keyboardShouldPersistTaps="handled"
               contentContainerClassName="flex-grow px-4 py-4"
             >
-              {showFilters ? (
-                <View className="mb-4 gap-3">
-                  <GenreFilters genres={genres} value={selectedGenre} onChange={setGenre} />
-                  <SourceFilter sources={sources} value={selectedSource} onChange={setSource} />
-                </View>
-              ) : null}
+              <View className="mb-4 gap-3">
+                <GenreFilters genres={genres} value={selectedGenre} onChange={setGenre} />
+                <SourceFilter sources={sources} value={selectedSource} onChange={setSource} />
+              </View>
               <SearchHistoryList
                 history={history}
                 onSelect={selectHistoryItem}

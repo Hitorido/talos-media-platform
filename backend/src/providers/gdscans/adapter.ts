@@ -25,7 +25,10 @@ export const gdScansAdapter: ContentProviderAdapter = {
           url = new URL(a.attr('href') || '/', origin),
           sourceId = url.pathname.match(/^\/manga\/([a-z0-9-]+)\/$/)?.[1];
         if (url.origin !== origin || !sourceId) return [];
-        const img = a.closest('.row').find('img').first();
+        const container = a.closest('.page-item-detail, .row, .tab-thumb');
+        const img = container?.find('img').first() || a.closest('.c-tabs-item__content')?.find('img').first();
+        const coverUrl = img?.attr('data-src')?.trim() || img?.attr('src')?.trim();
+        if (!coverUrl) return [];
         return [
           {
             id: sourceId,
@@ -33,7 +36,7 @@ export const gdScansAdapter: ContentProviderAdapter = {
             providerId,
             mediaType: 'manga' as const,
             title: a.text().trim(),
-            coverUrl: img.attr('data-src')?.trim() || img.attr('src'),
+            coverUrl,
           },
         ];
       })
