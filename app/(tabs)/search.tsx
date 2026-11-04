@@ -66,8 +66,6 @@ export default function SearchScreen() {
         <View className="gap-3 border-b border-neutral-200 px-4 py-3 dark:border-neutral-800">
           <SearchBar value={query} onChangeText={setQuery} onClear={clearQuery} onSubmit={retry} />
           <SearchFilterTabs value={filter} onChange={setFilter} />
-          <GenreFilters genres={genres} value={selectedGenre} onChange={setGenre} />
-          <SourceFilter sources={sources} value={selectedSource} onChange={setSource} />
           <SearchSuggestions filter={filter} query={query} results={results} />
         </View>
 
@@ -82,19 +80,23 @@ export default function SearchScreen() {
           {!error && !loading && showEmpty ? <SearchEmptyState query={query.trim()} /> : null}
 
           {!error && showResults ? (
-            <SearchResultsList
-              results={filteredResults}
-              query={query.trim()}
-              onResultPress={(item) => {
-                if (item.type === 'anime') {
-                  router.push(animeDetailsHref(item.id));
-                } else if (item.type === 'manga') {
-                  router.push(mangaDetailsHref(item.id));
-                } else if (item.type === 'novel') {
-                  router.push(novelDetailsHref(item.id));
-                }
-              }}
-            />
+            <View className="px-4 pt-4">
+              <GenreFilters genres={genres} value={selectedGenre} onChange={setGenre} />
+              <SourceFilter sources={sources} value={selectedSource} onChange={setSource} />
+              <SearchResultsList
+                results={filteredResults}
+                query={query.trim()}
+                onResultPress={(item) => {
+                  if (item.type === 'anime') {
+                    router.push(animeDetailsHref(item.id));
+                  } else if (item.type === 'manga') {
+                    router.push(mangaDetailsHref(item.id));
+                  } else if (item.type === 'novel') {
+                    router.push(novelDetailsHref(item.id));
+                  }
+                }}
+              />
+            </View>
           ) : null}
 
           {!error && !loading && showHistory ? (
@@ -102,10 +104,8 @@ export default function SearchScreen() {
               keyboardShouldPersistTaps="handled"
               contentContainerClassName="flex-grow px-4 py-4"
             >
-              <View className="mb-4 gap-3">
-                <GenreFilters genres={genres} value={selectedGenre} onChange={setGenre} />
-                <SourceFilter sources={sources} value={selectedSource} onChange={setSource} />
-              </View>
+              <GenreFilters genres={genres} value={selectedGenre} onChange={setGenre} />
+              <SourceFilter sources={sources} value={selectedSource} onChange={setSource} />
               <SearchHistoryList
                 history={history}
                 onSelect={selectHistoryItem}

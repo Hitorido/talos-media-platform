@@ -16,26 +16,28 @@ export const gdScansAdapter: ContentProviderAdapter = {
   },
   async search(query) {
     const $ = load(
-      await sourceText(origin, '/?s=' + encodeURIComponent(query) + '&post_type=wp-manga'),
+      await sourceText(origin, '/search?q=' + encodeURIComponent(query) + '&post_type=wp-manga'),
     );
-    return $('.post-title a')
+    return $('.page-item-detail, .manga-post, .post-title a, h3 a, h4 a')
       .toArray()
       .flatMap((el) => {
-        const a = $(el),
-          url = new URL(a.attr('href') || '/', origin),
-          sourceId = url.pathname.match(/^\/manga\/([a-z0-9-]+)\/$/)?.[1];
+        const a = $(el).is('a') ? $(el) : $(el).find('a').first();
+        if (!a.length) return [];
+        const url = new URL(a.attr('href') || '/', origin);
+        const sourceId = url.pathname.match(/^\/manga\/([a-z0-9-]+)\/$/)?.[1];
         if (url.origin !== origin || !sourceId) return [];
         const container = a.closest('.page-item-detail, .row, .tab-thumb');
         const img = container?.find('img').first() || a.closest('.c-tabs-item__content')?.find('img').first();
         const coverUrl = img?.attr('data-src')?.trim() || img?.attr('src')?.trim();
-        if (!coverUrl) return [];
+        const title = a.text().trim() || a.find('.post-title, .entry-title, h3, h4').first().text().trim();
+        if (!title) return [];
         return [
           {
             id: sourceId,
             sourceId,
             providerId,
             mediaType: 'manga' as const,
-            title: a.text().trim(),
+            title,
             coverUrl,
           },
         ];

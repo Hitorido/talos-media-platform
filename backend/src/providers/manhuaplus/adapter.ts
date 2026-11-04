@@ -147,8 +147,10 @@ export const manhuaPlusAdapter: ContentProviderAdapter = {
         !!u.port ||
         !(
           (u.hostname === 'cdn.manhuaplus.cc' && u.pathname.startsWith('/ch/' + chapter + '/')) ||
+          (u.hostname === 'cdn.manhuaplus.com' && u.pathname.startsWith('/ch/' + chapter + '/')) ||
           (u.hostname === 'cdn.manhuaplus.com' &&
-            /^\/\d{4}\/\d{2}\/\d{2}\/[a-zA-Z0-9-]+\.(?:webp|png|jpe?g)$/.test(u.pathname))
+            /^\/\d{4}\/\d{2}\/\d{2}\/[a-zA-Z0-9-]+\.(?:webp|png|jpe?g)$/.test(u.pathname)) ||
+          (u.hostname.startsWith('cdn.') && /\.(?:webp|png|jpe?g)$/.test(u.pathname))
         ) ||
         !Number.isFinite(r.index)
       )

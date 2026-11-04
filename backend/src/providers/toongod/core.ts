@@ -38,16 +38,17 @@ export function createToonGodAdapter(sourceText: SourceText): ContentProviderAda
       enabledByDefault: true,
     },
     async search(query) {
-      const $ = load(await directFetch('/?s=' + encodeURIComponent(query)));
-      return $('.page-item-detail, .manga-post')
+      const $ = load(await directFetch('/search?q=' + encodeURIComponent(query)));
+      return $('.page-item-detail, .manga-post, .post-title a, h3 a, h4 a')
         .toArray()
         .flatMap((el) => {
-          const a = $(el).find('a').first();
+          const a = $(el).is('a') ? $(el) : $(el).find('a').first();
+          if (!a.length) return [];
           const href = a.attr('href');
           if (!href) return [];
           const sourceId = href.replace(/\/series\/(comic|manga)\//, '').replace(/\/manga\//, '').replace(/\/$/, '');
           if (!/^[A-Za-z0-9-]+$/.test(sourceId)) return [];
-          const title = a.find('.post-title, .entry-title, h3, h4').first().text().trim();
+          const title = a.find('.post-title, .entry-title, h3, h4').first().text().trim() || a.text().trim();
           const coverUrl = a.find('img').attr('data-src') || a.find('img').attr('src');
           return title
             ? [

@@ -37,7 +37,21 @@ export function FittedPage({
   );
   const [loading, setLoading] = useState(!decoded);
   const [progress, setProgress] = useState(0);
-  const opacity = useSharedValue(decoded ? 1 : 0);
+  const [showFade, setShowFade] = useState(false);
+  const opacity = useSharedValue(1);
+
+  useEffect(() => {
+    let fadeTimer: ReturnType<typeof setTimeout>;
+    if (loading && !decoded) {
+      fadeTimer = setTimeout(() => {
+        setShowFade(true);
+        opacity.value = 0;
+      }, 500);
+    }
+    return () => {
+      if (fadeTimer) clearTimeout(fadeTimer);
+    };
+  }, [loading, decoded, opacity]);
 
   const baseWidth = paged && ratio >= 0.5 ? Math.min(width, height * ratio) : width;
   // Row is only as wide as the page so empty letterbox isn't part of the layout.
@@ -61,7 +75,10 @@ export function FittedPage({
               style={{ width: '100%', height: '100%' }}
               resizeMode={paged ? 'contain' : 'cover'}
               onLoadStart={() => {
-                if (!decoded) setLoading(true);
+                if (!decoded) {
+                  setLoading(true);
+                  setShowFade(true);
+                }
               }}
               onProgress={(event) => {
                 const { loaded, total } = event.nativeEvent;
@@ -77,7 +94,10 @@ export function FittedPage({
                   setDecoded(true);
                 }
                 setLoading(false);
-                opacity.value = withTiming(1, { duration: 300 });
+                if (showFade) {
+                  opacity.value = 0;
+                  opacity.value = withTiming(1, { duration: 300 });
+                }
               }}
               onError={() => setLoading(false)}
             />
