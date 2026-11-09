@@ -1,7 +1,8 @@
 import { MediaCount } from '@/components/content/MediaCount';
 import { PublicationStatus } from '@/components/content/PublicationStatus';
-import { PopPressable as Pressable } from '@/components/ui/PopPressable';
-import { Animated, Image, Modal, useWindowDimensions, View } from 'react-native';
+import { PopPressable } from '@/components/ui/PopPressable';
+import { Ionicons } from '@expo/vector-icons';
+import { Animated, Image, Modal, Pressable, useWindowDimensions, View } from 'react-native';
 
 import { Badge, Text } from '@/components/ui';
 import { useMediaCover } from '@/hooks/useMediaCover';
@@ -89,7 +90,7 @@ export function ContentPosterCard({
 
   return (
     <>
-      <Pressable
+      <PopPressable
         accessibilityRole="button"
         onPress={onPress}
         onLongPress={handleLongPress}
@@ -152,7 +153,7 @@ export function ContentPosterCard({
             chapterCount={chapterCount}
           />
         ) : null}
-      </Pressable>
+      </PopPressable>
 
       {focused && cardLayout && (
         <Modal visible={focused} transparent animationType="fade">
@@ -208,8 +209,32 @@ export function ContentPosterCard({
                 top: cardLayout.y + cardLayout.height / 2,
               }}
             >
-              <View className="rounded-full bg-primary-500 p-3 shadow-lg">
-                <Text className="text-white text-2xl">♥</Text>
+              <View className="flex-row gap-3">
+                <Pressable
+                  onPress={() => {
+                    setFocused(false);
+                    Animated.spring(scale, {
+                      toValue: 1,
+                      useNativeDriver: true,
+                    }).start();
+                  }}
+                  className="rounded-full bg-neutral-600 p-3 shadow-lg"
+                >
+                  <Ionicons name="close" size={24} color="#fff" />
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    setFocused(false);
+                    Animated.spring(scale, {
+                      toValue: 1,
+                      useNativeDriver: true,
+                    }).start();
+                    onLongPress?.();
+                  }}
+                  className="rounded-full bg-primary-500 p-3 shadow-lg"
+                >
+                  <Ionicons name="heart" size={24} color="#fff" />
+                </Pressable>
               </View>
             </View>
           </View>

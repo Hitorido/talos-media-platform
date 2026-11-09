@@ -1,8 +1,8 @@
-import { groupSearchResults, type SearchGroup } from '@/services/searchGrouping';
 import { SelectionModal } from '@/components/content/SelectionModal';
 import { getProviderDisplayName } from '@/services/contentService';
-import { useEffect, useMemo, useState } from 'react';
 import { getEnglishChapterCount } from '@/services/englishChapterCount';
+import { groupSearchResults, type SearchGroup } from '@/services/searchGrouping';
+import { useEffect, useMemo, useState } from 'react';
 import { FlatList, View, useWindowDimensions } from 'react-native';
 
 import { SearchResultItem } from '@/components/search/SearchResultItem';
@@ -73,7 +73,11 @@ export function SearchResultsList({ results, query, onResultPress }: SearchResul
                 .map((item) => ({
                   value: item.id,
                   label: getProviderDisplayName(item.providerId),
-                  detail: item.episodeCount ? `${item.episodeCount} episodes` : undefined,
+                  detail: item.episodeCount
+                    ? `${item.episodeCount} episodes`
+                    : item.chapterCount
+                      ? `${item.chapterCount} chapters`
+                      : undefined,
                 }))
         }
         onSelect={(value) => {

@@ -1,16 +1,15 @@
-import { useWindowDimensions } from 'react-native';
-import { groupTitleItems, titleKey } from '@/services/titleGroups';
+import { SelectionModal } from '@/components/content/SelectionModal';
+import { DownloadTitleCard } from '@/components/downloads/DownloadTitleCard';
+import { PopPressable as Pressable } from '@/components/ui/PopPressable';
+import { useHiddenPrivateIds } from '@/hooks/useHiddenPrivateIds';
 import { useSourcePicker } from '@/hooks/useSourcePicker';
 import { groupDownloads } from '@/services/downloadGroups';
-import { DownloadTitleCard } from '@/components/downloads/DownloadTitleCard';
-import { useHiddenPrivateIds } from '@/hooks/useHiddenPrivateIds';
+import { groupTitleItems, titleKey } from '@/services/titleGroups';
 import { unlockPrivate } from '@/stores/privacyStore';
-import { SelectionModal } from '@/components/content/SelectionModal';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ScrollView, View } from 'react-native';
-import { PopPressable as Pressable } from '@/components/ui/PopPressable';
+import { ScrollView, useWindowDimensions, View } from 'react-native';
 
 import { LibraryCard } from '@/components/library';
 import { Screen, SwipeableRow, Text } from '@/components/ui';
@@ -378,6 +377,15 @@ export default function LibraryScreen() {
                 </Text>
               </Pressable>
             ))}
+            <Pressable
+              onPress={() => {
+                // This will need to be connected to a tag creation dialog
+                // For now, this is a placeholder
+              }}
+              className="rounded-full border-2 border-primary-400 bg-primary-100 px-3 py-1.5 dark:bg-primary-950"
+            >
+              <Text className="text-xs">+</Text>
+            </Pressable>
           </View>
         </View>
       ) : null}

@@ -250,17 +250,28 @@ export function MediaSourceHeader({
                 contentContainerClassName="gap-2 pb-2"
                 showsVerticalScrollIndicator={false}
               >
-                {/* Current source — always first, with distinct teal accent */}
-                <View className="overflow-hidden rounded-xl border-2 border-teal-400 bg-teal-50 dark:border-teal-600 dark:bg-teal-950/40">
-                  <View className="flex-row items-center gap-2 bg-teal-400/20 px-3 py-1.5 dark:bg-teal-600/20">
-                    <View className="h-2 w-2 rounded-full bg-teal-500" />
-                    <Text
-                      variant="caption"
-                      className="font-semibold text-teal-700 dark:text-teal-300"
-                    >
-                      Current source
-                    </Text>
-                  </View>
+                {/* Current source — always first, with provider-specific color */}
+                {(() => {
+                  const currentProviderId = decodeMediaRouteId(id)?.providerId ?? 'unknown';
+                  const accent = SOURCE_ACCENT_COLORS[getProviderColorIndex(currentProviderId)];
+                  return (
+                    <View className={`overflow-hidden rounded-xl border-2 ${accent.border} ${accent.bg}`}>
+                      <View
+                        className="flex-row items-center gap-2 px-3 py-1.5"
+                        style={{ backgroundColor: accent.dot + '22' }}
+                      >
+                        <View
+                          className="h-2 w-2 rounded-full"
+                          style={{ backgroundColor: accent.dot }}
+                        />
+                        <Text
+                          variant="caption"
+                          className="font-semibold"
+                          style={{ color: accent.dot }}
+                        >
+                          Current source
+                        </Text>
+                      </View>
                   <View className="gap-1 p-3">
                     <Text variant="label">{source?.name ?? 'Local catalog'}</Text>
                     {source?.mode ? (
@@ -273,6 +284,8 @@ export function MediaSourceHeader({
                     </View>
                   </View>
                 </View>
+                  );
+                })()}
 
                 {/* Loading state */}
                 {loading ? (

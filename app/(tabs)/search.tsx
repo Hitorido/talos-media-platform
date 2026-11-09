@@ -18,6 +18,8 @@ import { Screen } from '@/components/ui';
 import { Text } from '@/components/ui/Text';
 import { useSearch } from '@/hooks/useSearch';
 import { animeDetailsHref, mangaDetailsHref, novelDetailsHref } from '@/lib/routes';
+import { providerRegistry } from '@/providers';
+import { getProviderDisplayName } from '@/services/contentService';
 import type { SearchResult } from '@/types/search';
 
 export default function SearchScreen() {
@@ -44,7 +46,8 @@ export default function SearchScreen() {
   const [genre, setGenre] = useState('All genres');
   const [source, setSource] = useState('All sources');
   const genres = [...new Set(results.flatMap((item: SearchResult) => item.tags))].sort();
-  const sources = [...new Set(results.map((item: SearchResult) => item.providerId))].sort();
+  const allProviders = providerRegistry.list();
+  const sources = ['All sources', ...allProviders.map(p => p.definition.name)].sort();
   const selectedGenre = genres.includes(genre) ? genre : 'All genres';
   const selectedSource = sources.includes(source) ? source : 'All sources';
   const filteredResults =
@@ -53,7 +56,7 @@ export default function SearchScreen() {
       : results.filter(
           (item: SearchResult) =>
             (selectedGenre === 'All genres' || item.tags.includes(selectedGenre)) &&
-            (selectedSource === 'All sources' || item.providerId === selectedSource),
+            (selectedSource === 'All sources' || getProviderDisplayName(item.providerId) === selectedSource),
         );
   const showResults = hasQuery && !error && results.length > 0;
 

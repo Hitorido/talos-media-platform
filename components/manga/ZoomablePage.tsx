@@ -37,19 +37,19 @@ export function FittedPage({
   );
   const [loading, setLoading] = useState(!decoded);
   const [progress, setProgress] = useState(0);
-  const [showFade, setShowFade] = useState(false);
+  const [slowLoad, setSlowLoad] = useState(false);
   const opacity = useSharedValue(1);
 
   useEffect(() => {
-    let fadeTimer: ReturnType<typeof setTimeout>;
+    let slowTimer: ReturnType<typeof setTimeout>;
     if (loading && !decoded) {
-      fadeTimer = setTimeout(() => {
-        setShowFade(true);
+      slowTimer = setTimeout(() => {
+        setSlowLoad(true);
         opacity.value = 0;
-      }, 500);
+      }, 2000);
     }
     return () => {
-      if (fadeTimer) clearTimeout(fadeTimer);
+      if (slowTimer) clearTimeout(slowTimer);
     };
   }, [loading, decoded, opacity]);
 
@@ -77,7 +77,6 @@ export function FittedPage({
               onLoadStart={() => {
                 if (!decoded) {
                   setLoading(true);
-                  setShowFade(true);
                 }
               }}
               onProgress={(event) => {
@@ -94,8 +93,7 @@ export function FittedPage({
                   setDecoded(true);
                 }
                 setLoading(false);
-                if (showFade) {
-                  opacity.value = 0;
+                if (slowLoad) {
                   opacity.value = withTiming(1, { duration: 300 });
                 }
               }}

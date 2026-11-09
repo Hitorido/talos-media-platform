@@ -1,8 +1,8 @@
+import { PopPressable as Pressable } from '@/components/ui/PopPressable';
 import { unlockPrivate } from '@/stores/privacyStore';
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { Modal, TextInput, View } from 'react-native';
-import { PopPressable as Pressable } from '@/components/ui/PopPressable';
 
 import { Button, Text } from '@/components/ui';
 import type { LibraryEntry } from '@/types/library';
@@ -102,6 +102,14 @@ export function FavoriteTagModal({
             <Button
               label="Save Favorite"
               onPress={async () => {
+                // Auto-create tag if textbox has value and not in tags
+                const normalizedTag = newTag.trim();
+                if (normalizedTag && !tags.includes(normalizedTag)) {
+                  onCreateTag(normalizedTag);
+                  if (!selectedTags.includes(normalizedTag)) {
+                    setSelectedTags((current) => [...current, normalizedTag]);
+                  }
+                }
                 if (
                   (selectedTags.includes('Private') || entry?.tags.includes('Private')) &&
                   !(await unlockPrivate())

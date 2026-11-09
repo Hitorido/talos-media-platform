@@ -31,9 +31,9 @@ const sections = [
   ['recentNovels', 'Newly Updated'],
   ['popularAnime', 'Popular'],
   ['recentAnime', 'Newly Updated'],
-  ['genresManga', 'Genres'],
-  ['genresNovels', 'Genres'],
-  ['genresAnime', 'Genres'],
+  ['genresManga', 'Discover'],
+  ['genresNovels', 'Discover'],
+  ['genresAnime', 'Discover'],
 ];
 export const emptyDiscovery = (): DiscoverySection[] =>
   sections.map(([id, title]) => ({ id, title, items: [] }));

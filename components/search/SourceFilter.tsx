@@ -32,6 +32,7 @@ export function SourceFilter({ sources, value, onChange }: SourceFilterProps) {
             <Text
               variant="label"
               className={isActive ? 'text-white' : 'text-neutral-700 dark:text-neutral-200'}
+              numberOfLines={1}
             >
               {source}
             </Text>

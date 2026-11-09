@@ -72,6 +72,7 @@ export function CategoryHighlight({
   const [drag] = useState(() => new Animated.Value(0));
   const [coverOpacity] = useState(() => new Animated.Value(1));
   const swiped = useRef(false);
+  const directionChanged = useRef(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Reset auto-scroll timer on manual swipe
@@ -101,10 +102,6 @@ export function CategoryHighlight({
       toValue: currentIndex * 26,
       duration: 300,
       useNativeDriver: true,
-      easing: (value) => {
-        // Ease-in-out curve
-        return value < 0.5 ? 2 * value * value : 1 - Math.pow(-2 * value + 2, 2) / 2;
-      },
     });
     animation.start();
     return () => animation.stop();
@@ -129,18 +126,23 @@ export function CategoryHighlight({
           Math.abs(g.dx) > 16 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
         onPanResponderGrant: () => {
           swiped.current = true;
+          directionChanged.current = false;
           if (timerRef.current) clearInterval(timerRef.current);
         },
         onPanResponderMove: (_, g) => {
           const dx = g.dx;
           drag.setValue(dx);
           const sensitivity = 100;
-          if (dx > sensitivity) {
-            setCurrentIndex((prev) => (prev + 1) % count);
-            drag.setValue(0);
-          } else if (dx < -sensitivity) {
-            setCurrentIndex((prev) => (prev - 1 + count) % count);
-            drag.setValue(0);
+          if (!directionChanged.current) {
+            if (dx > sensitivity) {
+              setCurrentIndex((prev) => (prev + 1) % count);
+              directionChanged.current = true;
+              drag.setValue(0);
+            } else if (dx < -sensitivity) {
+              setCurrentIndex((prev) => (prev - 1 + count) % count);
+              directionChanged.current = true;
+              drag.setValue(0);
+            }
           }
         },
         onPanResponderRelease: () => {
@@ -231,9 +233,30 @@ export function CategoryHighlight({
               left: 0,
               right: 0,
               bottom: 0,
-              backgroundColor: 'rgba(0,0,0,0.4)',
+              backgroundColor: 'transparent',
             }}
-          />
+          >
+            <View
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: 'rgba(0,0,0,0.7)',
+              }}
+            />
+            <View
+              style={{
+                position: 'absolute',
+                top: '30%',
+                left: '10%',
+                right: '10%',
+                bottom: '30%',
+                backgroundColor: 'rgba(0,0,0,0.3)',
+              }}
+            />
+          </View>
           <View
             style={{
               position: 'absolute',
