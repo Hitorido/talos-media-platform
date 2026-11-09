@@ -19,8 +19,6 @@ export function SourceFilter({ sources, value, onChange }: SourceFilterProps) {
         return (
           <Pressable
             key={source}
-            accessibilityRole="button"
-            accessibilityState={{ selected: isActive }}
             onPress={() => onChange(source)}
             className={cn(
               'rounded-full px-3 py-1.5',
