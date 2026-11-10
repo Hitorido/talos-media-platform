@@ -49,6 +49,7 @@ export function FittedPage({
               source={{ uri: page.imageUrl }}
               style={{ width: '100%', height: '100%' }}
               resizeMode={paged ? 'contain' : 'stretch'}
+              fadeDuration={0}
               onLoadStart={() => {
                 if (!decoded) {
                   setLoading(true);

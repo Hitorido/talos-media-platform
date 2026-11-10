@@ -44,7 +44,8 @@ export default function SearchScreen() {
 
   const [genre, setGenre] = useState('All genres');
   const [source, setSource] = useState('All sources');
-  const genres = [...new Set(results.flatMap((item: SearchResult) => item.tags))].sort();
+  // Extract only genre tags, not source names
+  const genres = [...new Set(results.flatMap((item: SearchResult) => item.tags.filter(tag => !providerNames.includes(tag))))].sort();
   const allProviders = providerRegistry.list();
   const providerNames = allProviders.map(p => p.definition.name).sort();
   const selectedGenre = genres.includes(genre) ? genre : 'All genres';
@@ -60,8 +61,8 @@ export default function SearchScreen() {
         );
   const showResults = hasQuery && !error && results.length > 0;
 
-  // Only show source filter when there are results to filter
-  const showSourceFilter = results.length > 0;
+  // Always show source filter for better UX
+  const showSourceFilter = true;
 
   return (
     <Screen className="flex-1">
@@ -86,7 +87,7 @@ export default function SearchScreen() {
           {!error && !loading && showEmpty ? <SearchEmptyState query={query.trim()} /> : null}
 
           {!error && showResults ? (
-            <View className="px-4 pt-4">
+            <View className="px-4 pt-4 gap-3">
               <GenreFilters genres={genres} value={selectedGenre} onChange={setGenre} />
               {showSourceFilter && <SourceFilter sources={providerNames} value={selectedSource} onChange={setSource} />}
               <SearchResultsList
