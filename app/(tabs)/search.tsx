@@ -46,9 +46,9 @@ export default function SearchScreen() {
   const [source, setSource] = useState('All sources');
   const genres = [...new Set(results.flatMap((item: SearchResult) => item.tags))].sort();
   const allProviders = providerRegistry.list();
-  const sources = ['All sources', ...allProviders.map(p => p.definition.name)].sort();
+  const providerNames = allProviders.map(p => p.definition.name).sort();
   const selectedGenre = genres.includes(genre) ? genre : 'All genres';
-  const selectedSource = sources.includes(source) ? source : 'All sources';
+  const selectedSource = source === 'All sources' || providerNames.includes(source) ? source : 'All sources';
   const selectedProviderId = selectedSource === 'All sources' ? null : allProviders.find(p => p.definition.name === selectedSource)?.definition.id;
   const filteredResults =
     selectedGenre === 'All genres' && !selectedProviderId
@@ -60,8 +60,8 @@ export default function SearchScreen() {
         );
   const showResults = hasQuery && !error && results.length > 0;
 
-  // Always show filters, even on history page with no results
-  const showFilters = true;
+  // Only show source filter when there are results to filter
+  const showSourceFilter = results.length > 0;
 
   return (
     <Screen className="flex-1">
@@ -88,7 +88,7 @@ export default function SearchScreen() {
           {!error && showResults ? (
             <View className="px-4 pt-4">
               <GenreFilters genres={genres} value={selectedGenre} onChange={setGenre} />
-              <SourceFilter sources={sources} value={selectedSource} onChange={setSource} />
+              {showSourceFilter && <SourceFilter sources={providerNames} value={selectedSource} onChange={setSource} />}
               <SearchResultsList
                 results={filteredResults}
                 query={query.trim()}
@@ -110,12 +110,8 @@ export default function SearchScreen() {
               keyboardShouldPersistTaps="handled"
               contentContainerClassName="flex-grow px-4 py-4"
             >
-              {showFilters && (
-                <>
-                  <GenreFilters genres={genres} value={selectedGenre} onChange={setGenre} />
-                  <SourceFilter sources={sources} value={selectedSource} onChange={setSource} />
-                </>
-              )}
+              <GenreFilters genres={genres} value={selectedGenre} onChange={setGenre} />
+              {showSourceFilter && <SourceFilter sources={providerNames} value={selectedSource} onChange={setSource} />}
               <SearchHistoryList
                 history={history}
                 onSelect={selectHistoryItem}

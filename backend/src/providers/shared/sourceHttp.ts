@@ -23,11 +23,11 @@ export async function sourceText(
     .then(async () => {
       await new Promise((resolve) => setTimeout(resolve, 500));
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 20_000);
+      const timer = setTimeout(() => controller.abort(), 30_000);
       try {
         const response = await fetch(url.href, {
           method,
-          redirect: 'error',
+          redirect: 'follow',
           signal: controller.signal,
           headers: {
             Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
