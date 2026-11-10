@@ -44,10 +44,10 @@ export default function SearchScreen() {
 
   const [genre, setGenre] = useState('All genres');
   const [source, setSource] = useState('All sources');
-  // Extract only genre tags, not source names
-  const genres = [...new Set(results.flatMap((item: SearchResult) => item.tags.filter(tag => !providerNames.includes(tag))))].sort();
   const allProviders = providerRegistry.list();
   const providerNames = allProviders.map(p => p.definition.name).sort();
+  // Extract only genre tags, not source names - handle undefined tags
+  const genres = [...new Set(results.flatMap((item: SearchResult) => (item.tags || []).filter(tag => !providerNames.includes(tag))))].sort();
   const selectedGenre = genres.includes(genre) ? genre : 'All genres';
   const selectedSource = source === 'All sources' || providerNames.includes(source) ? source : 'All sources';
   const selectedProviderId = selectedSource === 'All sources' ? null : allProviders.find(p => p.definition.name === selectedSource)?.definition.id;
@@ -56,7 +56,7 @@ export default function SearchScreen() {
       ? results
       : results.filter(
           (item: SearchResult) =>
-            (selectedGenre === 'All genres' || item.tags.includes(selectedGenre)) &&
+            (selectedGenre === 'All genres' || (item.tags || []).includes(selectedGenre)) &&
             (!selectedProviderId || item.providerId === selectedProviderId),
         );
   const showResults = hasQuery && !error && results.length > 0;
@@ -88,8 +88,8 @@ export default function SearchScreen() {
 
           {!error && showResults ? (
             <View className="px-4 pt-4 gap-3">
-              <GenreFilters genres={genres} value={selectedGenre} onChange={setGenre} />
-              {showSourceFilter && <SourceFilter sources={providerNames} value={selectedSource} onChange={setSource} />}
+              {genres.length > 0 && <GenreFilters genres={genres} value={selectedGenre} onChange={setGenre} />}
+              {showSourceFilter && providerNames.length > 0 && <SourceFilter sources={providerNames} value={selectedSource} onChange={setSource} />}
               <SearchResultsList
                 results={filteredResults}
                 query={query.trim()}
@@ -111,8 +111,8 @@ export default function SearchScreen() {
               keyboardShouldPersistTaps="handled"
               contentContainerClassName="flex-grow px-4 py-4"
             >
-              <GenreFilters genres={genres} value={selectedGenre} onChange={setGenre} />
-              {showSourceFilter && <SourceFilter sources={providerNames} value={selectedSource} onChange={setSource} />}
+              {genres.length > 0 && <GenreFilters genres={genres} value={selectedGenre} onChange={setGenre} />}
+              {showSourceFilter && providerNames.length > 0 && <SourceFilter sources={providerNames} value={selectedSource} onChange={setSource} />}
               <SearchHistoryList
                 history={history}
                 onSelect={selectHistoryItem}
