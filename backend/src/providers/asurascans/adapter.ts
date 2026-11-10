@@ -110,7 +110,7 @@ export const asuraScansAdapter: ContentProviderAdapter = {
       .toArray()
       .map((element) => {
         const image = $(element);
-        const url = new URL(image.attr('src') || '/', origin);
+        let url = new URL(image.attr('src') || '/', origin);
         const index = Number(image.attr('data-page-index'));
         if (
           url.origin !== 'https://cdn.asurascans.com' ||
@@ -119,6 +119,9 @@ export const asuraScansAdapter: ContentProviderAdapter = {
           index < 0
         )
           throw new ProviderGatewayError('Unsupported Asura image.', 502);
+        // Remove optimization suffixes to get full quality images
+        // Common patterns: -400.webp, -300.jpg, etc.
+        url.href = url.href.replace(/-\d+\.(webp|jpg|jpeg|png)/, '.$1');
         return { pageNumber: index + 1, imageUrl: url.href };
       })
       .sort((a, b) => a.pageNumber - b.pageNumber);

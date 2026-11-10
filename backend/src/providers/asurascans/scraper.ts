@@ -158,7 +158,11 @@ export async function getAsuraPages(chapterSlug: string): Promise<string[]> {
   matches.forEach((match) => {
     const urlMatch = match.match(/src="([^"]+)"/);
     if (urlMatch) {
-      pages.push(urlMatch[1]);
+      let imageUrl = urlMatch[1];
+      // Remove optimization suffixes to get full quality images
+      // Common patterns: -400.webp, -300.jpg, etc.
+      imageUrl = imageUrl.replace(/-\d+\.(webp|jpg|jpeg|png)/, '.$1');
+      pages.push(imageUrl);
     }
   });
 
