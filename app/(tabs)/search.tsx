@@ -44,19 +44,19 @@ export default function SearchScreen() {
   } = useSearch();
 
   const [genre, setGenre] = useState('All genres');
-  const [source, setSource] = useState('All sources');
+  const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
   const genres = [...new Set(results.flatMap((item: SearchResult) => item.tags))].sort();
   const allProviders = providerRegistry.list();
-  const sources = ['All sources', ...allProviders.map(p => p.definition.name)].sort();
+  const sourceOptions = allProviders.map(p => ({ id: p.definition.id, name: getProviderDisplayName(p.definition.id) }));
+  const sources = ['All sources', ...sourceOptions.map(s => s.name)].sort();
   const selectedGenre = genres.includes(genre) ? genre : 'All genres';
-  const selectedSource = sources.includes(source) ? source : 'All sources';
   const filteredResults =
-    selectedGenre === 'All genres' && selectedSource === 'All sources'
+    selectedGenre === 'All genres' && !selectedProviderId
       ? results
       : results.filter(
           (item: SearchResult) =>
             (selectedGenre === 'All genres' || item.tags.includes(selectedGenre)) &&
-            (selectedSource === 'All sources' || getProviderDisplayName(item.providerId) === selectedSource),
+            (!selectedProviderId || item.providerId === selectedProviderId),
         );
   const showResults = hasQuery && !error && results.length > 0;
 
@@ -85,7 +85,11 @@ export default function SearchScreen() {
           {!error && showResults ? (
             <View className="px-4 pt-4">
               <GenreFilters genres={genres} value={selectedGenre} onChange={setGenre} />
-              <SourceFilter sources={sources} value={selectedSource} onChange={setSource} />
+              <SourceFilter 
+                sources={sourceOptions.map(s => s.name)} 
+                value={selectedProviderId ? sourceOptions.find(s => s.id === selectedProviderId)?.name || 'All sources' : 'All sources'} 
+                onChange={(name) => setSelectedProviderId(name === 'All sources' ? null : sourceOptions.find(s => s.name === name)?.id || null)} 
+              />
               <SearchResultsList
                 results={filteredResults}
                 query={query.trim()}
@@ -108,7 +112,11 @@ export default function SearchScreen() {
               contentContainerClassName="flex-grow px-4 py-4"
             >
               <GenreFilters genres={genres} value={selectedGenre} onChange={setGenre} />
-              <SourceFilter sources={sources} value={selectedSource} onChange={setSource} />
+              <SourceFilter 
+                sources={sourceOptions.map(s => s.name)} 
+                value={selectedProviderId ? sourceOptions.find(s => s.id === selectedProviderId)?.name || 'All sources' : 'All sources'} 
+                onChange={(name) => setSelectedProviderId(name === 'All sources' ? null : sourceOptions.find(s => s.name === name)?.id || null)} 
+              />
               <SearchHistoryList
                 history={history}
                 onSelect={selectHistoryItem}

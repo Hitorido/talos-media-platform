@@ -5,10 +5,10 @@ import { providerSupports } from '@/providers/types';
 import { loadOfflineCatalog } from '@/services/offlineCatalog';
 import { resolveAnimeSource, resolveNovelChapter } from '@/services/offlineResolver';
 import {
-  inSearchSlot,
-  sameComicTitle,
-  searchRequest,
-  settleProviderSearches,
+    inSearchSlot,
+    sameComicTitle,
+    searchRequest,
+    settleProviderSearches,
 } from '@/services/providerSearch';
 import { useBackendConfigStore } from '@/stores/backendConfigStore';
 import { useProviderHealthStore } from '@/stores/providerHealthStore';
@@ -17,13 +17,13 @@ import type { AnimeDetails } from '@/types/anime';
 import type { MangaDetails, MangaPage } from '@/types/manga';
 import type { NovelChapter, NovelDetails } from '@/types/novel';
 import {
-  decodeMediaRouteId,
-  encodeMediaRouteId,
-  type MediaRef,
-  type NormalizedChapter,
-  type NormalizedMedia,
-  type NormalizedNovelContent,
-  type NormalizedPlaybackSource,
+    decodeMediaRouteId,
+    encodeMediaRouteId,
+    type MediaRef,
+    type NormalizedChapter,
+    type NormalizedMedia,
+    type NormalizedNovelContent,
+    type NormalizedPlaybackSource,
 } from '@/types/provider';
 import type { SearchFilter, SearchResponse, SearchResult } from '@/types/search';
 import { isActiveSource } from '@/utils/activeSource';
@@ -295,9 +295,23 @@ export async function unifiedSearch(
   };
 }
 
+const SOURCE_EMOJIS = ['🦊', '🐱', '🐶', '🐰', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐵', '🐔', '🐧', '🦆', '🦢', '🦉', '🦜', '🦚', '🦩', '🦝', '🦨', '🦡', '🦦', '🦥', '🐳', '🐋', '🐬'];
+
+const providerSourceMap = new Map<string, string>();
+
+function getProviderSourceName(providerId: string): string {
+  if (!providerSourceMap.has(providerId)) {
+    const index = providerSourceMap.size;
+    const emoji = SOURCE_EMOJIS[index % SOURCE_EMOJIS.length];
+    providerSourceMap.set(providerId, `${emoji} Source ${index + 1}`);
+  }
+  return providerSourceMap.get(providerId)!;
+}
+
 export function getProviderDisplayName(providerId: string): string {
   initializeProviders();
-  return providerRegistry.get(providerId)?.definition.name ?? providerId;
+  // Return placeholder name instead of actual provider name
+  return getProviderSourceName(providerId);
 }
 
 export async function searchAlternateComicSources(params: {
@@ -751,3 +765,4 @@ export function resolveComicFormatFromMedia(media: NormalizedMedia) {
 }
 
 export { resolveMediaRef };
+

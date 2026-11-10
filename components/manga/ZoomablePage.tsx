@@ -2,12 +2,7 @@ import type { MangaPage } from '@/types/manga';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Text, View, useWindowDimensions } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
-import Animated, {
-    useAnimatedStyle,
-    useSharedValue,
-    withTiming,
-    type SharedValue
-} from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, type SharedValue } from 'react-native-reanimated';
 import { useReaderZoom } from './useReaderZoom';
 
 import { getPageRatio, rememberPageRatio } from '@/services/mangaImageCache';
@@ -37,21 +32,6 @@ export function FittedPage({
   );
   const [loading, setLoading] = useState(!decoded);
   const [progress, setProgress] = useState(0);
-  const [slowLoad, setSlowLoad] = useState(false);
-  const opacity = useSharedValue(1);
-
-  useEffect(() => {
-    let slowTimer: ReturnType<typeof setTimeout>;
-    if (loading && !decoded) {
-      slowTimer = setTimeout(() => {
-        setSlowLoad(true);
-        opacity.value = 0;
-      }, 2000);
-    }
-    return () => {
-      if (slowTimer) clearTimeout(slowTimer);
-    };
-  }, [loading, decoded, opacity]);
 
   const baseWidth = paged && ratio >= 0.5 ? Math.min(width, height * ratio) : width;
   // Row is only as wide as the page so empty letterbox isn't part of the layout.
@@ -60,14 +40,9 @@ export function FittedPage({
     onWidth?.(baseWidth);
     if (decoded) onHeight?.(baseWidth / ratio);
   }, [baseWidth, ratio, onHeight, onWidth, decoded]);
-  const image = useAnimatedStyle(() => ({
-    width: baseWidth,
-    height: baseWidth / ratio,
-    opacity: opacity.value,
-  }));
   return (
-    <Animated.View style={row}>
-      <Animated.View style={image}>
+    <View style={row}>
+      <View style={{ width: baseWidth, height: baseWidth / ratio }}>
         {page.imageUrl?.trim() ? (
           <>
             <Image
@@ -93,9 +68,6 @@ export function FittedPage({
                   setDecoded(true);
                 }
                 setLoading(false);
-                if (slowLoad) {
-                  opacity.value = withTiming(1, { duration: 300 });
-                }
               }}
               onError={() => setLoading(false)}
             />
@@ -120,8 +92,8 @@ export function FittedPage({
         ) : (
           <Text style={{ color: 'white', padding: 20 }}>Page image unavailable</Text>
         )}
-      </Animated.View>
-    </Animated.View>
+      </View>
+    </View>
   );
 }
 export function ZoomablePage({
