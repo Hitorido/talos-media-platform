@@ -295,23 +295,9 @@ export async function unifiedSearch(
   };
 }
 
-const SOURCE_EMOJIS = ['🦊', '🐱', '🐶', '🐰', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐵', '🐔', '🐧', '🦆', '🦢', '🦉', '🦜', '🦚', '🦩', '🦝', '🦨', '🦡', '🦦', '🦥', '🐳', '🐋', '🐬'];
-
-const providerSourceMap = new Map<string, string>();
-
-function getProviderSourceName(providerId: string): string {
-  if (!providerSourceMap.has(providerId)) {
-    const index = providerSourceMap.size;
-    const emoji = SOURCE_EMOJIS[index % SOURCE_EMOJIS.length];
-    providerSourceMap.set(providerId, `${emoji} Source ${index + 1}`);
-  }
-  return providerSourceMap.get(providerId)!;
-}
-
 export function getProviderDisplayName(providerId: string): string {
   initializeProviders();
-  // Return placeholder name instead of actual provider name
-  return getProviderSourceName(providerId);
+  return providerRegistry.get(providerId)?.definition.name ?? providerId;
 }
 
 export async function searchAlternateComicSources(params: {

@@ -19,7 +19,6 @@ import { Text } from '@/components/ui/Text';
 import { useSearch } from '@/hooks/useSearch';
 import { animeDetailsHref, mangaDetailsHref, novelDetailsHref } from '@/lib/routes';
 import { providerRegistry } from '@/providers';
-import { getProviderDisplayName } from '@/services/contentService';
 import type { SearchResult } from '@/types/search';
 
 export default function SearchScreen() {
@@ -44,12 +43,13 @@ export default function SearchScreen() {
   } = useSearch();
 
   const [genre, setGenre] = useState('All genres');
-  const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
+  const [source, setSource] = useState('All sources');
   const genres = [...new Set(results.flatMap((item: SearchResult) => item.tags))].sort();
   const allProviders = providerRegistry.list();
-  const sourceOptions = allProviders.map(p => ({ id: p.definition.id, name: getProviderDisplayName(p.definition.id) }));
-  const sources = ['All sources', ...sourceOptions.map(s => s.name)].sort();
+  const sources = ['All sources', ...allProviders.map(p => p.definition.name)].sort();
   const selectedGenre = genres.includes(genre) ? genre : 'All genres';
+  const selectedSource = sources.includes(source) ? source : 'All sources';
+  const selectedProviderId = selectedSource === 'All sources' ? null : allProviders.find(p => p.definition.name === selectedSource)?.definition.id;
   const filteredResults =
     selectedGenre === 'All genres' && !selectedProviderId
       ? results
@@ -59,6 +59,9 @@ export default function SearchScreen() {
             (!selectedProviderId || item.providerId === selectedProviderId),
         );
   const showResults = hasQuery && !error && results.length > 0;
+
+  // Always show filters, even on history page with no results
+  const showFilters = true;
 
   return (
     <Screen className="flex-1">
@@ -85,11 +88,7 @@ export default function SearchScreen() {
           {!error && showResults ? (
             <View className="px-4 pt-4">
               <GenreFilters genres={genres} value={selectedGenre} onChange={setGenre} />
-              <SourceFilter 
-                sources={sourceOptions.map(s => s.name)} 
-                value={selectedProviderId ? sourceOptions.find(s => s.id === selectedProviderId)?.name || 'All sources' : 'All sources'} 
-                onChange={(name) => setSelectedProviderId(name === 'All sources' ? null : sourceOptions.find(s => s.name === name)?.id || null)} 
-              />
+              <SourceFilter sources={sources} value={selectedSource} onChange={setSource} />
               <SearchResultsList
                 results={filteredResults}
                 query={query.trim()}
@@ -111,12 +110,12 @@ export default function SearchScreen() {
               keyboardShouldPersistTaps="handled"
               contentContainerClassName="flex-grow px-4 py-4"
             >
-              <GenreFilters genres={genres} value={selectedGenre} onChange={setGenre} />
-              <SourceFilter 
-                sources={sourceOptions.map(s => s.name)} 
-                value={selectedProviderId ? sourceOptions.find(s => s.id === selectedProviderId)?.name || 'All sources' : 'All sources'} 
-                onChange={(name) => setSelectedProviderId(name === 'All sources' ? null : sourceOptions.find(s => s.name === name)?.id || null)} 
-              />
+              {showFilters && (
+                <>
+                  <GenreFilters genres={genres} value={selectedGenre} onChange={setGenre} />
+                  <SourceFilter sources={sources} value={selectedSource} onChange={setSource} />
+                </>
+              )}
               <SearchHistoryList
                 history={history}
                 onSelect={selectHistoryItem}
