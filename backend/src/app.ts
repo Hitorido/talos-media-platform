@@ -6,6 +6,7 @@ import { prisma } from './config/prisma.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { initializeBackendProviders } from './providers/index.js';
 import { authRouter } from './routes/auth.routes.js';
+import cloudflareRouter from './routes/cloudflare.js';
 import { contentRouter } from './routes/content.routes.js';
 import { favoritesRouter } from './routes/favorites.routes.js';
 import { historyRouter } from './routes/history.routes.js';
@@ -90,6 +91,7 @@ export function createApp() {
   });
 
   app.use('/api/auth', authRouter);
+  app.use('/api/cloudflare', cloudflareRouter);
   app.use('/api/user', userRouter);
   app.use('/api/library', libraryRouter);
   app.use('/api/favorites', favoritesRouter);

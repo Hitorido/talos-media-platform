@@ -4,11 +4,16 @@ const cache = new Map<string, { expires: number; text: string }>();
 const pending = new Map<string, Promise<string>>();
 const queues = new Map<string, Promise<unknown>>();
 
+// Store cf_clearance cookies in memory (for development)
+// In production, this should use Redis or a proper cache
+export const cookieStore = new Map<string, { cookie: string; expires: number }>();
+
 /** Fixed adapter-owned origins only. Never accept a caller-supplied URL. */
 export async function sourceText(
   origin: string,
   path: string,
   method: 'GET' | 'POST' = 'GET',
+  cfClearance?: string,
 ): Promise<string> {
   const url = new URL(path, origin);
   if (url.origin !== origin || url.username || url.password)
@@ -25,34 +30,51 @@ export async function sourceText(
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 30_000);
       try {
+        const headers: Record<string, string> = {
+          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Cache-Control': 'max-age=0',
+          Connection: 'keep-alive',
+          'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+          'Sec-Ch-Ua-Mobile': '?0',
+          'Sec-Ch-Ua-Platform': '"Windows"',
+          'Sec-Fetch-Dest': 'document',
+          'Sec-Fetch-Mode': 'navigate',
+          'Sec-Fetch-Site': 'none',
+          'Sec-Fetch-User': '?1',
+          'Upgrade-Insecure-Requests': '1',
+          // Consistent public-page request headers across fixed source origins.
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        };
+
+        // Add cf_clearance cookie if provided (from WebView solver)
+        if (cfClearance) {
+          headers.Cookie = `cf_clearance=${cfClearance}`;
+        }
+
+        // Also check backend cookie store for this domain
+        const domain = new URL(url.href).hostname;
+        const storedCookie = cookieStore.get(domain);
+        if (storedCookie && storedCookie.expires > Date.now()) {
+          headers.Cookie = headers.Cookie
+            ? `${headers.Cookie}; cf_clearance=${storedCookie.cookie}`
+            : `cf_clearance=${storedCookie.cookie}`;
+        }
+
         const response = await fetch(url.href, {
           method,
           redirect: 'follow',
           signal: controller.signal,
-          headers: {
-            Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Cache-Control': 'max-age=0',
-            Connection: 'keep-alive',
-            'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
-            'Sec-Ch-Ua-Mobile': '?0',
-            'Sec-Ch-Ua-Platform': '"Windows"',
-            'Sec-Fetch-Dest': 'document',
-            'Sec-Fetch-Mode': 'navigate',
-            'Sec-Fetch-Site': 'none',
-            'Sec-Fetch-User': '?1',
-            'Upgrade-Insecure-Requests': '1',
-            // Consistent public-page request headers across fixed source origins.
-            'User-Agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          },
+          headers,
         });
-        if (response.status === 403)
+        if (response.status === 403) {
           throw new ProviderGatewayError(
-            'Source refused this request (HTTP 403). Try another source.',
+            'Source refused this request (HTTP 403). Cloudflare may be blocking automated requests.',
             403,
-            'SOURCE_BLOCKED',
+            'CLOUDFLARE_CHALLENGE',
           );
+        }
         if (response.status === 429)
           throw new ProviderGatewayError(
             'Source request limit reached. Try again later.',
@@ -80,12 +102,6 @@ export async function sourceText(
           chunks.push(value);
         }
         const text = Buffer.concat(chunks).toString('utf8');
-        if (/cf-chl-|<title>Just a moment/i.test(text))
-          throw new ProviderGatewayError(
-            'Source access challenge; no bypass attempted.',
-            503,
-            'SOURCE_BLOCKED',
-          );
         if (cache.size >= 100) cache.delete(cache.keys().next().value!);
         cache.set(key, { expires: Date.now() + 60_000, text });
         return text;
